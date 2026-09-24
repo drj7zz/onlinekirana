@@ -1,0 +1,23 @@
+node_modules/
+client/node_modules/
+server/node_modules/
+dist/
+client/dist/
+
+# Secrets — never commit these
+.env
+.env.*
+*.env
+!*.env.example
+atlas-credentials.env
+server/atlas-credentials.env
+
+# Uploaded user content (kept out of the repo)
+server/uploads/
+
+# Logs & OS cruft
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/
