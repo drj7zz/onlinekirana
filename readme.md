@@ -64,7 +64,7 @@ CLIENT_URL=http://localhost:5173,http://localhost:5174
 # Used by the seed script
 ADMIN_NAME=OnlineKirana Admin
 ADMIN_EMAIL=admin@onlinekirana.com
-ADMIN_PASSWORD=replace-with-a-unique-strong-password
+ADMIN_PASSWORD=ChangeMe@123
 ```
 
 Then:
@@ -82,7 +82,8 @@ npm install
 npm run dev            # app on http://localhost:5173
 ```
 
-Optionally set `VITE_API_URL` (e.g. in `client/.env`) if the API is not on `localhost:5000`.
+Each app has two env files: `.env.development` (used by `npm run dev`) and `.env.production` (used by `npm run build`).
+Set `VITE_API_URL` if the API is not on `localhost:5000`.
 `VITE_PARTNERS_URL` points at the partner portal (defaults to `http://localhost:5174`).
 
 ### 3. Partner portal (`/partners`)

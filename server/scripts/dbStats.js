@@ -1,4 +1,10 @@
-require('dotenv').config();
+require('dotenv').config({
+  path: require('path').join(
+    __dirname,
+    '..',
+    `.env.${process.env.NODE_ENV === 'production' || process.argv.includes('--prod') ? 'production' : 'development'}`
+  ),
+});
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');

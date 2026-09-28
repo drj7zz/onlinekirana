@@ -1,7 +1,19 @@
+const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+/**
+ * Load the mode-specific env file: `.env.development` by default, and
+ * `.env.production` when started with `--prod` (`npm start`, which is what
+ * Render/Railway run) or with NODE_ENV=production set in the environment.
+ *
+ * Real environment variables (host dashboard, CI) always win over the file, so
+ * a deployed host can override any value without touching the repo.
+ */
+const isProd =
+  process.env.NODE_ENV === 'production' || process.argv.includes('--prod');
+const envFile = path.join(__dirname, `.env.${isProd ? 'production' : 'development'}`);
+require('dotenv').config({ path: envFile });
 
 const app = express();
 const auth = require('./middleware/auth');

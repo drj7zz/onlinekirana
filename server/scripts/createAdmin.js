@@ -1,7 +1,13 @@
 // Creates (or upgrades) an admin user. Usage: npm run seed-admin
 // Admin login details come from .env (ADMIN_NAME / ADMIN_EMAIL / ADMIN_PASSWORD).
 // CLI args still win if provided: npm run seed-admin <email> <password> <name>
-require('dotenv').config();
+require('dotenv').config({
+  path: require('path').join(
+    __dirname,
+    '..',
+    `.env.${process.env.NODE_ENV === 'production' || process.argv.includes('--prod') ? 'production' : 'development'}`
+  ),
+});
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
