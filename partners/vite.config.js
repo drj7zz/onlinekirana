@@ -22,8 +22,8 @@ export default defineConfig(({ mode }) => {
     throw new Error(
       `\n\n  Missing environment ${missing.length > 1 ? 'variables' : 'variable'}: ` +
       `${missing.join(', ')}\n\n` +
-      `  Copy .env.example to .env and fill ${missing.length > 1 ? 'them' : 'it'} in:\n` +
-      `      cp .env.example .env\n\n` +
+      `  For local development, fill them in:\n` +
+      `      cp .env.example .env.development\n\n` +
       '  On Vercel, set them under Project -> Settings -> Environment Variables\n' +
       '  (they are read at BUILD time, so redeploy after changing them).\n'
     );
@@ -31,11 +31,20 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), tailwindcss()],
-    server: { port: 5174, host: true },
     resolve: {
       alias: {
         '@shared': path.resolve(__dirname, '../client/src'),
       },
+    },
+    // The `@shared` alias points at ../client/src, which lives OUTSIDE this app's
+    // root directory. Vite serves only files under the project root by default, and
+    // on Vercel the root directory is `partners` — so without this the dev server
+    // and the build both refuse to read the shared code and the portal fails to
+    // compile. Granting access to the repo root is what makes the alias work.
+    server: {
+      port: 5174,
+      host: true,
+      fs: { allow: [path.resolve(__dirname, '..')] },
     },
     build: { outDir: 'dist' },
   };

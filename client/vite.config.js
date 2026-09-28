@@ -17,8 +17,8 @@ export default defineConfig(({ mode }) => {
     throw new Error(
       `\n\n  Missing environment ${missing.length > 1 ? 'variables' : 'variable'}: ` +
       `${missing.join(', ')}\n\n` +
-      `  Copy .env.example to .env and fill ${missing.length > 1 ? 'them' : 'it'} in:\n` +
-      `      cp .env.example .env\n\n` +
+      `  For local development, fill them in:\n` +
+      `      cp .env.example .env.development\n\n` +
       '  On Vercel, set them under Project -> Settings -> Environment Variables\n' +
       '  (they are read at BUILD time, so redeploy after changing them).\n'
     );
