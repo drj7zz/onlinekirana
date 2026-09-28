@@ -64,7 +64,7 @@ CLIENT_URL=http://localhost:5173,http://localhost:5174
 # Used by the seed script
 ADMIN_NAME=OnlineKirana Admin
 ADMIN_EMAIL=admin@onlinekirana.com
-ADMIN_PASSWORD=ChangeMe@123
+ADMIN_PASSWORD=replace-with-a-unique-strong-password
 ```
 
 Then:

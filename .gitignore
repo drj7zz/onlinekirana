@@ -10,6 +10,12 @@ partners/dist/
 .env.*
 *.env
 !*.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.credentials
+secrets.*
 atlas-credentials.env
 server/atlas-credentials.env
 
@@ -22,6 +28,16 @@ logo.original.png
 # Logs & OS cruft
 *.log
 npm-debug.log*
+.envrc
 .DS_Store
 Thumbs.db
 .vscode/
+
+# Local QA/server scratch artifacts
+client/_qa-*.mjs
+client/_serve.mjs
+client/_serve.err
+partners/_serve.mjs
+partners/_serve.err
+partners/_c.png
+server/_api.err
