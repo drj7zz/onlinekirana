@@ -11,17 +11,17 @@
  * production, where they resolve to the visitor's own machine. Failing loudly at
  * startup is far better than a site whose every cross-app link is dead.
  *
- * Set them per environment in `.env` (see `.env.example`):
- *   client/.env     VITE_API_URL, VITE_PARTNERS_URL
- *   partners/.env   VITE_API_URL, VITE_STOREFRONT_URL
+ * Set them per environment in `.env.development` / `.env.production`:
+ *   client/     VITE_API_URL, VITE_PARTNERS_URL, VITE_STOREFRONT_URL
+ *   partners/   VITE_API_URL, VITE_STOREFRONT_URL
  */
 
 const required = (key) => {
   const v = import.meta.env[key];
   if (!v) {
     throw new Error(
-      `[config] ${key} is not set. Copy .env.example to .env and fill it in. ` +
-      'See the deployment notes in README for the production values.'
+      `[config] ${key} is not set. Fill it in .env.development (local) or .env.production ` +
+      '(build), or set it under Vercel -> Settings -> Environment Variables.'
     );
   }
   // strip a trailing slash so `${URL}/path` never produces a double slash

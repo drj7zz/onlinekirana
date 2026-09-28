@@ -10,7 +10,11 @@ export default defineConfig(({ mode }) => {
   // These are read at module scope (lib/apps.js, api.js), so a missing value
   // only blows up in the visitor's browser — as an unhandled throw and a blank
   // white page. Checking here makes it a build error naming the exact variable.
-  const REQUIRED = ['VITE_API_URL', 'VITE_PARTNERS_URL'];
+  //
+  // VITE_STOREFRONT_URL is included because lib/apps.js requires it too. Leaving
+  // it out let that one through the build and then throw at runtime instead —
+  // a blank screen with no console error, which is the worst possible failure.
+  const REQUIRED = ['VITE_API_URL', 'VITE_PARTNERS_URL', 'VITE_STOREFRONT_URL'];
   const missing = REQUIRED.filter((k) => !env[k]);
 
   if (missing.length) {
