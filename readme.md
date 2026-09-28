@@ -16,6 +16,10 @@ delivery — all priced in **Nepali Rupees (रू)** with **ward-wise delivery*
 |---|---|
 | **Multi-vendor** | Merchants register, get approved, set up a public shop page, and manage their own products and orders. |
 | **Admin moderation** | Admin approves partner applications and new/edited products before they appear in the shop. |
+| **Split apps** | The storefront (`:5173`) is shoppers-only. Merchants, riders and operations get their own portal (`:5174`) with a separate sign-in, enforced server-side via the login `scope`. |
+| **No paperwork** | No shop licence, PAN/VAT, citizenship or driving licence is required to join. A partner account is just a name, email, phone and password. |
+| **Self-service sign-up** | Shopkeepers *and* riders both apply from the same form, picking their role. Both land `pending`; an admin approves from the delivery desk. |
+| **One typeface** | Lato across both apps, loaded with preconnect so the render never waits on it. |
 | **Verified reviews** | One review per user per product. A review is marked **verified** only if the buyer has a *delivered* order for that product. |
 | **Role-based dashboards** | Same `/dashboard` route, three different views (customer / merchant / admin) rendered from one endpoint. |
 | **Live-ish updates** | Lists re-fetch on an interval while the tab is visible — orders and stock update without a page refresh. |
@@ -54,7 +58,8 @@ Create `server/.env`:
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/onlinekirana   # or your Atlas connection string
 JWT_SECRET=replace-with-a-long-random-string
-CLIENT_URL=http://localhost:5173
+# Allowed browser origins, comma-separated. Storefront :5173, partner portal :5174.
+CLIENT_URL=http://localhost:5173,http://localhost:5174
 
 # Used by the seed script
 ADMIN_NAME=OnlineKirana Admin
@@ -69,7 +74,7 @@ npm run seed-admin     # creates/upgrades the admin account from .env
 npm run dev            # API on http://localhost:5000
 ```
 
-### 2. Frontend (`/client`)
+### 2. Storefront (`/client`)
 
 ```bash
 cd client
@@ -78,13 +83,28 @@ npm run dev            # app on http://localhost:5173
 ```
 
 Optionally set `VITE_API_URL` (e.g. in `client/.env`) if the API is not on `localhost:5000`.
+`VITE_PARTNERS_URL` points at the partner portal (defaults to `http://localhost:5174`).
 
-### 3. Populate the store
+### 3. Partner portal (`/partners`)
 
-1. Log in as the admin.
+Everything that is not a shopper lives here: merchant shops, the delivery fleet, and
+the operations desk. It runs on its own port and shares core logic with the storefront
+by importing directly from `../client/src`.
+
+```bash
+cd partners
+npm install
+npm run dev            # portal on http://localhost:5174
+```
+
+`VITE_API_URL` and `VITE_STOREFRONT_URL` are both configurable via `partners/.env`.
+
+### 4. Populate the store
+
+1. Log in as the admin **in the partner portal** (`http://localhost:5174`).
 2. **Admin → Partners** — approve any merchant applications.
 3. **Admin → Products** — approve merchant-submitted products, or add your own (rice, dal, sabzi, oil…).
-4. Browse the store as a customer and place a test order.
+4. Browse the store as a customer on `http://localhost:5173` and place a test order.
 
 > ⚠️ **Change the admin password after first login.** Use a strong `JWT_SECRET` and set
 > `CLIENT_URL` to your real origin before deploying.
@@ -101,7 +121,19 @@ Optionally set `VITE_API_URL` (e.g. in `client/.env`) if the API is not on `loca
 
 **Order lifecycle**
 `pending → confirmed → packed → out_for_delivery → delivered` (or `cancelled`).
-Merchants may advance only `packed → out_for_delivery → delivered` for orders containing their items.
+
+**Merchant → rider handoff** (no phone calls at any step)
+1. Customer orders from a shop and picks a slot.
+2. The merchant taps **Mark packed** — the shopkeeper's *only* action. This kicks the auto-dispatcher.
+3. The least-busy rider who is on shift is assigned automatically; the job goes to `assigned` and the merchant can see the rider's name and phone.
+4. The rider taps **I've reached the shop** on arrival, then **Goods collected**.
+5. The customer sees the order move to *On the way* from their own account.
+6. At the door the rider reads out the customer's 4-digit hand-over code. Only that code completes the drop.
+
+If no rider is free the job stays `pending` and any rider on shift can claim it. The pool is
+re-drained automatically whenever capacity appears — when a rider comes on shift, when an admin
+approves one, and when a rider finishes a job and frees a slot. A rider who marks a job `failed`
+has it taken off them, the order returns to `packed`, and it is re-dispatched immediately.
 
 ---
 
@@ -112,8 +144,8 @@ Base URL: `/api`. All authenticated routes expect `Authorization: Bearer <token>
 ### Auth — `/api/auth`
 | Method | Route | Access | Notes |
 |---|---|---|---|
-| POST | `/register` | public | Create customer or merchant (never admin) |
-| POST | `/login` | public | Rate-limited; returns JWT + user |
+| POST | `/register` | public | Create a customer, merchant **or rider** (never admin). Partner roles start `pending` |
+| POST | `/login` | public | Rate-limited; returns JWT + user. Optional `scope`: `customer` (storefront) or `portal` (business app) — a role outside the scope is refused with 403 |
 | POST | `/password-strength` | public | Powers the client password meter |
 
 ### Catalogue — `/api/products`
@@ -186,14 +218,21 @@ onlinekirana/
 │   ├── utils/errors.js     safe, non-leaking error responses
 │   ├── scripts/            createAdmin (npm run seed-admin)
 │   └── uploads/            avatars · shops · products
-└── client/                 React + Vite SPA
-    ├── src/pages/          Home, ProductDetail, Cart, Checkout, Orders, Shop,
-    │                       ShopSetup, Partners, Dashboard, Admin*, Profile, Info…
-    ├── src/components/     Navbar, Footer, ProductCard, ReviewSection, ImageUpload,
-    │                       RoleGuard, AccessDenied, OrderCard, PasswordSecurity
-    ├── src/context/        AuthContext (session) · CartContext (cart)
-    ├── src/hooks/useLive.js
-    └── src/api.js          axios instance, token handling, image URL resolver
+├── client/                 React + Vite — the storefront (shoppers only, :5173)
+│   ├── src/pages/          Home, ProductDetail, Cart, Checkout, Orders, Shop,
+│   │                       Partners (public blog + join guide), Info…
+│   ├── src/components/     Navbar, Footer, ProductCard, ReviewSection, ImageUpload,
+│   │                       RoleGuard, AccessDenied, OrderCard, PasswordSecurity
+│   ├── src/context/        AuthContext (session) · CartContext (cart)
+│   ├── src/hooks/useLive.js
+│   └── src/api.js          axios instance, token handling, image URL resolver
+└── partners/               React + Vite — the business portal (:5174)
+    ├── src/pages/          Home, Faq, Join, Login, Register (public)
+    │                       Dashboard, ShopSetup, Products, Orders (merchant)
+    │                       RiderDashboard (delivery)
+    │                       AdminOrders, AdminProducts, AdminPartners, AdminDelivery (ops)
+    ├── src/components/     Navbar, Footer, RequireRole
+    └── vite.config.js      aliases @shared → ../client/src (no duplicated logic)
 ```
 
 For a deeper look at the stack, data model, security and design decisions, see
@@ -210,12 +249,23 @@ For a deeper look at the stack, data model, security and design decisions, see
 | `/shop/:id` | public | Public merchant shop page |
 | `/cart`, `/checkout` | cart / customer | Cart and checkout |
 | `/orders` | customer | Order history + live status |
-| `/partners` | merchant | Partner hub |
-| `/shop-setup` | merchant | Public shop profile |
-| `/dashboard` | any (role-aware) | Role-specific overview |
-| `/admin/products`, `/admin/orders`, `/admin/partners` | admin | Management |
-| `/login`, `/register`, `/profile` | mixed | Account |
+| `/partners` | public | Partner blog + join instructions |
+| `/dashboard`, `/profile` | any | Role-aware overview, profile |
+| `/login`, `/register` | public | Shopper accounts |
 | `/about`, `/faq`, `/contact` | public | Info |
+
+### Partner portal routes (`:5174`)
+
+| Route | Access | Purpose |
+|---|---|---|
+| `/`, `/faq`, `/join` | public | Portal landing, FAQ, step-by-step join guide |
+| `/register` | public | One form for both partner kinds — shop or rider |
+| `/pending` | signed in | "Application received" notice, shown after sign-up |
+| `/login` | public | Merchant, rider and admin sign-in (`scope: 'portal'`) |
+| `/dashboard` | merchant, delivery, admin | Role-shaped overview |
+| `/shop-setup`, `/products`, `/orders` | merchant | Shop page, catalogue, fulfilment |
+| `/rider` | delivery | Shifts, open jobs, earnings |
+| `/admin/orders`, `/admin/products`, `/admin/partners`, `/admin/delivery` | admin | Operations desk |
 
 ---
 
@@ -226,9 +276,18 @@ For a deeper look at the stack, data model, security and design decisions, see
 | server | `npm run dev` | Start API with nodemon |
 | server | `npm start` | Start API (production) |
 | server | `npm run seed-admin` | Create/upgrade the admin user from `.env` |
-| client | `npm run dev` | Vite dev server |
+| server | `npm run cleanup-test-accounts` | Dry run by default; `--apply` deletes throwaway test accounts and their data |
+| client | `npm run dev` | Storefront dev server (`:5173`) |
 | client | `npm run build` | Production build |
+| client | `npm run lint` | ESLint (catches missing imports that only fail at runtime) |
 | client | `npm run preview` | Preview the built app |
+| partners | `npm run dev` | Partner portal dev server (`:5174`) |
+| partners | `npm run build` | Production build |
+| partners | `npm run lint` | ESLint |
+
+> **Run `npm run lint` before shipping.** Vite does not type-check, so a missing
+> import builds cleanly and then blanks the page in the browser. ESLint is the
+> only thing that catches it earlier.
 
 ---
 

@@ -1,0 +1,77 @@
+[unhandled error] Error: Origin not allowed by CORS
+    at origin (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\server.js:45:17)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:219:13
+    at optionsCallback (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:199:9)
+    at corsMiddleware (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:204:7)
+    at Layer.handle [as handle_request] (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\middleware\init.js:40:5)
+[unhandled error] Error: Origin not allowed by CORS
+    at origin (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\server.js:45:17)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:219:13
+    at optionsCallback (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:199:9)
+    at corsMiddleware (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:204:7)
+    at Layer.handle [as handle_request] (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\middleware\init.js:40:5)
+[unhandled error] Error: Origin not allowed by CORS
+    at origin (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\server.js:45:17)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:219:13
+    at optionsCallback (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:199:9)
+    at corsMiddleware (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:204:7)
+    at Layer.handle [as handle_request] (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\middleware\init.js:40:5)
+[unhandled error] Error: Origin not allowed by CORS
+    at origin (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\server.js:45:17)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:219:13
+    at optionsCallback (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:199:9)
+    at corsMiddleware (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:204:7)
+    at Layer.handle [as handle_request] (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\middleware\init.js:40:5)
+[unhandled error] Error: Origin not allowed by CORS
+    at origin (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\server.js:45:17)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:219:13
+    at optionsCallback (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:199:9)
+    at corsMiddleware (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:204:7)
+    at Layer.handle [as handle_request] (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\middleware\init.js:40:5)
+[unhandled error] Error: Origin not allowed by CORS
+    at origin (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\server.js:45:17)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:219:13
+    at optionsCallback (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:199:9)
+    at corsMiddleware (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\cors\lib\index.js:204:7)
+    at Layer.handle [as handle_request] (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\layer.js:95:5)
+    at trim_prefix (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:328:13)
+    at C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:286:9
+    at router.process_params (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:346:12)
+    at next (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\router\index.js:280:10)
+    at expressInit (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\express\lib\middleware\init.js:40:5)
+[server error] CastError: Cast to ObjectId failed for value "chino-eggs-6ab9ceeabb4090cfa1c8cb1b" (type string) at path "_id" for model "Product"
+    at SchemaObjectId.cast (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\schema\objectId.js:253:11)
+    at SchemaType.applySetters (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\schemaType.js:1288:12)
+    at SchemaType.castForQuery (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\schemaType.js:1718:17)
+    at cast (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\cast.js:390:32)
+    at Query.cast (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\query.js:5055:12)
+    at Query._castConditions (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\query.js:2374:10)
+    at model.Query._findOne (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\query.js:2697:8)
+    at model.Query.exec (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\node_modules\mongoose\lib\query.js:4622:80)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async exports.getOne (C:\Users\girid\OneDrive\Documents\Desktop\birgunj\onlinekirana\server\controllers\productController.js:52:21)

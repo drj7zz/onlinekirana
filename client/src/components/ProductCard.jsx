@@ -1,16 +1,18 @@
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Leaf } from 'lucide-react';
+import { Leaf } from 'lucide-react';
 import { imageUrl } from '../api';
-import { useCart } from '../context/CartContext';
 import { Stars } from '../pages/ProductDetail';
+import AddToCartButton from './AddToCartButton';
+import { finalPrice, listPrice, discountBadge, rupees } from '../lib/pricing';
+import { productPath } from '../lib/productUrl';
 
 export default function ProductCard({ product }) {
-  const { add } = useCart();
   const out = product.stock <= 0;
+  const off = discountBadge(product);
 
   return (
     <div className="card">
-      <Link to={`/product/${product._id}`}>
+      <Link to={productPath(product)}>
         {product.imageUrl
           ? <img
               src={imageUrl(product.imageUrl)}
@@ -21,20 +23,24 @@ export default function ProductCard({ product }) {
         <div className="img-placeholder" hidden={!!product.imageUrl}><Leaf size={40} aria-hidden="true" /></div>
         <h3>{product.name}</h3>
       </Link>
-      {product.ratingCount > 0 && (
-        <span className="card-rating">
-          <Stars value={product.ratingAverage} size={12} />
-          <span className="muted">({product.ratingCount})</span>
-        </span>
-      )}
+      {/* Always render the rating row so cards with and without reviews occupy
+          the same height; without this the rows below sit at different offsets. */}
+      <span className="card-rating" aria-hidden={product.ratingCount === 0}>
+        {product.ratingCount > 0 ? (
+          <>
+            <Stars value={product.ratingAverage} size={12} />
+            <span className="muted">({product.ratingCount})</span>
+          </>
+        ) : null}
+      </span>
       <p className="muted">{product.category} · per {product.unit}</p>
       <div className="price-row">
-        {product.discountPercent > 0 && <span className="strike">रू {product.price}</span>}
-        <span className="price">रू {product.finalPrice ?? product.price}</span>
-        {product.discountPercent > 0 && <span className="off">-{product.discountPercent}%</span>}
+        {off && <span className="strike">{rupees(listPrice(product))}</span>}
+        <span className="price">{rupees(finalPrice(product))}</span>
+        {off && <span className="off">{off}</span>}
       </div>
       <p className={out ? 'stock-out' : 'muted'}>{out ? 'Out of stock' : `${product.stock} in stock`}</p>
-      <button disabled={out} onClick={() => add(product)}><ShoppingCart size={16} aria-hidden="true" /> Add to cart</button>
+      <AddToCartButton product={product} compact />
     </div>
   );
 }

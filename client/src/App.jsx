@@ -10,21 +10,21 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Shop from './pages/Shop';
-import ShopSetup from './pages/ShopSetup';
-import Partners from './pages/Partners';
 import Dashboard from './pages/Dashboard';
-import AdminProducts from './pages/AdminProducts';
-import AdminOrders from './pages/AdminOrders';
-import AdminPartners from './pages/AdminPartners';
 import Info from './pages/Info';
 import NotFound from './pages/NotFound';
 import RoleGuard from './components/RoleGuard';
 
+/**
+ * The storefront. Shoppers only — the merchant, delivery and operations
+ * workspaces live in the separate partners app (VITE_PARTNERS_URL).
+ * The partner sign-up journey is reached from that app, not from here.
+ */
 export default function App() {
   return (
-    <>
+    <div className="app-shell">
       <Navbar />
-      <main className="container">
+      <main className="container app-main">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/dashboard" element={<RoleGuard><Dashboard /></RoleGuard>} />
@@ -36,11 +36,6 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<RoleGuard><Profile /></RoleGuard>} />
           <Route path="/shop/:id" element={<Shop />} />
-          <Route path="/shop-setup" element={<RoleGuard role="merchant"><ShopSetup /></RoleGuard>} />
-          <Route path="/partners" element={<RoleGuard role="merchant"><Partners /></RoleGuard>} />
-          <Route path="/admin/products" element={<RoleGuard role="admin"><AdminProducts /></RoleGuard>} />
-          <Route path="/admin/orders" element={<RoleGuard role="admin"><AdminOrders /></RoleGuard>} />
-          <Route path="/admin/partners" element={<RoleGuard role="admin"><AdminPartners /></RoleGuard>} />
           <Route path="/about" element={<Info page="about" />} />
           <Route path="/faq" element={<Info page="faq" />} />
           <Route path="/contact" element={<Info page="contact" />} />
@@ -48,6 +43,6 @@ export default function App() {
         </Routes>
       </main>
       <Footer />
-    </>
+    </div>
   );
 }

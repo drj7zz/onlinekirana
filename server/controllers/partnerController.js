@@ -1,6 +1,8 @@
 const Product = require('../models/Product');
 const Order = require('../models/Order');
+const Delivery = require('../models/Delivery');
 const { serverError } = require('../utils/errors');
+const deliveryController = require('./deliveryController');
 
 // Guard: only approved merchants can manage products
 exports.requireMerchant = (req, res, next) => {
@@ -70,24 +72,58 @@ exports.remove = async (req, res) => {
 // Orders that contain this merchant's items — merchant can advance packing/delivery
 exports.myOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ 'items.merchant': req.user.id }).sort({ createdAt: -1 });
+    const orders = await Order.find({ 'items.merchant': req.user.id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Join the delivery job so the shopkeeper can see which rider is coming and
+    // whether they have reached the counter yet. That visibility is what makes
+    // the pack → hand-over handoff work without a phone call. Done by hand
+    // because the job hangs off Delivery.order, not a back-reference on Order.
+    const jobs = await Delivery.find({ order: { $in: orders.map((o) => o._id) } })
+      .select('order status rider completedBy slot')
+      .populate('rider', 'name phone riderVehicle')
+      .lean();
+
+    const byOrder = new Map(jobs.map((j) => [String(j.order), j]));
+    for (const o of orders) o.delivery = byOrder.get(String(o._id)) || null;
+
     res.json(orders);
   } catch (e) {
     serverError(res, e);
   }
 };
 
+/**
+ * The merchant's only lever.
+ *
+ * A shopkeeper packs goods — that is it. Everything after `packed` belongs to
+ * the delivery system, so the customer sees progress without the shopkeeper
+ * having to touch the screen again. Packing kicks the auto-dispatcher, which
+ * finds a rider, tells them to come to the counter, and hands them the job.
+ */
 exports.updateOrderStatus = async (req, res) => {
   try {
-    const allowed = ['packed', 'out_for_delivery', 'delivered'];
+    const allowed = ['packed'];
     if (!allowed.includes(req.body.status)) {
-      return res.status(403).json({ message: `Partners can only set status to: ${allowed.join(', ')}` });
+      return res.status(403).json({
+        message: `Packing is the only step you set. Delivery updates itself once packed.`,
+      });
     }
     const order = await Order.findOne({ _id: req.params.id, 'items.merchant': req.user.id });
     if (!order) return res.status(404).json({ message: 'Order not found among your orders' });
-    order.status = req.body.status;
+    if (['cancelled', 'delivered'].includes(order.status)) {
+      return res.status(409).json({ message: `Order is already ${order.status}` });
+    }
+    if (order.status === 'packed') return res.json(order);
+
+    order.status = 'packed';
+    order.packedAt = new Date();
     await order.save();
-    res.json(order);
+
+    const delivery = await deliveryController.dispatchForOrder(order._id);
+
+    res.json({ order, delivery });
   } catch (e) {
     serverError(res, e);
   }

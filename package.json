@@ -1,0 +1,13 @@
+{
+  "name": "onlinekirana-tools",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Repo-root build/asset tooling for Online Kirana (client, partners, server live in subfolders)",
+  "type": "module",
+  "scripts": {
+    "logo": "node _logo-tool.mjs"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.4"
+  }
+}

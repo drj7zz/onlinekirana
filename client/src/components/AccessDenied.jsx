@@ -18,6 +18,10 @@ const ROLE_CONTEXT = {
     title: 'Partner area',
     body: 'This area is for registered shop partners. You can keep shopping or apply to become a partner.',
   },
+  delivery: {
+    title: 'Delivery partner area',
+    body: 'This area is for OnlineKirana delivery partners. You can keep shopping or ask the team to sign you up as a rider.',
+  },
   customer: {
     title: 'Customer area',
     body: 'This area is for customer accounts. Head to your dashboard to manage your account.',

@@ -1,14 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, CircleCheck, Ban, CircleX } from 'lucide-react';
-import API from '../api';
-import { useAuth } from '../context/AuthContext';
-import { useLive } from '../hooks/useLive';
+import { Clock, CircleCheck, Ban } from 'lucide-react';
+import API from '@shared/api';
+import { useAuth } from '@shared/context/AuthContext';
+import { useLive } from '@shared/hooks/useLive';
 
 const statusIcon = { pending: <Clock size={14} color="#f9a825" />, approved: <CircleCheck size={14} color="#2e7d32" />, suspended: <Ban size={14} color="#c62828" /> };
 const partnerLabel = { pending: 'Pending', approved: 'Approved', suspended: 'Suspended' };
-const prodLabel = { pending: 'Pending review', approved: 'Live', rejected: 'Rejected' };
-const prodIcon = { pending: <Clock size={14} color="#f9a825" />, approved: <CircleCheck size={14} color="#2e7d32" />, rejected: <CircleX size={14} color="#c62828" /> };
 
 export default function AdminPartners() {
   const { user } = useAuth();
@@ -38,7 +36,7 @@ export default function AdminPartners() {
         <div key={p._id} className="order-card">
           <div className="order-head">
             <strong>{p.name}</strong>
-            <span>{p.category} · रू {p.price}/{p.unit} · stock {p.stock}</span>
+            <span>{p.category} · NPR ₹ {p.price}/{p.unit} · stock {p.stock}</span>
             <span className="muted">by {p.merchant?.shopName || p.merchant?.name || 'unknown'}</span>
           </div>
           <p>{p.description}</p>

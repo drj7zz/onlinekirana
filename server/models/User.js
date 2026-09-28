@@ -12,7 +12,13 @@ const userSchema = new mongoose.Schema({
     ward: String,
   },
   avatarUrl: { type: String, default: '' },
-  role: { type: String, enum: ['customer', 'merchant', 'admin'], default: 'customer' },
+  // 'delivery' riders are staff of the delivery desk, not shop owners
+  role: { type: String, enum: ['customer', 'merchant', 'delivery', 'admin'], default: 'customer' },
+  // delivery rider (partner) fields — only used when role === 'delivery'
+  // A rider is onboarded pending, then an admin marks them available.
+  riderArea: { type: String, trim: true, default: '' },       // home ward / area they cover
+  riderStatus: { type: String, enum: ['pending', 'available', 'on_delivery', 'offline', 'suspended'], default: 'pending' },
+  riderVehicle: { type: String, trim: true, default: '' },     // e.g. "Bike", "Cycle", "E-cargo"
   // merchant (partner) fields — only used when role === 'merchant'
   shopName: { type: String, trim: true },
   merchantStatus: { type: String, enum: ['pending', 'approved', 'suspended'], default: 'pending' },

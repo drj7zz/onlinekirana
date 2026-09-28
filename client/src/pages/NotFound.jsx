@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { Compass, ArrowRight, Home, ShoppingCart } from 'lucide-react';
+ import { Link } from 'react-router-dom';
+import { Compass, Home, ShoppingCart } from 'lucide-react';
 
 // Friendly 404 — no route names, stack traces or developer wording.
 export default function NotFound() {

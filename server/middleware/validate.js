@@ -36,7 +36,13 @@ function validateRegister(req, res, next) {
   b.email = cleanStr(b.email, 100).toLowerCase();
   if (b.shopName !== undefined) b.shopName = cleanStr(b.shopName, 80);
   if (b.phone !== undefined) b.phone = cleanStr(b.phone, 15);
-  if (b.role !== undefined) b.role = b.role === 'merchant' ? 'merchant' : undefined; // role can ONLY become merchant via this endpoint — never admin
+  // role can ONLY become 'merchant' here — never 'admin' or 'delivery'.
+  // Public sign-up may create a shopkeeper or a rider — never an admin. Both
+  // start life `pending` and are approved from the portal, so no one can
+  // self-grant a working account.
+  if (b.role !== undefined) {
+    b.role = ['merchant', 'delivery'].includes(b.role) ? b.role : undefined;
+  }
 
   if (!b.name || !NAME_RE.test(b.name)) errors.name = 'Enter a valid name (letters, 2–60 chars)';
   if (!EMAIL_RE.test(b.email)) errors.email = 'Enter a valid email address';
@@ -44,6 +50,12 @@ function validateRegister(req, res, next) {
   if (pwErrors.length) errors.password = pwErrors.join(', ');
   if (b.phone && !PHONE_RE.test(b.phone)) errors.phone = 'Enter a valid Nepali mobile (98XXXXXXXX)';
   if (b.role === 'merchant' && !b.shopName) errors.shopName = 'Shop name is required for partners';
+  if (b.role === 'delivery') {
+    // A rider needs to be reachable on the day, so a phone is not optional.
+    if (!b.phone) errors.phone = 'Riders need a phone number customers can reach you on';
+    if (b.riderArea) b.riderArea = cleanStr(b.riderArea, 60);
+    if (b.riderVehicle) b.riderVehicle = cleanStr(b.riderVehicle, 40);
+  }
   if (b.address?.line) b.address.line = cleanStr(b.address.line, 200);
   if (b.address?.ward) b.address.ward = cleanStr(b.address.ward, 20);
 

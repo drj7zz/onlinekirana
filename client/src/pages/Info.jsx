@@ -1,27 +1,148 @@
+
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Info as InfoIcon, Mail, Phone, MapPin, Clock, ChevronDown,
   Store, Truck, ShieldCheck, Send, CheckCircle2, FileText,
+  ShoppingCart, Wallet, RotateCcw, UserCircle2,
 } from 'lucide-react';
 
-const FAQS = [
-  { id: 'order', q: 'How do I place an order?', a: 'Browse or search for groceries on the shopfront, add items to your cart, then go to checkout. Confirm your Birgunj delivery address and place the order. You can browse without an account, but you must log in to check out.' },
-  { id: 'delivery', q: 'Where do you deliver and what does it cost?', a: 'We deliver across Birgunj Sub-Metropolitan City. Delivery is free above रू 1,000; a flat रू 50 applies below that. Orders placed before 6:00 PM qualify for same-day delivery.' },
-  { id: 'payment', q: 'What payment methods do you accept?', a: 'Cash on Delivery (COD) is available across Birgunj, and you can also pay digitally via eSewa. Pick your method at checkout.' },
-  { id: 'returns', q: 'What is the return and refund policy?', a: 'Fresh produce can be returned at the doorstep if it does not meet expectations. For packaged items, report any issue within 24 hours of delivery for a replacement or refund.' },
-  { id: 'partner', q: 'How do I sell on OnlineKirana?', a: 'Register as a partner, complete your shop profile, and submit it for review. Once an admin approves your shop, you can list products and receive orders directly.' },
+const CATEGORIES = [
+  {
+    name: 'Ordering',
+    icon: ShoppingCart,
+    faqs: [
+      {
+        id: 'order',
+        q: 'How do I place an order?',
+        a: [
+          'Browse or search the shopfront, open a product, choose your quantity and press “Add to cart”. Your cart keeps everything in one place — you can adjust quantities or remove items at any time.',
+          'When you are ready, press “Go to checkout”. Confirm your Birgunj delivery address and phone number, pick a payment method and place the order. You can browse without an account, but you must log in to check out.',
+        ],
+      },
+      {
+        id: 'change-order',
+        q: 'Can I change or cancel my order after placing it?',
+        a: [
+          'Yes — as long as the order has not been packed for delivery. Open My orders, find the order and press “Cancel” while it is still pending.',
+          'Once a shop has packed your order (status “packed” or beyond) it can no longer be cancelled online, but you can still refuse fresh produce at the doorstep.',
+        ],
+      },
+      {
+        id: 'stock',
+        q: 'What if an item goes out of stock after I order?',
+        a: [
+          'Shops confirm your order against real stock before packing. If something is unavailable, that item is refunded automatically and the rest of your order is delivered — you are never left waiting for the whole order because of one item.',
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Delivery',
+    icon: Truck,
+    faqs: [
+      {
+        id: 'delivery',
+        q: 'Where do you deliver and what does it cost?',
+        a: [
+          'We deliver across all wards of Birgunj Sub-Metropolitan City. Delivery is free on orders above रू 1,000; a flat रू 50 applies below that.',
+          'Orders placed before 6:00 PM qualify for same-day delivery. After that, your order arrives the next morning.',
+        ],
+      },
+      {
+        id: 'track',
+        q: 'How do I track my order?',
+        a: [
+          'Open My orders from the account menu. Every order shows its live status: pending → confirmed → packed → out for delivery → delivered, with the rider assigned once it is on the road.',
+        ],
+      },
+      {
+        id: 'missed',
+        q: 'What happens if I miss the delivery?',
+        a: [
+          'The rider calls you at the number on your profile before arriving. If you miss the call, the rider waits a few minutes and tries once more the same day. After that, the order returns to the shop and is refunded.',
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Payments',
+    icon: Wallet,
+    faqs: [
+      {
+        id: 'payment',
+        q: 'What payment methods do you accept?',
+        a: [
+          'Cash on Delivery (COD) is available across Birgunj — pay the rider in cash or with a QR scan at your door.',
+          'You can also pay digitally with eSewa at checkout, which confirms your order instantly.',
+        ],
+      },
+      {
+        id: 'prices',
+        q: 'Are the prices shown final?',
+        a: [
+          'Yes. The price you see is per unit (kg, litre, piece) and the checkout total — including delivery — is final. If a shop’s price changed after you ordered, you are charged the price shown at checkout.',
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Returns & refunds',
+    icon: RotateCcw,
+    faqs: [
+      {
+        id: 'returns',
+        q: 'What is the return and refund policy?',
+        a: [
+          'Fresh produce can be inspected at the doorstep and returned immediately if it does not meet your expectation — you pay nothing for it.',
+          'For packaged items, report any issue within 24 hours of delivery from My orders → “Report a problem”, and we will arrange a replacement or refund.',
+        ],
+      },
+      {
+        id: 'refund-speed',
+        q: 'How fast are refunds?',
+        a: [
+          'eSewa refunds land back in your wallet within 1–2 working days. COD refunds are returned in cash by the rider on your next delivery, or by bank transfer if you prefer.',
+        ],
+      },
+    ],
+  },
+  {
+    name: 'Account',
+    icon: UserCircle2,
+    faqs: [
+      {
+        id: 'account',
+        q: 'How do I update my details or delivery address?',
+        a: [
+          'Open the account menu (top-right) → “My profile”. Your saved name, phone and default address are filled in automatically at checkout, so keeping them current makes every order faster.',
+        ],
+      },
+      {
+        id: 'partner',
+        q: 'How do I sell on OnlineKirana?',
+        a: [
+          'Register as a partner, complete your shop profile, and submit it for review. Once an admin approves your shop, you can list products and receive orders directly. See the “Partner with us” page for the full walk-through.',
+        ],
+      },
+    ],
+  },
 ];
 
 export default function Info({ page = 'about' }) {
   const { hash } = useLocation();
-  const [open, setOpen] = useState(0);
+  const [open, setOpen] = useState(null);
 
-  // jump to the right anchor when arriving from a deep link
+  // jump to the right anchor when arriving from a deep link — also open it
   useEffect(() => {
     if (hash) {
       const el = document.querySelector(hash);
-      if (el) el.scrollIntoView({ behavior: 'smooth' });
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const btn = el.querySelector('.faq-q');
+        const qid = btn?.dataset.qid;
+        if (qid) setOpen(qid);
+      }
     } else {
       window.scrollTo({ top: 0 });
     }
@@ -29,22 +150,43 @@ export default function Info({ page = 'about' }) {
 
   if (page === 'faq') {
     return (
-      <div className="info-page">
+      <div className="info-page faq-page">
         <header className="info-head">
           <InfoIcon size={26} aria-hidden="true" />
           <h1>Help &amp; FAQ</h1>
-          <p className="muted">Everything you need to know about ordering, delivery and payments.</p>
+          <p className="muted">Everything you need to know about ordering, delivery, payments and your account.</p>
         </header>
-        <div className="info-faq">
-          {FAQS.map((f, i) => (
-            <div key={f.id} id={f.id} className={`faq-item${open === i ? ' open' : ''}`}>
-              <button type="button" className="faq-q" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>
-                {f.q}<ChevronDown size={17} aria-hidden="true" />
-              </button>
-              {open === i && <p className="faq-a">{f.a}</p>}
+
+        {CATEGORIES.map((cat) => (
+          <section key={cat.name} className="faq-category" aria-labelledby={`faq-${cat.name}`}>
+            <h2 id={`faq-${cat.name}`}><cat.icon size={18} aria-hidden="true" /> {cat.name}</h2>
+            <div className="info-faq">
+              {cat.faqs.map((f) => {
+                const isOpen = open === f.id;
+                return (
+                  <div key={f.id} id={f.id} className={`faq-item${isOpen ? ' open' : ''}`}>
+                    <button
+                      type="button"
+                      className="faq-q"
+                      data-qid={f.id}
+                      aria-expanded={isOpen}
+                      onClick={() => setOpen(isOpen ? null : f.id)}
+                    >
+                      <span>{f.q}</span>
+                      <ChevronDown size={17} aria-hidden="true" />
+                    </button>
+                    <div className={`faq-body${isOpen ? ' open' : ''}`}>
+                      <div className="faq-a">
+                        {f.a.map((p) => <p key={p.slice(0, 24)}>{p}</p>)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </section>
+        ))}
+
         <p className="info-cta">Still need help? <Link to="/contact" className="shop-link">Contact support →</Link></p>
       </div>
     );

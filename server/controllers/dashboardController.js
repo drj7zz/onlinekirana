@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Delivery = require('../models/Delivery');
 const { serverError } = require('../utils/errors');
 
 // One endpoint, three shapes — based on the caller's role
@@ -9,7 +10,7 @@ exports.stats = async (req, res) => {
     const role = req.user.role;
 
     if (role === 'admin') {
-      const [products, pendingProducts, partners, pendingPartners, orders, newOrders, deliveredOrders, revenueAgg] = await Promise.all([
+      const [products, pendingProducts, partners, pendingPartners, orders, newOrders, deliveredOrders, revenueAgg, unassigned, onRoad, ridersOnline] = await Promise.all([
         Product.countDocuments({}),
         Product.countDocuments({ status: 'pending' }),
         User.countDocuments({ role: 'merchant' }),
@@ -21,6 +22,10 @@ exports.stats = async (req, res) => {
           { $match: { status: { $ne: 'cancelled' } } },
           { $group: { _id: null, total: { $sum: '$total' } } },
         ]),
+        // delivery desk: what needs a person right now
+        Delivery.countDocuments({ rider: null, status: 'pending' }),
+        Delivery.countDocuments({ status: { $in: ['assigned', 'accepted', 'picked'] } }),
+        User.countDocuments({ role: 'delivery', riderStatus: { $in: ['available', 'on_delivery'] } }),
       ]);
       const recentOrders = await Order.find({}).sort({ createdAt: -1 }).limit(5).populate('user', 'name');
       return res.json({
@@ -34,6 +39,9 @@ exports.stats = async (req, res) => {
           { key: 'newOrders', label: 'New orders', value: newOrders, accent: newOrders > 0 },
           { key: 'delivered', label: 'Delivered', value: deliveredOrders },
           { key: 'revenue', label: 'Revenue (रू)', value: revenueAgg[0]?.total || 0 },
+          { key: 'unassigned', label: 'Deliveries waiting', value: unassigned, accent: unassigned > 0 },
+          { key: 'onRoad', label: 'Out on the road', value: onRoad },
+          { key: 'ridersOnline', label: 'Riders online', value: ridersOnline },
         ],
         recentOrders,
       });
@@ -63,6 +71,30 @@ exports.stats = async (req, res) => {
           { key: 'myOrders', label: 'Orders with my items', value: myOrders },
           { key: 'activeOrders', label: 'To fulfil', value: activeOrders, accent: activeOrders > 0 },
           { key: 'revenue', label: 'My sales (रू)', value: Math.round((revenueAgg[0]?.total || 0) * 100) / 100 },
+        ],
+        recentOrders,
+      });
+    }
+
+    if (role === 'delivery') {
+      const id = req.user.id;
+      const [activeJobs, doneJobs, openJobs, feesAgg] = await Promise.all([
+        Delivery.countDocuments({ rider: mongooseId(id), status: { $in: ['assigned', 'accepted', 'picked'] } }),
+        Delivery.countDocuments({ rider: mongooseId(id), status: 'delivered' }),
+        Delivery.countDocuments({ rider: null, status: 'pending' }),
+        Delivery.aggregate([
+          { $match: { rider: mongooseId(id), status: 'delivered' } },
+          { $group: { _id: null, total: { $sum: '$fee' } } },
+        ]),
+      ]);
+      const recentOrders = await Delivery.find({ rider: mongooseId(id) }).sort({ createdAt: -1 }).limit(5);
+      return res.json({
+        role,
+        cards: [
+          { key: 'activeJobs', label: 'Jobs in hand', value: activeJobs, accent: activeJobs > 0 },
+          { key: 'openJobs', label: 'Open jobs nearby', value: openJobs },
+          { key: 'doneJobs', label: 'Delivered', value: doneJobs },
+          { key: 'fees', label: 'Fees earned (रू)', value: Math.round((feesAgg[0]?.total || 0) * 100) / 100 },
         ],
         recentOrders,
       });

@@ -1,7 +1,17 @@
 import axios from 'axios';
 
-// Configurable so the same build works in dev and production (set VITE_API_URL at build time).
-export const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/+$/, '');
+// The API origin, supplied by the environment so one source works in dev and in
+// production. Required rather than defaulted: a build missing VITE_API_URL would
+// otherwise silently point every request — including uploads — at localhost.
+export const API_BASE = (() => {
+  const v = import.meta.env.VITE_API_URL;
+  if (!v) {
+    throw new Error(
+      '[config] VITE_API_URL is not set. Copy .env.example to .env and fill it in.'
+    );
+  }
+  return v.replace(/\/+$/, '');
+})();
 
 // Resolve any stored image value into a browser-loadable URL.
 // Handles every shape we actually store:

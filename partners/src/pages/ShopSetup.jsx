@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Store, Save, ExternalLink, CircleCheck, TriangleAlert, Image as ImageIcon } from 'lucide-react';
-import API, { imageUrl } from '../api';
-import { useAuth } from '../context/AuthContext';
-import ImageUpload from '../components/ImageUpload';
+import API, { imageUrl } from '@shared/api';
+import { useAuth } from '@shared/context/AuthContext';
+import ImageUpload from '@shared/components/ImageUpload';
 
 const empty = { shopName: '', description: '', phone: '', logoUrl: '', line: '', ward: '' };
 
@@ -89,7 +89,7 @@ export default function ShopSetup() {
             <input value={form.line} onChange={set('line')} placeholder="e.g. Main Road, Adarsh Nagar" />
           </label>
           <label>Ward No. (Birgunj)
-            <input value={form.ward} onChange={set('ward')} placeholder="e.g. 10" />
+            <input value={form.ward} onChange={set('ward')} placeholder="e.g.10" />
           </label>
           {msg && <p className={msg.ok ? 'save-msg' : 'error'}>{msg.ok ? <CircleCheck size={14} aria-hidden="true" /> : <TriangleAlert size={14} aria-hidden="true" />} {msg.text}</p>}
           <button type="submit" className="cta-btn" disabled={saving}>

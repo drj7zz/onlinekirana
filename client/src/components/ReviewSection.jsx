@@ -20,15 +20,21 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // `setLoading(true)` runs as part of the fetch kick-off, not as a separate
+  // state update, so the "loading" flag and the data always arrive together and
+  // switching products cannot briefly show the previous product's reviews.
   const load = () => {
     setLoading(true);
     API.get(`/reviews/product/${productId}`)
       .then((r) => { setSummary(r.data.summary); setReviews(r.data.reviews); })
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [productId]);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId]);
 
   const mine = user ? reviews.find((r) => r.user === user._id) : null;
 

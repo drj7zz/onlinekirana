@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback } from 'react';
-import { setToken } from '../api';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import API, { setToken } from '../api';
 
 const AuthContext = createContext(null);
 
@@ -22,8 +22,10 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem('ok_user');
   };
 
-  const login = useCallback(async (api, email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
+  // `opts.scope` is the storefront's shopper-only guard ('customer') or the
+  // portal's 'portal' scope; omitted means "this is the business app".
+  const login = useCallback(async (api, email, password, opts = {}) => {
+    const { data } = await api.post('/auth/login', { email, password, ...opts });
     setToken(data.token);
     persist(data.user);
     return data.user;
@@ -48,8 +50,27 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  // The stored user is a snapshot from sign-in, so an approval granted later
+  // (a rider or shop going from `pending` to working) would not be visible
+  // until the user logged out and back in. Re-reading the profile on mount keeps
+  // the session honest without asking anyone to sign in again.
+  const refresh = useCallback(async (api) => {
+    try {
+      const { data } = await api.get('/profile');
+      if (data) persist(data);
+      return data;
+    } catch {
+      return null; // a failed refresh must never sign the user out
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) refresh(API);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, login, register, logout, updateUser, refresh }}>
       {children}
     </AuthContext.Provider>
   );

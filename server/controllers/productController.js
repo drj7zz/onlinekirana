@@ -48,12 +48,25 @@ exports.list = async (req, res) => {
 
 exports.getOne = async (req, res) => {
   try {
+    // The canonical URL is the product name plus its id, e.g.
+    // /product/chino-eggs-6ab9ceeabb4090cfa1c8cb1b. The readable part is cosmetic
+    // — the id at the end is what identifies the product — so a bare id keeps
+    // working and a rename never breaks an old link.
+    const raw = String(req.params.id || '');
+    const slugged = raw.match(/^(.*)-([0-9a-f]{24})$/i);
+    const id = slugged ? slugged[2] : raw;
+
     // populate the seller so the product page can link to the shop (admin-listed items have merchant: null)
-    const product = await Product.findById(req.params.id)
+    const product = await Product.findById(id)
       .populate('merchant', 'shopName shopLogoUrl shopDescription shopPhone shopAddress merchantStatus');
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
+    // `.toObject()` does NOT carry the `finalPrice` virtual, so the raw price was
+    // being sent and the product page priced a discounted item at full value.
+    // The list endpoint has the same trap and patches it in `attachRatings`;
+    // compute it here too so both shapes agree.
     const plain = product.toObject();
+    plain.finalPrice = Math.round(plain.price * (1 - (plain.discountPercent || 0) / 100) * 100) / 100;
 
     // rating summary for this product
     const agg = await Review.aggregate([

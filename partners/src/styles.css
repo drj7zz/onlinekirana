@@ -1,0 +1,247 @@
+/* Partners portal — the business side of the marketplace (merchants, riders,
+   operations).
+
+   The portal is deliberately the same light green UI as the storefront — a
+   shopkeeper switching between "my store page" and "my product list" should feel
+   one product, not two. So it reuses the storefront's stylesheet wholesale, plus
+   Tailwind itself for the utility classes in the shared Navbar (`.min-w-0`).
+
+   The Navbar renders the same `.site-header` / `.brand` / `.nav-link` /
+   `.account-*` / `.drawer-*` markup as the storefront, and the app renders inside
+   `.app-shell`, so the shared header and light footer themes apply here unchanged.
+
+   Note: `@import "tailwindcss"` cannot live only inside the shared file — Vite
+   does not resolve it through the `@shared` alias, so it is imported here too
+   and the duplicate import in `styles.css` is deduplicated by the bundler. */
+@import "tailwindcss";
+@import "@shared/styles.css";
+
+/* ===== portal-only page furniture ===== */
+
+/* Numbered step lists on /join — tighter than the shared `.info-block p` rhythm. */
+.info-steps li { margin-bottom: .4rem; }
+.info-steps li::marker { color: #1b5e20; font-weight: 700; }
+
+/* The delivery explainer on /join is a list, not paragraphs. */
+.info-block ol { color: #444; }
+
+/* ===== amber accent, used only by the portal's own affordances ===== */
+/* The shared `.cta-btn` is green, matching the storefront's "add to cart" etc.
+   The portal marks cross-app links and workspace actions in amber so a partner
+   can tell at a glance which buttons leave the storefront. The Navbar no longer
+   uses these (it now borrows the storefront's `.portal-link` pill), but the
+   /join and /faq copy still does. */
+.portal-external {
+  color: #1b5e20;
+  font-weight: 600;
+  border-bottom: 1px dashed #1b5e2088;
+}
+.portal-external:hover { color: #2e7d32; }
+
+/* The "no documents needed" reassurance block wants a positive green tint so it
+   reads as good news rather than another rule. */
+.join-reassure {
+  background: #e8f5e9;
+  border: 1px solid #a5d6a7;
+  border-radius: 12px;
+  padding: 1.2rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 4px #0001;
+}
+.join-reassure h2 { display: flex; align-items: center; gap: .45rem; font-size: 1.05rem; color: #1b5e20; margin-bottom: .5rem; }
+.join-reassure p { color: #1b3a20; line-height: 1.65; }
+
+/* ==================================================================
+   Portal landing redesign.
+
+   The landing used to be assembled from the shared `.info-*` blocks —
+   the same heading + paragraph treatment as About and FAQ. Those are
+   correct for a reference page and wrong for the portal's front door,
+   so everything below is scoped `p-*` and confined to this file. The
+   storefront's stylesheet is not modified, and the two still agree on
+   the tokens they share (brand green, grey scale, radii, shadows).
+
+   Layout intent: a full-bleed hero first so the page has a top, then a
+   proof strip, then two content sections, then a closing band. The role
+   cards are the centrepiece — they are the only place a visitor chooses
+   what they are, so they get the most weight and the clearest CTAs.
+   ================================================================== */
+
+.p-landing { display: flex; flex-direction: column; gap: 3.2rem; }
+
+/* ===== hero =====
+   The hero is full-bleed, so it cancels `.container`'s side padding with a
+   matching negative margin. Those padding values change at 640px and 380px, so
+   the margin has to change with them or the panel overhangs the viewport and the
+   page scrolls sideways. The three blocks below mirror the container exactly. */
+.p-hero {
+  position: relative;
+  overflow: hidden;
+  margin: -1.5rem -1.25rem 0;           /* .container: padding 1.25rem */
+  padding: 3.4rem 1.25rem 3.2rem;
+  text-align: center;
+  background:
+    radial-gradient(900px 380px at 50% -12%, #e8f5e9 0%, transparent 62%),
+    linear-gradient(180deg, #fafafa 0%, #fff 100%);
+  border-bottom: 1px solid var(--grey-200);
+}
+@media (max-width: 640px) {
+  .p-hero { margin-inline: -1rem; padding-inline: 1rem; }   /* .container: 1rem */
+}
+@media (max-width: 380px) {
+  .p-hero { margin-inline: -.75rem; padding-inline: .75rem; } /* .container: .75rem */
+}
+/* the faint brand wordmark, so the panel has texture without competing
+   with the headline */
+.p-hero::after {
+  content: '';
+  position: absolute; inset: auto 0 -40% 0; height: 100%;
+  background: radial-gradient(closest-side, rgba(27,94,32,.06), transparent 70%);
+  pointer-events: none;
+}
+.p-hero > * { position: relative; z-index: 1; }
+
+.p-pill {
+  display: inline-flex; align-items: center; gap: .35rem;
+  padding: .28rem .7rem; border-radius: 999px;
+  background: #fff; border: 1px solid #a5d6a7;
+  color: #1b5e20; font-size: .78rem; font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.p-hero-title {
+  margin: 1rem 0 .6rem;
+  font-size: clamp(1.85rem, 5.2vw, 3rem);
+  line-height: 1.12;
+  letter-spacing: -.03em;
+  color: var(--grey-900);
+  font-weight: 800;
+}
+.p-hero-title em { font-style: normal; color: var(--brand); }
+
+.p-hero-sub {
+  max-width: 620px; margin: 0 auto;
+  font-size: 1.02rem; line-height: 1.65; color: var(--grey-500);
+}
+
+.p-hero-actions {
+  margin-top: 1.6rem;
+  display: flex; gap: .7rem; justify-content: center; flex-wrap: wrap;
+}
+
+.p-btn-ghost {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .6rem 1.2rem; border-radius: 8px;
+  border: 1px solid var(--grey-300); background: #fff;
+  color: var(--grey-700); font-size: .95rem; font-weight: 600;
+  cursor: pointer; transition: border-color .15s, background .15s, color .15s;
+}
+.p-btn-ghost:hover { border-color: var(--brand); color: var(--brand); background: #f0fdf4; }
+
+/* ===== proof strip ===== */
+.p-proof {
+  display: grid; gap: .8rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  margin-top: -1.6rem;                    /* tuck it under the hero's bottom edge */
+  position: relative; z-index: 2;
+}
+.p-proof-item {
+  display: flex; align-items: center; gap: .7rem;
+  background: var(--surface); border: 1px solid var(--grey-200);
+  border-radius: 12px; padding: .9rem 1rem; box-shadow: var(--shadow-md);
+}
+.p-proof-item svg { color: var(--brand); flex: 0 0 auto; }
+.p-proof-item div { display: flex; flex-direction: column; min-width: 0; }
+.p-proof-item strong { font-size: 1.15rem; font-weight: 800; color: var(--grey-900); line-height: 1.2; }
+.p-proof-item span { font-size: .78rem; color: var(--grey-500); line-height: 1.35; }
+
+/* ===== section scaffolding ===== */
+.p-section { display: flex; flex-direction: column; gap: 1.4rem; }
+.p-section-head { text-align: center; max-width: 620px; margin: 0 auto; }
+.p-section-head h2 { font-size: clamp(1.35rem, 3.2vw, 1.8rem); letter-spacing: -.02em; }
+.p-section-head p { margin-top: .35rem; color: var(--grey-500); line-height: 1.6; }
+
+/* ===== role cards ===== */
+.p-role-grid { display: grid; gap: 1.1rem; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); }
+
+.p-role {
+  display: flex; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--grey-200);
+  border-radius: 16px; padding: 1.5rem 1.4rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+.p-role:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--grey-300); }
+
+/* Each role keeps its own accent, but all three are drawn from the same
+   muted-tint family so they read as one system rather than three brands. */
+.p-role-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 46px; height: 46px; border-radius: 13px; margin-bottom: .9rem;
+}
+.p-role-green  .p-role-icon { background: #e8f5e9; color: #1b5e20; }
+.p-role-amber  .p-role-icon { background: #fff3e0; color: #e65100; }
+.p-role-slate  .p-role-icon { background: var(--grey-100); color: var(--grey-700); }
+
+.p-role h3 { font-size: 1.12rem; letter-spacing: -.01em; }
+.p-role-lede { margin: .35rem 0 .9rem; color: var(--grey-500); line-height: 1.55; font-size: .92rem; }
+
+.p-role-points { list-style: none; margin: 0 0 1.2rem; padding: 0; display: flex; flex-direction: column; gap: .5rem; flex: 1; }
+.p-role-points li { display: flex; align-items: flex-start; gap: .5rem; font-size: .88rem; color: var(--grey-600); line-height: 1.45; }
+.p-role-points svg { color: var(--brand); flex: 0 0 auto; margin-top: 2px; }
+
+.p-role-cta {
+  display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
+  padding: .6rem 1rem; border-radius: 9px;
+  background: var(--brand); color: #fff;
+  font-size: .9rem; font-weight: 700;
+  transition: background .15s, transform .12s;
+}
+.p-role-cta:hover { background: var(--brand-strong); transform: translateY(-1px); }
+.p-role-cta svg { transition: transform .15s; }
+.p-role-cta:hover svg { transform: translateX(3px); }
+
+/* ===== steps ===== */
+.p-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.p-step {
+  display: flex; gap: .85rem;
+  background: var(--surface); border: 1px solid var(--grey-200);
+  border-radius: 14px; padding: 1.2rem;
+}
+/* An earlier draft drew a vertical rail from each numbered circle down to the
+   next step. It was wrong: the grid wraps to two rows, so the rail on a first-row
+   card drew through the row beneath it and on into the closing band. A connector
+   that needs :nth-child bookkeeping to not overshoot is not worth the complexity
+   here — the numbered circles carry the order on their own. */
+.p-step-num {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #dcfce7; color: #14532d; font-weight: 800; font-size: .9rem;
+}
+.p-step h3 { font-size: .98rem; }
+.p-step p { margin-top: .2rem; font-size: .85rem; line-height: 1.55; }
+
+/* ===== closing band ===== */
+.p-band {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1.5rem; flex-wrap: wrap;
+  background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%);
+  border-radius: 18px; padding: 2rem 1.8rem; color: #fff;
+  box-shadow: 0 10px 30px rgba(27, 94, 32, .22);
+}
+.p-band h2 { color: #fff; font-size: 1.35rem; }
+.p-band p { margin-top: .25rem; color: #d7e8d8; font-size: .92rem; }
+.p-band-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+/* the primary CTA has to invert on the green band — the shared green
+   button would disappear into the background */
+.p-band .cta-btn { background: #fff; color: var(--brand); box-shadow: none; }
+.p-band .cta-btn:hover { background: #f0fdf4; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,.18); }
+.p-band .p-btn-ghost { background: transparent; border-color: #ffffff66; color: #fff; }
+.p-band .p-btn-ghost:hover { background: #ffffff1f; border-color: #fff; color: #fff; }
+
+/* ===== responsive ===== */
+@media (max-width: 860px) {
+  .p-hero { padding-top: 2.4rem; padding-bottom: 2.2rem; }
+  .p-band { padding: 1.6rem 1.25rem; text-align: center; justify-content: center; }
+  .p-band-actions { justify-content: center; }
+}

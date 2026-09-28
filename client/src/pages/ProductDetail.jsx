@@ -1,14 +1,19 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  Leaf, ShoppingCart, Store, Star, MapPin, Phone, PackageX,
+  Leaf, Store, Star, MapPin, Phone, PackageX,
   Truck, ShieldCheck, Minus, Plus, ChevronRight, BadgeCheck,
 } from 'lucide-react';
 import API, { imageUrl } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useLive } from '../hooks/useLive';
+import { useSeo } from '../hooks/useSeo';
 import ProductCard from '../components/ProductCard';
+import AddToCartButton from '../components/AddToCartButton';
 import ReviewSection from '../components/ReviewSection';
+import { finalPrice, listPrice, discountBadge, savedPerUnit, rupees } from '../lib/pricing';
+import { productPath, productIdFromPath } from '../lib/productUrl';
 
 // Small 5-star row reused in the header + review summary
 export function Stars({ value = 0, size = 15 }) {
@@ -29,24 +34,71 @@ export function Stars({ value = 0, size = 15 }) {
 }
 
 export default function ProductDetail() {
-  const { id } = useParams();
+  const { id: slug } = useParams();
+  const navigate = useNavigate();
+  // `/product/chino-eggs-6ab9cee…` and `/product/6ab9cee…` are the same product:
+  // the name is cosmetic, the trailing id is the real key.
+  const id = productIdFromPath(slug);
   const { user } = useAuth();
-  const { add } = useCart();
+  const { qtyOf } = useCart();
 
-  const [product, setProduct] = useState(null);
-  const [qty, setQty] = useState(1);
-  const [added, setAdded] = useState(false);
-  const [error, setError] = useState('');
+  // The loaded product is tagged with the id it belongs to, and the quantity /
+  // "added" flag carry that id too. Comparing the tag at render time means moving
+  // to another product resets them by derivation, with no setState inside an
+  // effect body (which React flags as a cascading-render risk) and no window in
+  // which the previous product's price or quantity is shown.
+  const [result, setResult] = useState({ id: null, data: null, error: '' });
+  const [qty, setQty] = useState({ id: null, value: 1 });
 
   const load = useCallback(() => {
-    setError('');
-    return API.get(`/products/${id}`)
-      .then((r) => setProduct(r.data))
-      .catch(() => setError('This product isn\'t available right now.'));
+    let alive = true;
+    API.get(`/products/${id}`)
+      .then((r) => { if (alive) setResult({ id, data: r.data, error: '' }); })
+      .catch(() => { if (alive) setResult({ id, data: null, error: 'This product is not available right now.' }); });
+    return () => { alive = false; };
   }, [id]);
 
-  useEffect(() => { setProduct(null); load(); window.scrollTo({ top: 0, behavior: 'smooth' }); }, [load]);
-  useEffect(() => { setQty(1); setAdded(false); }, [id]);
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    return load();
+  }, [load]);
+
+  // Stock and price are re-read while the page is open, so a shopper looking at
+  // a product while someone else buys the last one sees it go out of stock
+  // without touching refresh — the buy control disables itself immediately.
+  useLive(() => { API.get(`/products/${id}`).then((r) => setResult({ id, data: r.data, error: '' })).catch(() => {}); }, 15000, [id]);
+
+  const product = result.id === id ? result.data : null;
+  const error = result.id === id ? result.error : '';
+
+  // Send a bare-id or stale-slug URL to the canonical name+id address, so there
+  // is exactly one indexable URL per product and the name in the address bar
+  // always matches the product.
+  useEffect(() => {
+    if (!product) return;
+    const canonical = productPath(product);
+    if (slug !== canonical.replace('/product/', '')) {
+      navigate(canonical, { replace: true });
+    }
+  }, [product, slug, navigate]);
+
+  // The title and description are the ones that actually rank. The product name
+  // leads, then the shop and unit, then the searchable category terms a buyer
+  // would plausibly type in Birgunj.
+  useSeo({
+    title: product
+      ? `${product.name} — buy online in Birgunj | OnlineKirana`
+      : 'Loading product… | OnlineKirana',
+    description: product
+      ? `${product.name} (${product.unit}) from ${product.merchant?.shopName || 'a local Birgunj shop'}. ${rupees(finalPrice(product))} with 30-minute delivery across Birgunj. Cash on delivery.`
+      : 'Loading product details from OnlineKirana, your Birgunj online grocery store.',
+    image: product?.imageUrl ? imageUrl(product.imageUrl) : undefined,
+    type: 'product',
+  });
+
+  // Derived, not stored: a change of product resets both automatically.
+  const quantity = qty.id === id ? qty.value : 1;
+  const setQuantity = (value) => setQty({ id, value });
 
   if (error) return (
     <div className="empty-state">
@@ -58,15 +110,15 @@ export default function ProductDetail() {
   if (!product) return <p className="loading-shimmer">Loading product</p>;
 
   const out = product.stock <= 0;
-  const finalPrice = product.finalPrice ?? product.price;
+  const now = finalPrice(product);
+  const was = listPrice(product);
+  const off = discountBadge(product);
   const maxQty = Math.max(1, product.stock);
-  const setQ = (n) => setQty(Math.min(maxQty, Math.max(1, Number(n) || 1)));
+  const setQ = (n) => setQuantity(Math.min(maxQty, Math.max(1, Number(n) || 1)));
   const shop = product.merchant;
 
-  const addToCart = () => {
-    add(product, qty);
-    setAdded(true);
-  };
+  // how many of this product the shopper already has in the cart
+  const inCart = qtyOf(product._id);
 
   return (
     <div className="pdp">
@@ -115,38 +167,50 @@ export default function ProductDetail() {
             </p>
           )}
 
-          <div className="price-row">
-            {product.discountPercent > 0 && <span className="strike">रू {product.price}</span>}
-            <span className="price big">रू {finalPrice}</span>
-            {product.discountPercent > 0 && <span className="off">-{product.discountPercent}%</span>}
+          {/* Price block. The struck-through original and the discount badge are
+              both derived from the same maths the payable price uses, so a
+              badge can never advertise a saving the price does not reflect. */}
+          <div className="price-row pdp-price">
+            {off && <span className="strike">{rupees(was)}</span>}
+            <span className="price big">{rupees(now)}</span>
+            {off && <span className="off">-{off}</span>}
+            {off && <span className="pdp-save">You save {rupees(savedPerUnit(product))} per {product.unit}</span>}
           </div>
 
           <p className={out ? 'stock-out' : 'muted'}>
             {out ? 'Out of stock' : `${product.stock} ${product.unit} available`}
           </p>
 
+          {/* Quantity picker. The actual add action lives in the buy control
+              below — an earlier build had a second "Add to cart" button here,
+              so the page offered two competing ways to do the same thing. */}
           {!out && (
             <div className="qty-row">
+              <span className="qty-label">Quantity</span>
               <div className="qty-stepper">
-                <button type="button" onClick={() => setQ(qty - 1)} disabled={qty <= 1} aria-label="Decrease quantity"><Minus size={15} aria-hidden="true" /></button>
+                <button type="button" onClick={() => setQ(quantity - 1)} disabled={quantity <= 1} aria-label="Decrease quantity"><Minus size={15} aria-hidden="true" /></button>
                 <input
-                  type="number" min="1" max={maxQty} value={qty}
+                  type="number" min="1" max={maxQty} value={quantity}
                   onChange={(e) => setQ(e.target.value)}
-                  aria-label="Quantity"
+                  aria-label="Quantity to add"
                 />
-                <button type="button" onClick={() => setQ(qty + 1)} disabled={qty >= maxQty} aria-label="Increase quantity"><Plus size={15} aria-hidden="true" /></button>
+                <button type="button" onClick={() => setQ(quantity + 1)} disabled={quantity >= maxQty} aria-label="Increase quantity"><Plus size={15} aria-hidden="true" /></button>
               </div>
-              <button className="cta-btn" onClick={addToCart}>
-                <ShoppingCart size={16} aria-hidden="true" /> Add to cart
-              </button>
+              <span className="qty-each muted">{rupees(now)} each</span>
             </div>
           )}
 
-          {added && (
-            <p className="added-msg">
-              Added to cart. <Link to="/cart" className="shop-link">Go to cart →</Link>
-            </p>
-          )}
+          <div className="pdp-buy">
+            <AddToCartButton product={product} showBuyNow initialQty={quantity} />
+            {!out && (
+              <p className="muted buy-hint">
+                {inCart > 0
+                  ? <>{inCart} already in your cart. Use − and + to change it.</>
+                  : <>Add to cart to keep browsing, or Buy now to check out straight away.</>}
+              </p>
+            )}
+          </div>
+
 
           {/* trust strip */}
           <ul className="trust-strip">
@@ -166,7 +230,7 @@ export default function ProductDetail() {
           <div><dt>Category</dt><dd>{product.category}</dd></div>
           <div><dt>Sold per</dt><dd>{product.unit}</dd></div>
           <div><dt>Availability</dt><dd>{out ? 'Out of stock' : `${product.stock} ${product.unit}`}</dd></div>
-          {product.discountPercent > 0 && <div><dt>Discount</dt><dd>{product.discountPercent}% off</dd></div>}
+          {product.discountPercent > 0 && <div><dt>Discount</dt><dd>{off} off — you save {rupees(savedPerUnit(product))}</dd></div>}
         </dl>
       </section>
 

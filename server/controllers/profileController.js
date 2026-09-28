@@ -17,6 +17,12 @@ const myView = (u) => ({
   shopPhone: u.shopPhone || '',
   shopLogoUrl: u.shopLogoUrl || '',
   shopAddress: u.shopAddress || { line: '', ward: '', city: 'Birgunj' },
+  // Rider fields: a rider's workspace and the admin's approval list both read
+  // these, and the client refreshes the profile on load so a rider who is
+  // approved mid-session sees the change without signing in again.
+  riderStatus: u.riderStatus || undefined,
+  riderArea: u.riderArea || undefined,
+  riderVehicle: u.riderVehicle || undefined,
   createdAt: u.createdAt,
 });
 

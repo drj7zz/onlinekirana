@@ -6,15 +6,21 @@ import ProductCard from '../components/ProductCard';
 
 export default function Shop() {
   const { id } = useParams();
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
+  // The result is tagged with the shop it belongs to. Navigating from one shop
+  // to another then shows the loading state immediately, instead of briefly
+  // rendering the previous shop's products under the new name.
+  const [result, setResult] = useState({ id: null, data: null, error: '' });
 
   useEffect(() => {
-    setData(null); setError('');
+    let alive = true;
     API.get(`/shops/${id}`)
-      .then((r) => setData(r.data))
-      .catch(() => setError('This shop isn\'t available right now.'));
+      .then((r) => { if (alive) setResult({ id, data: r.data, error: '' }); })
+      .catch(() => { if (alive) setResult({ id, data: null, error: 'This shop is not available right now.' }); });
+    return () => { alive = false; };
   }, [id]);
+
+  const data = result.id === id ? result.data : null;
+  const error = result.id === id ? result.error : '';
 
   if (error) return (
     <div className="empty-state">

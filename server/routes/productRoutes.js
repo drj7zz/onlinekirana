@@ -4,3 +4,4 @@ router.get('/', list);
 router.get('/categories', categories);
 router.get('/:id', getOne);
 module.exports = router;
+

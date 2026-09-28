@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "seed-admin": "node scripts/createAdmin.js"
+    "seed-admin": "node scripts/createAdmin.js",
+    "db-stats": "node scripts/dbStats.js",
+    "seed-catalog": "node scripts/seedCatalog.js",
+    "cleanup-test-accounts": "node scripts/cleanupTestAccounts.js",
+    "seed-rider": "node scripts/createRider.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

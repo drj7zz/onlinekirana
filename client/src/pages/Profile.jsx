@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { UserCircle, Save, KeyRound, MapPin, Store, CircleCheck, TriangleAlert } from 'lucide-react';
+import { UserCircle, Save, KeyRound, MapPin, CircleCheck, TriangleAlert, Package } from 'lucide-react';
 import API from '../api';
 import { useAuth } from '../context/AuthContext';
 import { PasswordField, StrengthMeter, checkPassword } from '../components/PasswordSecurity';
@@ -75,16 +75,15 @@ export default function Profile() {
           label="Upload photo" onChange={(url) => { setAvatarUrl(url); updateUser({ avatarUrl: url }); }} />
         <div>
           <h1>{user.name}</h1>
-          <p className="muted">{user.email} · <span className={`role-chip role-${user.role}`}>{user.role}</span></p>
+          <p className="muted">{user.email}</p>
         </div>
       </div>
 
-      {user.role === 'merchant' && (
-        <div className="action-row">
-          <strong><Store size={17} className="action-icon" aria-hidden="true" /><Link to="/shop-setup">Shop setup</Link></strong>
-          <span className="muted">Update your shop page: name, logo, description, contact & address</span>
-        </div>
-      )}
+      <Link to="/orders" className="card-panel profile-orders-link">
+        <Package size={19} className="action-icon" aria-hidden="true" />
+        <strong>My orders</strong>
+        <span className="muted">Track deliveries, view receipts and reorder — go to my orders →</span>
+      </Link>
 
       <section className="card-panel">
         <h2><UserCircle size={19} className="action-icon" aria-hidden="true" />Personal info & default address</h2>
@@ -102,7 +101,7 @@ export default function Profile() {
             <input value={form.line} onChange={set('line')} placeholder="e.g. Ghantaghar, Raniganj" />
           </label>
           <label>Ward No. (Birgunj)
-            <input value={form.ward} onChange={set('ward')} placeholder="e.g. 10" />
+            <input value={form.ward} onChange={set('ward')} placeholder="e.g.10" />
           </label>
           {msg && <p className="save-msg"><CircleCheck size={14} aria-hidden="true" /> {msg}</p>}
           {Object.keys(errors).length > 0 && !msg && <p className="error"><TriangleAlert size={14} aria-hidden="true" /> Fix the highlighted fields</p>}

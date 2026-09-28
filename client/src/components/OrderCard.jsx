@@ -1,25 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Package, Check, ChefHat, Truck, Home, XCircle,
-  MapPin, Phone, CalendarClock, Receipt,
+  Package, XCircle, MapPin, Phone, CalendarClock,
+  KeyRound, Bike, Eye, EyeOff, Store, Wallet,
 } from 'lucide-react';
-
-/**
- * Canonical order status metadata used across every role.
- * `step` is the position on the delivery timeline (cancelled is handled separately).
- */
-export const ORDER_STEPS = [
-  { key: 'pending', label: 'Placed', icon: Receipt, blurb: 'We received your order' },
-  { key: 'confirmed', label: 'Confirmed', icon: Check, blurb: 'Your order is confirmed' },
-  { key: 'packed', label: 'Packed', icon: ChefHat, blurb: 'Your items are packed' },
-  { key: 'out_for_delivery', label: 'Out for delivery', icon: Truck, blurb: 'On the way to you' },
-  { key: 'delivered', label: 'Delivered', icon: Home, blurb: 'Delivered to your door' },
-];
-
-export const STATUS_LABEL = {
-  pending: 'Pending', confirmed: 'Confirmed', packed: 'Packed',
-  out_for_delivery: 'Out for delivery', delivered: 'Delivered', cancelled: 'Cancelled',
-};
+import API from '../api';
+import { ORDER_STEPS, STATUS_LABEL, money } from '../lib/delivery';
+import { productPath } from '../lib/productUrl';
 
 const PAY_LABEL = { cod: 'Cash on delivery', esewa: 'eSewa' };
 
@@ -56,17 +43,62 @@ function OrderProgress({ status }) {
 }
 
 /**
+ * The hand-over code. Only ever fetched for the logged-in buyer's own order,
+ * and hidden by default so it can't be read over someone's shoulder.
+ */
+function DeliveryCode({ orderId }) {
+  const [code, setCode] = useState(null);
+  const [shown, setShown] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    API.get(`/delivery/orders/${orderId}/code`)
+      .then(({ data }) => { if (alive) setCode(data); })
+      .catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, [orderId]);
+
+  if (failed || !code) return null;
+
+  return (
+    <div className="otp-chip">
+      <KeyRound size={15} aria-hidden="true" />
+      <span className="otp-body">
+        <span className="otp-label">Hand-over code</span>
+        <span className="otp-value">{shown ? code.otp : '••••'}</span>
+      </span>
+      <button
+        type="button"
+        className="muted-btn"
+        onClick={() => setShown((s) => !s)}
+        aria-label={shown ? 'Hide hand-over code' : 'Show hand-over code'}
+      >
+        {shown ? <EyeOff size={15} aria-hidden="true" /> : <Eye size={15} aria-hidden="true" />}
+      </button>
+      {code.slotLabel && <span className="otp-slot">{code.slotLabel}</span>}
+    </div>
+  );
+}
+
+/**
  * One order card for every role.
  * props:
- *   order        – the order object
- *   viewer       – 'customer' | 'merchant' | 'admin'
- *   onStatus     – (id, status) => void  (admin/merchant status control; omit to hide)
+ *   order           – the order object
+ *   viewer          – 'customer' | 'merchant' | 'admin'
+ *   onStatus        – (id, status) => void  (status control; omit to hide)
  *   allowedStatuses – optional list to limit the status dropdown
- *   compact      – tighter layout (dashboard lists)
+ *   compact         – tighter layout (dashboard lists)
+ *   showOtp         – show the hand-over code (the buyer's own order)
+ *   rider           – populated rider object, when the caller already has it
  */
-export default function OrderCard({ order, viewer = 'customer', onStatus, allowedStatuses, compact = false }) {
+export default function OrderCard({
+  order, viewer = 'customer', onStatus, allowedStatuses, compact = false, showOtp = false, rider = null,
+}) {
   const o = order;
-  const total = Number(o.total).toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  const total = money(o.grandTotal ?? o.total);
+  const goods = Number(o.total || 0);
+  const fee = Number(o.deliveryFee || 0);
   const when = new Date(o.createdAt).toLocaleString('en-IN', {
     day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
@@ -80,9 +112,11 @@ export default function OrderCard({ order, viewer = 'customer', onStatus, allowe
         <div className="order-head-main">
           <span className="order-ref">Order {orderRef(o._id)}</span>
           <span className={`status s-${o.status}`}>{STATUS_LABEL[o.status] || 'Processing'}</span>
+          {o.paymentStatus === 'paid' && <span className="paid-chip">Paid</span>}
+          {o.paymentStatus === 'refunded' && <span className="refund-chip">Refunded</span>}
         </div>
         <div className="order-head-side">
-          <strong className="order-total">रू {total}</strong>
+          <strong className="order-total">{total}</strong>
           {viewer !== 'customer' && o.user && (
             <span className="order-customer">
               {o.user.name || 'Customer'}
@@ -106,23 +140,46 @@ export default function OrderCard({ order, viewer = 'customer', onStatus, allowe
       {/* delivery timeline */}
       <OrderProgress status={o.status} />
 
+      {/* who is bringing it */}
+      {rider && !compact && (
+        <p className="order-rider">
+          <Bike size={14} aria-hidden="true" />
+          <span>
+            Delivering now: <strong>{rider.name}</strong>
+            {rider.phone && <> · <a href={`tel:${rider.phone}`}>{rider.phone}</a></>}
+            {rider.riderVehicle && <> · {rider.riderVehicle}</>}
+          </span>
+        </p>
+      )}
+
+      {showOtp && !['delivered', 'cancelled'].includes(o.status) && <DeliveryCode orderId={o._id} />}
+
       {/* items */}
       <div className="order-items">
         <div className="order-items-head">
           <span><Package size={14} aria-hidden="true" /> {o.items.length} item{o.items.length === 1 ? '' : 's'} · {itemCount} unit{itemCount === 1 ? '' : 's'}</span>
           <span className="muted"><CalendarClock size={13} aria-hidden="true" /> {when}</span>
-        </div>
-        <ul>
+        </div>        <ul>
           {o.items.map((i, idx) => (
             <li key={idx}>
+              <span className="oi-thumb" aria-hidden="true"><Store size={13} /></span>
               <span className="oi-name">
-                {i.product ? <Link to={`/product/${i.product}`} className="oi-link">{i.name}</Link> : i.name}
+                {/* an order line stores only the id and the name it was bought
+                    under, so the path is built from those two — the slug comes
+                    from the recorded name, which may since have been renamed. */}
+                {i.product ? <Link to={productPath({ _id: i.product, name: i.name })} className="oi-link">{i.name}</Link> : i.name}
               </span>
-              <span className="oi-qty">{i.qty} {i.unit}</span>
-              <span className="oi-price">रू {(i.price * i.qty).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</span>
+              <span className="oi-qty">× {i.qty} <small>{i.unit}</small></span>
+              <span className="oi-price">{money(i.price * i.qty)}</span>
             </li>
           ))}
         </ul>
+        <div className="order-bill">
+          <span>Items</span><span>{money(goods)}</span>
+          <span>Delivery</span><span>{fee === 0 ? 'Free' : money(fee)}</span>
+          <span className="order-bill-total">Total</span>
+          <span className="order-bill-total">{total}</span>
+        </div>
       </div>
 
       {/* delivery summary */}
@@ -135,9 +192,18 @@ export default function OrderCard({ order, viewer = 'customer', onStatus, allowe
         </p>
         <p className="order-meta">
           {addr.phone && <><Phone size={13} aria-hidden="true" /> {addr.phone}</>}
-          <span className="order-pay">{PAY_LABEL[o.paymentMethod] || 'Cash on delivery'}</span>
+          <span className="order-pay">
+            <Wallet size={12} aria-hidden="true" /> {PAY_LABEL[o.paymentMethod] || 'Cash on delivery'}
+          </span>
         </p>
       </footer>
+
+      {o.deliveryInstructions && (
+        <p className="order-note"><strong>Note for the rider:</strong> {o.deliveryInstructions}</p>
+      )}
+      {o.cancelReason && (
+        <p className="order-note cancel"><strong>Why it was cancelled:</strong> {o.cancelReason}</p>
+      )}
     </article>
   );
 }

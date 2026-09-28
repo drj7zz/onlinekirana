@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CircleCheck, Clock, CircleX } from 'lucide-react';
-import API from '../api';
-import ImageUpload from '../components/ImageUpload';
-import { useAuth } from '../context/AuthContext';
+import API from '@shared/api';
+import ImageUpload from '@shared/components/ImageUpload';
+import { useAuth } from '@shared/context/AuthContext';
 
 const empty = { name: '', category: '', price: '', unit: 'kg', stock: '', imageUrl: '', discountPercent: 0, description: '' };
 
@@ -79,7 +79,7 @@ export default function AdminProducts() {
             <tr key={p._id}>
               <td>{p.name}</td>
               <td>{p.category}</td>
-              <td>रू {p.price}/{p.unit}</td>
+              <td>NPR ₹ {p.price}/{p.unit}</td>
               <td>{p.stock}</td>
               <td className="status-cell">
                 {p.status === 'approved' ? <CircleCheck size={16} color="#2e7d32" aria-label="approved" />
