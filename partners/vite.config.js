@@ -35,8 +35,29 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
+      // The @shared alias pulls source files out of ../client/src, but those files
+      // import bare packages (axios, react, lucide-react, react-router-dom).
+      // Node resolution walks UP from the importing file, so from client/src it
+      // checks client/node_modules and the repo root — never partners/node_modules,
+      // which is the only tree that exists on Vercel (root directory is `partners`).
+      // The build therefore failed with "Rollup failed to resolve import axios",
+      // and only on a real deploy, because a local checkout has both trees.
+      //
+      // These entries pin each shared dependency to THIS app's own copy, so a shared
+      // module resolves exactly as if it lived inside partners/. Only dependencies
+      // this app actually declares are listed — a name missing here fails the same
+      // way, so keep the two package.json files in step.
+      //
+      // All of this must live in ONE alias object. A second `alias` key in the same
+      // config silently replaces the first, which is what broke the build once.
       alias: {
         '@shared': path.resolve(__dirname, '../client/src'),
+        react: path.resolve(__dirname, 'node_modules/react'),
+        'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+        'react-router-dom': path.resolve(__dirname, 'node_modules/react-router-dom'),
+        axios: path.resolve(__dirname, 'node_modules/axios'),
+        'lucide-react': path.resolve(__dirname, 'node_modules/lucide-react'),
+        recharts: path.resolve(__dirname, 'node_modules/recharts'),
       },
     },
     // The `@shared` alias points at ../client/src, which lives OUTSIDE this app's
