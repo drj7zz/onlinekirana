@@ -1,8 +1,12 @@
 import axios from 'axios';
 
-// The API origin, supplied by the environment so one source works in dev and in
-// production. Required rather than defaulted: a build missing VITE_API_URL would
-// otherwise silently point every request — including uploads — at localhost.
+/**
+ * The API origin, supplied by the environment so one source works in dev and in
+ * production.
+ *
+ * Required rather than defaulted: a build missing VITE_API_URL would otherwise
+ * silently point every request — including uploads — at localhost.
+ */
 export const API_BASE = (() => {
   const v = import.meta.env.VITE_API_URL;
   if (!v) {

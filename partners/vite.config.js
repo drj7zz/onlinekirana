@@ -15,11 +15,10 @@ export default defineConfig(({ mode }) => {
   // blank white page with no explanation. Checking here turns that into a build
   // error naming the exact variable, which is the difference between "the site
   // is broken" and "you forgot one env var".
-  // Both URLs in lib/apps.js are required. The @shared alias makes this app load
-  // the storefront's copy of that module, so it reads VITE_PARTNERS_URL too —
-  // listing only one used to pass the build, then throw at runtime and blank the
-  // portal with no console error.
-  const REQUIRED = ['VITE_API_URL', 'VITE_STOREFRONT_URL', 'VITE_PARTNERS_URL'];
+  // Only VITE_API_URL is required. The cross-app URL has a safe fallback
+  // (see the shared lib/apps.js) and is reported as a console warning, so
+  // demanding it here would block a build that actually works.
+  const REQUIRED = ['VITE_API_URL'];
   const missing = REQUIRED.filter((k) => !env[k]);
 
   if (missing.length) {
