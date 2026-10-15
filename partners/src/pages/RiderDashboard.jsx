@@ -8,7 +8,7 @@ import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import ImageUpload from '@shared/components/ImageUpload';
-import { DELIVERY_LABEL, DELIVERY_STEPS, money, timeAgo } from '@shared/lib/delivery';
+import { DELIVERY_LABEL, DELIVERY_STEPS, DELIVERY_WINDOW_LABEL, money, timeAgo } from '@shared/lib/delivery';
 
 /** What a rider can do at each step, in their own words. */
 const NEXT_ACTIONS = {
@@ -38,7 +38,7 @@ function StepBar({ status }) {
 }
 
 /** One job. Carries the OTP prompt on the final step. */
-function JobCard({ job, onAdvance, onClaim }) {
+function JobCard({ job, onAdvance, onClaim, canAccept }) {
   const [otp, setOtp] = useState('');
   const [proof, setProof] = useState('');
   const [busy, setBusy] = useState(false);
@@ -71,8 +71,8 @@ function JobCard({ job, onAdvance, onClaim }) {
           <span className="muted">queued {timeAgo(job.createdAt)}</span>
         </div>
         <div className="order-head-side">
-          <strong className="order-total">{money(job.fee)}</strong>
-          {isOpen && <button onClick={() => onClaim(job._id)} disabled={busy}>Take this job</button>}
+          <strong className="order-total">{Number(job.fee || 0) === 0 ? 'Free delivery' : money(job.fee)}</strong>
+          {isOpen && <button onClick={() => onClaim(job._id)} disabled={busy || !canAccept}>Accept order</button>}
         </div>
       </header>
 
@@ -112,7 +112,7 @@ function JobCard({ job, onAdvance, onClaim }) {
         </div>
       </div>
 
-      {job.slot && <p className="job-slot">Promised: {job.slot}</p>}
+      {job.slot && <p className="job-slot">Delivery window: {DELIVERY_WINDOW_LABEL[job.slot] || job.slot}</p>}
       {job.instructions && <p className="order-note"><strong>Customer note:</strong> {job.instructions}</p>}
 
       {(order.items || []).length > 0 && (
@@ -253,7 +253,6 @@ export default function RiderDashboard() {
 
   const active = data.mine.filter((j) => j.status !== 'delivered' && j.status !== 'failed');
   const done = data.mine.filter((j) => j.status === 'delivered');
-  const earned = done.reduce((s, j) => s + Number(j.fee || 0), 0);
 
   return (
     <div>
@@ -274,9 +273,8 @@ export default function RiderDashboard() {
 
       <div className="stat-grid">
         <div className="stat-card accent"><div className="stat-value">{active.length}</div><div className="stat-label">Active jobs</div></div>
-        <div className="stat-card"><div className="stat-value">{data.open.length}</div><div className="stat-label">Open nearby</div></div>
+        <div className="stat-card"><div className="stat-value">{data.open.length}</div><div className="stat-label">Available deliveries</div></div>
         <div className="stat-card"><div className="stat-value">{done.length}</div><div className="stat-label">Delivered</div></div>
-        <div className="stat-card"><div className="stat-value">{money(earned)}</div><div className="stat-label">Delivery fees earned</div></div>
       </div>
 
       {loading ? (
@@ -297,10 +295,10 @@ export default function RiderDashboard() {
 
           {data.open.length > 0 && (
             <>
-              <h2>Open jobs</h2>
-              <p className="muted">First to take it gets it.</p>
+              <h2>Available deliveries</h2>
+              <p className="muted">Choose a delivery when you are ready. Customer name, address and phone appear after you accept it.</p>
               <div className="order-list">
-                {data.open.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} />)}
+                {data.open.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} canAccept={online} />)}
               </div>
             </>
           )}

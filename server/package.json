@@ -9,6 +9,7 @@
     "seed-admin": "node scripts/createAdmin.js",
     "db-stats": "node scripts/dbStats.js",
     "seed-catalog": "node scripts/seedCatalog.js",
+    "setup-push-keys": "node scripts/setupPushKeys.js",
     "cleanup-test-accounts": "node scripts/cleanupTestAccounts.js",
     "seed-rider": "node scripts/createRider.js"
   },
@@ -19,7 +20,8 @@
     "express": "^4.19.2",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.4.0",
-    "multer": "^2.4.0"
+    "multer": "^2.4.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.0"

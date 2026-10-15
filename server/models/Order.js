@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   items: [orderItemSchema],
   total: { type: Number, required: true },
-  // delivery cost is charged at checkout and shown before the order is placed
+  // Delivery fee snapshot, including the late-night pilot estimate when enabled.
   deliveryFee: { type: Number, default: 0, min: 0 },
   // sum of goods + delivery, what the customer actually pays
   grandTotal: { type: Number, default: 0, min: 0 },
@@ -22,7 +22,9 @@ const orderSchema = new mongoose.Schema({
     city: { type: String, default: 'Birgunj' },
     ward: String,
     phone: { type: String, required: true },
+    location: { lat: Number, lng: Number },
   },
+  deliveryDistanceKm: { type: Number, min: 0, default: null },
   paymentMethod: { type: String, enum: ['cod', 'esewa'], default: 'cod' },
   paymentStatus: { type: String, enum: ['unpaid', 'paid', 'refunded'], default: 'unpaid' },
   status: {
@@ -42,6 +44,13 @@ const orderSchema = new mongoose.Schema({
   deliveryInstructions: { type: String, default: '', maxlength: 300 },
   // kept for the order history / dispute trail
   cancelReason: { type: String, default: '', maxlength: 300 },
+  cancelledBy: { type: String, enum: ['customer', 'merchant', 'admin', 'system', null], default: null },
+  cancelledAt: { type: Date, default: null },
+  cancellationCounted: { type: Boolean, default: false },
 }, { timestamps: true });
+
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ 'items.merchant': 1, createdAt: -1 });
+orderSchema.index({ user: 1, cancelledBy: 1, cancellationCounted: 1, cancelledAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);

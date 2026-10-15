@@ -1,16 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight, Trash2, Minus, Plus, ShoppingCart, PackageOpen,
-  Truck, ShieldCheck, Tag, Sparkles, AlertTriangle,
+  Truck, ShieldCheck, Tag, AlertTriangle,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useSeo } from '../hooks/useSeo';
 import { imageUrl } from '../api';
 import { finalPrice, listPrice, discountBadge, savedOnLine, rupees as fmt } from '../lib/pricing';
 import { productPath } from '../lib/productUrl';
-
-/** Cheapest delivery the API will quote — used only to drive the progress bar. */
-const FREE_DELIVERY_OVER = 1000;
 
 /**
  * One cart line as a card rather than a table row: the photo, the name, the
@@ -116,21 +113,18 @@ export default function Cart() {
   }
 
   const goods = total;
-  const fee = 0; // the API quotes the real ward-wise fee at checkout
-  const payable = goods + fee;
+  const payable = goods;
   const blocked = unavailable.length > 0;
 
   // total saved across every discounted line, shown in the summary
   const saved = items.reduce((s, { product, qty }) => s + savedOnLine(product, qty), 0);
-  const toFree = Math.max(0, FREE_DELIVERY_OVER - goods);
-  const pct = Math.min(100, Math.round((goods / FREE_DELIVERY_OVER) * 100));
   const rupees = fmt;
 
   return (
     <div>
       <div className="page-head">
         <h1>Your cart</h1>
-        <p>{count} item{count === 1 ? '' : 's'} from local shops across Birgunj.</p>
+        <p>{count} item{count === 1 ? '' : 's'} from {items[0].product.merchant?.shopName || (items[0].product.merchant ? 'one seller' : 'OnlineKirana')}.</p>
       </div>
 
       {blocked && (
@@ -156,36 +150,28 @@ export default function Cart() {
         <aside className="cart-summary">
           <h2>Order summary</h2>
 
-          {/* nudge toward the free-delivery threshold, with the real numbers */}
           <div className="cart-goal">
-            <div className="cart-goal-text">
-              {toFree > 0
-                ? <><Truck size={14} aria-hidden="true" /> Add <strong>{rupees(toFree)}</strong> more for free delivery</>
-                : <><Sparkles size={14} aria-hidden="true" /> <strong>Free delivery unlocked</strong></>}
-            </div>
-            <div className="cart-goal-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to free delivery">
-              <span style={{ width: `${pct}%` }} />
-            </div>
+            <div className="cart-goal-text"><Truck size={14} aria-hidden="true" /> <strong>Free delivery, 5 am–10 pm</strong></div>
           </div>
 
           <dl className="cart-sum-rows">
             <div><dt>Items ({count})</dt><dd>{rupees(goods)}</dd></div>
             {saved > 0 && <div className="cart-sum-save"><dt>Discounts</dt><dd>− {rupees(saved)}</dd></div>}
-            <div><dt>Delivery</dt><dd className="muted">Calculated at checkout</dd></div>
+            <div><dt>Delivery</dt><dd>Shown at checkout</dd></div>
           </dl>
           <div className="cart-sum-total">
             <span>Subtotal</span>
             <strong>{rupees(payable)}</strong>
           </div>
-          <p className="cart-sum-note">Taxes included. Delivery is ward-wise and confirmed on the next step.</p>
+          <p className="cart-sum-note">Delivery is free from 5 am–10 pm. From 10 pm to midnight, a distance fee may apply when a rider is online.</p>
           <button className="cta-btn cart-checkout" disabled={blocked} onClick={() => navigate('/checkout')}>
             Proceed to checkout <ArrowRight size={17} className="cta-arrow" aria-hidden="true" />
           </button>
           <Link to="/" className="muted cart-continue">Continue shopping</Link>
 
           <ul className="trust-strip cart-trust">
-            <li><Truck size={15} aria-hidden="true" /> 30-minute delivery</li>
-            <li><ShieldCheck size={15} aria-hidden="true" /> Cash on delivery</li>
+            <li><Truck size={15} aria-hidden="true" /> Fast local delivery</li>
+            <li><ShieldCheck size={15} aria-hidden="true" /> Pay after delivery</li>
             <li><Tag size={15} aria-hidden="true" /> Prices straight from the shop</li>
           </ul>
         </aside>

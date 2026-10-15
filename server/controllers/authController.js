@@ -3,9 +3,10 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { validateRegister, validateLogin, validatePassword } = require('../middleware/validate');
 const { loginIp, loginAccount } = require('../middleware/rateLimit');
+const { notifyUsers } = require('../utils/notifications');
 
 const signToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '7d' });
+  jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '24h' });
 
 const publicUser = (u) => ({
   id: u._id, name: u.name, email: u.email, role: u.role,
@@ -15,7 +16,7 @@ const publicUser = (u) => ({
 });
 
 // ---- LOGIN: rate-limited per IP + per account; identical failure response (no user enumeration) ----
-const DUMMY_HASH = bcrypt.hashSync('timing-safe-dummy', 10);
+const DUMMY_HASH = bcrypt.hashSync('timing-safe-dummy', 12);
 
 /**
  * The storefront and the partner portal share this one endpoint but serve
@@ -41,6 +42,13 @@ exports.login = [
 
       if (!user || !ok) {
         return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      // Migrate older bcrypt hashes to the current work factor after a valid
+      // password check, without forcing users through a reset flow.
+      if (bcrypt.getRounds(user.password) < 12) {
+        user.password = password;
+        await user.save();
       }
 
       const allowed = SCOPES[scope];
@@ -92,6 +100,16 @@ exports.register = [
           riderStatus: 'pending',
         }),
       });
+
+      if (isMerchant || isRider) {
+        const admins = await User.find({ role: 'admin' }).select('_id').lean().catch(() => []);
+        await notifyUsers(admins.map((admin) => admin._id), {
+          type: 'approval',
+          title: isMerchant ? 'Shop application received' : 'Rider application received',
+          body: `${user.name} is waiting for account approval.`,
+          link: '/admin/partners',
+        });
+      }
 
       res.status(201).json({ token: signToken(user), user: publicUser(user) });
     } catch (e) {

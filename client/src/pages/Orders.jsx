@@ -17,15 +17,30 @@ export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [cancellationPolicy, setCancellationPolicy] = useState(null);
 
   // live: order status changes stream in automatically
-  useLive(() => {
+  const load = () => {
     if (!user) return;
     API.get('/orders/mine')
       .then((r) => { setOrders(r.data); setError(''); })
       .catch(() => setError('We could not load your orders right now. Please try again in a moment.'))
       .finally(() => setLoading(false));
-  }, 8000, [user?._id]);
+    API.get('/orders/cancellation-status').then(({ data }) => setCancellationPolicy(data)).catch(() => {});
+  };
+  useLive(load, 8000, [user?._id]);
+
+  const cancelOrder = async (id) => {
+    if (!window.confirm('Cancel this order? If the shop has already packed it, this counts toward the pilot cancellation limit.')) return;
+    setError('');
+    try {
+      const { data } = await API.post(`/orders/${id}/cancel`, { reason: 'Cancelled by customer' });
+      if (data.cancellation) setCancellationPolicy((current) => ({ ...current, ...data.cancellation, enabled: true }));
+      load();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Could not cancel this order. Contact support if you need help.');
+    }
+  };
 
   useSeo({
     title: 'My orders | OnlineKirana',
@@ -53,6 +68,8 @@ export default function Orders() {
         <h1>My orders</h1>
         <p>Live status — every order updates here on its own, no refresh needed.</p>
       </div>
+      {cancellationPolicy?.enabled && cancellationPolicy.warning && <p className="order-note cancel" role="status">You have {cancellationPolicy.recentCount} qualifying cancellations in the last {cancellationPolicy.windowDays} days. {cancellationPolicy.limit} pauses ordering for {cancellationPolicy.restrictionDays} days.</p>}
+      {cancellationPolicy?.restrictedUntil && <p className="order-note cancel" role="alert">Ordering is paused until {new Date(cancellationPolicy.restrictedUntil).toLocaleDateString()}. Contact support to request a review.</p>}
 
       {/* at-a-glance counters, so a shopper does not have to scan every card */}
       {orders.length > 0 && (
@@ -90,7 +107,7 @@ export default function Orders() {
         </div>
       ) : (
         <div className="order-list">
-          {sorted.map((o) => <OrderCard key={o._id} order={o} viewer="customer" showOtp />)}
+          {sorted.map((o) => <OrderCard key={o._id} order={o} viewer="customer" rider={o.delivery?.rider} showOtp onCancel={cancellationPolicy?.enabled ? cancelOrder : undefined} />)}
         </div>
       )}
     </div>

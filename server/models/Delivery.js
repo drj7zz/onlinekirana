@@ -11,12 +11,12 @@ const mongoose = require('mongoose');
 const deliverySchema = new mongoose.Schema({
   order: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true, unique: true },
 
-  // 'pending'  — order placed, waiting for an admin to hand it to a rider
-  // 'assigned' — a rider is on it, they haven't accepted the job yet
+  // 'pending'  — order placed; riders see it only after the shop packs it
+  // 'assigned' — a rider accepted the job and owns it
   // 'accepted' — rider accepted and is heading to the shop to collect
   // 'picked'   — goods collected from the shop, on the way to the customer
   // 'delivered'— dropped off, proof captured
-  // 'failed'   — rider couldn't deliver, admin decides the refund
+  // 'failed'   — rider couldn't deliver; operations reviews the failed handoff
   status: {
     type: String,
     enum: ['pending', 'assigned', 'accepted', 'picked', 'delivered', 'failed'],
@@ -32,19 +32,22 @@ const deliverySchema = new mongoose.Schema({
     line: String,
     ward: String,
     phone: String,
+    location: { lat: Number, lng: Number },
   },
   dropoff: {
     name: String,
     line: String,
     ward: String,
     phone: String,
+    location: { lat: Number, lng: Number },
   },
 
   // the customer picked one of the published slots at checkout
   slot: { type: String, default: null },
 
-  // amount the customer paid for delivery (charged at checkout, not at drop-off)
+  // Delivery fee snapshot, including the late-night estimate when enabled.
   fee: { type: Number, default: 0, min: 0 },
+  distanceKm: { type: Number, min: 0, default: null },
 
   // 4-digit code the customer must read out to the rider — proves hand-over
   // happened and that the goods were actually received
@@ -63,7 +66,7 @@ const deliverySchema = new mongoose.Schema({
   assignedAt: Date,
   assignedBy: { type: String, enum: ['auto', 'admin', 'rider', null], default: null },
 
-  // what the rider earns if this drop goes through (paid on delivery)
+  // Reserved for a future rider compensation configuration. Pay is not calculated yet.
   riderEarning: { type: Number, default: 0, min: 0 },
 }, { timestamps: true });
 

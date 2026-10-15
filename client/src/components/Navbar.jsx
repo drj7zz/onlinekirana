@@ -12,6 +12,7 @@ import { useCart } from '../context/CartContext';
 import { PORTAL_URL } from '../lib/apps';
 import { discountBadge, finalPrice, listPrice, rupees } from '../lib/pricing';
 import { productPath } from '../lib/productUrl';
+import NotificationCenter from './NotificationCenter';
 
 /**
  * Storefront navigation.
@@ -440,7 +441,7 @@ export default function Navbar() {
           <img src="/logo.png" alt="OnlineKirana" className="brand-mark" />
           <span className="brand-text">
             <span className="brand-name">online<span>kirana</span></span>
-            <span className="brand-tag"><MapPin size={11} aria-hidden="true" /> 30 min delivery · Birgunj</span>
+            <span className="brand-tag"><MapPin size={11} aria-hidden="true" /> Fast delivery · Birgunj</span>
           </span>
         </NavLink>
 
@@ -461,6 +462,7 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
+          <NotificationCenter />
           {user && (
             <div className="account-menu" ref={menuRef}>
               <button type="button" onClick={() => setMenuOpen(!menuOpen)} aria-haspopup="menu" aria-expanded={menuOpen} className="account-btn">

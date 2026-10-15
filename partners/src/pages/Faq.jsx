@@ -54,12 +54,12 @@ const CATEGORIES = [
       {
         id: 'handover',
         q: 'How does the shop hand an order to a rider?',
-        a: ['The shop packs the goods and taps “Mark packed”. The system then finds a rider who is on shift and sends them to the shop. The shop sees the rider’s name and phone so the hand-over is easy.'],
+        a: ['The shop packs the goods and taps “Mark packed”. Riders on shift can review open orders and choose which ones to accept. The shop sees the rider’s name and phone after acceptance.'],
       },
       {
         id: 'fees',
         q: 'What are the merchant fees?',
-        a: ['A flat commission per delivered order plus a small payment-handling fee. Exact rates are shown before you publish your first product — no hidden charges.'],
+        a: ['Commission and payout terms are not configured in this portal yet. Please confirm the current terms with the operations team before listing products.'],
       },
     ],
   },
@@ -75,7 +75,7 @@ const CATEGORIES = [
       {
         id: 'payouts',
         q: 'How do rider payouts work?',
-        a: ['Earnings are calculated per completed delivery. Payouts settle weekly to your registered e-wallet or bank account, with a full statement available in your dashboard.'],
+        a: ['The portal does not yet calculate rider pay or issue payouts. Please confirm compensation terms with the operations team before accepting deliveries.'],
       },
       {
         id: 'failed',
@@ -96,7 +96,7 @@ const CATEGORIES = [
       {
         id: 'support',
         q: 'Who do I contact if something goes wrong?',
-        a: ['Reach the operations desk from the contact page on the storefront. For anything blocking a live order, use the in-app support line so the order reference is attached automatically.'],
+        a: ['Use the contact details published by OnlineKirana operations. This portal does not currently provide an in-app support line.'],
       },
     ],
   },

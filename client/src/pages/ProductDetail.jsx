@@ -90,7 +90,7 @@ export default function ProductDetail() {
       ? `${product.name} — buy online in Birgunj | OnlineKirana`
       : 'Loading product… | OnlineKirana',
     description: product
-      ? `${product.name} (${product.unit}) from ${product.merchant?.shopName || 'a local Birgunj shop'}. ${rupees(finalPrice(product))} with 30-minute delivery across Birgunj. Cash on delivery.`
+      ? `${product.name} (${product.unit}) from ${product.merchant?.shopName || 'a local Birgunj shop'}. ${rupees(finalPrice(product))}. Free delivery from 5 am–10 pm during launch; late-night delivery may have a distance fee. Pay after delivery.`
       : 'Loading product details from OnlineKirana, your Birgunj online grocery store.',
     image: product?.imageUrl ? imageUrl(product.imageUrl) : undefined,
     type: 'product',
@@ -215,7 +215,7 @@ export default function ProductDetail() {
           {/* trust strip */}
           <ul className="trust-strip">
             <li><Truck size={15} aria-hidden="true" /> Delivered across Birgunj</li>
-            <li><ShieldCheck size={15} aria-hidden="true" /> Cash on delivery supported</li>
+            <li><ShieldCheck size={15} aria-hidden="true" /> Pay cash after delivery</li>
           </ul>
         </div>
       </div>

@@ -1,13 +1,19 @@
 const Product = require('../models/Product');
 const Order = require('../models/Order');
+const User = require('../models/User');
 const Delivery = require('../models/Delivery');
 const { serverError } = require('../utils/errors');
 const deliveryController = require('./deliveryController');
+const { notifyUsers } = require('../utils/notifications');
 
 // Guard: only approved merchants can manage products
-exports.requireMerchant = (req, res, next) => {
+exports.requireMerchant = async (req, res, next) => {
   if (req.user.role !== 'merchant') return res.status(403).json({ message: 'Merchant (partner) access only' });
-  next();
+  try {
+    const merchant = await User.findOne({ _id: req.user.id, role: 'merchant', merchantStatus: 'approved' }).select('_id');
+    if (!merchant) return res.status(403).json({ message: 'Your shop application must be approved before managing products and orders.' });
+    next();
+  } catch (error) { next(error); }
 };
 
 exports.myProducts = async (req, res) => {
@@ -74,6 +80,7 @@ exports.myOrders = async (req, res) => {
   try {
     const orders = await Order.find({ 'items.merchant': req.user.id })
       .sort({ createdAt: -1 })
+      .populate('items.product', 'imageUrl description category')
       .lean();
 
     // Join the delivery job so the shopkeeper can see which rider is coming and
@@ -86,7 +93,10 @@ exports.myOrders = async (req, res) => {
       .lean();
 
     const byOrder = new Map(jobs.map((j) => [String(j.order), j]));
-    for (const o of orders) o.delivery = byOrder.get(String(o._id)) || null;
+    for (const o of orders) {
+      o.delivery = byOrder.get(String(o._id)) || null;
+      if (o.deliveryAddress?.location) delete o.deliveryAddress.location;
+    }
 
     res.json(orders);
   } catch (e) {
@@ -97,10 +107,8 @@ exports.myOrders = async (req, res) => {
 /**
  * The merchant's only lever.
  *
- * A shopkeeper packs goods — that is it. Everything after `packed` belongs to
- * the delivery system, so the customer sees progress without the shopkeeper
- * having to touch the screen again. Packing kicks the auto-dispatcher, which
- * finds a rider, tells them to come to the counter, and hands them the job.
+ * A shopkeeper packs goods — that is it. Packing makes the delivery visible
+ * to riders, who choose whether to accept it.
  */
 exports.updateOrderStatus = async (req, res) => {
   try {
@@ -122,6 +130,31 @@ exports.updateOrderStatus = async (req, res) => {
     await order.save();
 
     const delivery = await deliveryController.dispatchForOrder(order._id);
+    await notifyUsers([order.user], {
+      type: 'order',
+      title: 'Order packed',
+      body: 'The shop packed your items. A rider will accept the delivery next.',
+      link: '/orders',
+    });
+    if (delivery) {
+      const [riders, loads] = await Promise.all([
+        User.find({ role: 'delivery', riderStatus: { $in: ['available', 'on_delivery'] } }).select('_id').lean(),
+        Delivery.aggregate([
+          { $match: { status: { $in: ['assigned', 'accepted', 'picked'] } } },
+          { $group: { _id: '$rider', count: { $sum: 1 } } },
+        ]),
+      ]);
+      const active = new Map(loads.map((row) => [String(row._id), row.count]));
+      const eligible = riders
+        .filter((rider) => (active.get(String(rider._id)) || 0) < deliveryController.MAX_ACTIVE_JOBS)
+        .map((rider) => rider._id);
+      await notifyUsers(eligible, {
+        type: 'delivery',
+        title: 'Delivery available',
+        body: `A packed order is ready to accept${delivery.dropoff?.ward ? ` · Ward ${delivery.dropoff.ward}` : ''}${delivery.fee ? ` · Late delivery charge रू ${delivery.fee}` : ' · Free evening delivery'}.`,
+        link: '/rider',
+      });
+    }
 
     res.json({ order, delivery });
   } catch (e) {

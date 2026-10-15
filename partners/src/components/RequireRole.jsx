@@ -2,15 +2,22 @@ import { Navigate, useLocation, Link } from 'react-router-dom';
 import { ShieldX } from 'lucide-react';
 import { useAuth } from '@shared/context/AuthContext.jsx';
 import { STOREFRONT_URL } from '@shared/lib/apps';
+import Pending from '../pages/Pending.jsx';
 
 
 /** Route guard — keeps each workspace to the roles that belong in it. */
-export default function RequireRole({ roles, children }) {
+export default function RequireRole({ roles, children, allowPending = false }) {
   const { user } = useAuth();
   const location = useLocation();
 
   if (!user) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+  }
+  if (!allowPending && ((user.role === 'merchant' && user.merchantStatus === 'pending') || (user.role === 'delivery' && user.riderStatus === 'pending'))) {
+    return <Navigate to="/pending" state={{ from: location.pathname }} replace />;
+  }
+  if (!allowPending && ((user.role === 'merchant' && user.merchantStatus === 'suspended') || (user.role === 'delivery' && user.riderStatus === 'suspended'))) {
+    return <Pending />;
   }
   if (roles && !roles.includes(user.role)) {
     return (

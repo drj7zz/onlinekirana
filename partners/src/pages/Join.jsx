@@ -16,7 +16,7 @@ const STEPS_MERCHANT = [
   'We review the shop and approve it (usually the same day).',
   'Fill in your public shop page — description, area, contact.',
   'List your first products. Each one is approved before it goes live.',
-  'Start selling. When an order comes in, mark it packed and a rider is sent to your counter automatically.',
+  'Start selling. When an order comes in, mark it packed and riders can choose to accept the delivery.',
 ];
 
 const STEPS_RIDER = [
@@ -87,12 +87,12 @@ export default function Join() {
         <h2><Bike size={18} aria-hidden="true" /> How a delivery actually happens</h2>
         <p>
           Nobody has to phone anybody. Once a shopkeeper marks an order packed, the system
-          finds a rider who is on shift and assigns the job to them.
+          makes the job available for riders to review and accept.
         </p>
         <ol className="info-steps" style={{ margin: '.8rem 0 0', paddingLeft: '1.2rem', color: '#444' }}>
           <li>The customer places an order and picks a delivery slot.</li>
           <li>The shop packs the goods and taps <strong>Mark packed</strong>. That is the shopkeeper&apos; s only job.</li>
-          <li>A rider on shift is assigned automatically and sets off for the shop. The shop sees the rider&apos; s name and phone.</li>
+          <li>Riders see open orders and choose which ones to accept. An area match never assigns a job by itself; the shop sees rider details after acceptance.</li>
           <li>The rider taps <strong>I&apos; ve reached the shop</strong> on arrival, collects the goods, then taps <strong>Goods collected</strong>.</li>
           <li>The customer watches the order move to <em>On the way</em> from their own account.</li>
           <li>The rider asks for the 4-digit hand-over code shown in the customer&apos; s order. Only that code can complete the drop.</li>

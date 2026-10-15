@@ -17,6 +17,8 @@ const productSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 productSchema.index({ name: 'text', category: 'text' });
+productSchema.index({ status: 1, isActive: 1, category: 1, createdAt: -1 });
+productSchema.index({ merchant: 1, status: 1, createdAt: -1 });
 
 productSchema.virtual('finalPrice').get(function () {
   return Math.round(this.price * (1 - this.discountPercent / 100) * 100) / 100;

@@ -5,7 +5,7 @@ import API, { imageUrl } from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import ImageUpload from '@shared/components/ImageUpload';
 
-const empty = { shopName: '', description: '', phone: '', logoUrl: '', line: '', ward: '' };
+const empty = { shopName: '', description: '', phone: '', logoUrl: '', line: '', ward: '', pickupLocation: null };
 
 export default function ShopSetup() {
   const { user, updateUser } = useAuth();
@@ -14,6 +14,7 @@ export default function ShopSetup() {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [shopId, setShopId] = useState(null);
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     API.get('/partner/shop').then(({ data }) => {
@@ -25,11 +26,25 @@ export default function ShopSetup() {
         logoUrl: data.logoUrl || '',
         line: data.address?.line || '',
         ward: data.address?.ward || '',
+        pickupLocation: data.pickupLocation || null,
       });
     }).catch(() => setMsg({ ok: false, text: 'We could not load your shop details right now. Please refresh and try again.' }));
   }, []);
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  const capturePickup = () => {
+    if (!navigator.geolocation) { setMsg({ ok: false, text: 'Location is not available in this browser.' }); return; }
+    setLocating(true); setMsg(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setForm((f) => ({ ...f, pickupLocation: { lat: Number(coords.latitude.toFixed(6)), lng: Number(coords.longitude.toFixed(6)) } }));
+        setLocating(false);
+      },
+      () => { setMsg({ ok: false, text: 'Could not get the shop location. Allow location access and try again.' }); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  };
 
   const save = async (e) => {
     e.preventDefault();
@@ -41,6 +56,7 @@ export default function ShopSetup() {
         phone: form.phone,
         logoUrl: form.logoUrl,
         address: { line: form.line, ward: form.ward },
+        pickupLocation: form.pickupLocation,
       });
       setShopId(data.id);
       updateUser({ shopName: data.shopName }); // navbar shows the new name immediately
@@ -86,11 +102,19 @@ export default function ShopSetup() {
           <ImageUpload endpoint="/uploads/shop-logo" value={form.logoUrl} round size={84}
             label="Upload logo" onChange={(url) => setForm((f) => ({ ...f, logoUrl: url }))} />
           <label>Shop address — street / tole
-            <input value={form.line} onChange={set('line')} placeholder="e.g. Main Road, Adarsh Nagar" />
+            <input value={form.line} onChange={set('line')} placeholder="e.g. Main Road, Birgunj" />
           </label>
           <label>Ward No. (Birgunj)
             <input value={form.ward} onChange={set('ward')} placeholder="e.g.10" />
           </label>
+          <div className="location-capture">
+            <button type="button" className="muted-btn" onClick={capturePickup} disabled={locating}>
+              {locating ? 'Finding shop location…' : 'Save this device as shop pickup location'}
+            </button>
+            <small className="muted">Used for estimated late-night distance pricing. Coordinates are kept private from the public shop page.</small>
+            {form.pickupLocation && <small className="save-msg">Pickup pin saved ({form.pickupLocation.lat}, {form.pickupLocation.lng}).</small>}
+            {errors.pickupLocation && <span className="field-error">{errors.pickupLocation}</span>}
+          </div>
           {msg && <p className={msg.ok ? 'save-msg' : 'error'}>{msg.ok ? <CircleCheck size={14} aria-hidden="true" /> : <TriangleAlert size={14} aria-hidden="true" />} {msg.text}</p>}
           <button type="submit" className="cta-btn" disabled={saving}>
             <Save size={16} aria-hidden="true" /> {saving ? 'Saving…' : 'Save shop'}

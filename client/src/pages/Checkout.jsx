@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { CircleCheck, Truck, Clock } from 'lucide-react';
+import { CircleCheck, Truck, Clock, MapPin } from 'lucide-react';
 import API from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
@@ -10,12 +10,19 @@ export default function Checkout() {
   const { user } = useAuth();
   const { items, total, clear } = useCart();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ line: '', ward: '', phone: '', paymentMethod: 'cod' });
-  const [options, setOptions] = useState({ fee: 0, freeOver: 0, slots: [] });
+  const [form, setForm] = useState({ line: '', ward: '', phone: '' });
+  const [options, setOptions] = useState({ slots: [], pilotPricing: true });
+  const [location, setLocation] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [cancellationPolicy, setCancellationPolicy] = useState(null);
   const [slot, setSlot] = useState('');
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
   const [error, setError] = useState('');
+  const [slotError, setSlotError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [usingDefault, setUsingDefault] = useState(false);
+  const merchant = items[0]?.product?.merchant;
+  const sellerId = merchant ? String(typeof merchant === 'object' ? merchant._id : merchant) : 'platform';
 
   // prefill from the profile's saved default address
   useEffect(() => {
@@ -30,32 +37,56 @@ export default function Checkout() {
     }).catch(() => {});
   }, []);
 
-  // Ask the server what delivery costs and which time slots are still promiseable
-  // for this ward. The ward changes the price, so this re-runs when it changes.
   useEffect(() => {
-    API.get(`/delivery/options?ward=${encodeURIComponent(form.ward)}`)
+    API.get('/orders/cancellation-status').then(({ data }) => setCancellationPolicy(data)).catch(() => {});
+  }, []);
+
+  // The server controls time windows, rider availability and all delivery fees.
+  useEffect(() => {
+    let current = true;
+    setSlotError('');
+    const params = new URLSearchParams({ sellerId });
+    if (location) { params.set('lat', location.lat); params.set('lng', location.lng); }
+    API.get(`/delivery/options?${params}`)
       .then(({ data }) => {
+        if (!current) return;
         setOptions(data);
         setSlot((cur) => (data.slots.some((s) => s.key === cur) ? cur : data.slots[0]?.key || ''));
+        setSlotError(data.slots?.length ? '' : 'No delivery windows are available right now. Please try again later.');
       })
-      .catch(() => {});
-  }, [form.ward]);
+      .catch(() => { if (current) setSlotError('Could not load delivery windows. Check your connection and try again.'); });
+    return () => { current = false; };
+  }, [sellerId, location?.lat, location?.lng]);
 
-  // The server recomputes the fee when the order is placed — mirror that here so
-  // the number the customer sees is the number they are charged.
-  const deliveryFee = options.freeOver && total >= options.freeOver ? 0 : (options.fee || 0);
+  const selectedSlot = options.slots.find((s) => s.key === slot);
+  const deliveryFee = Number(selectedSlot?.fee || 0);
   const grandTotal = total + deliveryFee;
 
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
 
+  const captureLocation = () => {
+    if (!navigator.geolocation) { setError('Location is not available in this browser.'); return; }
+    setLocating(true); setError('');
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocation({ lat: Number(coords.latitude.toFixed(6)), lng: Number(coords.longitude.toFixed(6)) });
+        setLocating(false);
+      },
+      () => { setError('Could not get your location. Allow location access and try again.'); setLocating(false); },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 },
+    );
+  };
+
   const submit = async (e) => {
     e.preventDefault();
     setError('');
+    if (slotError) { setError(slotError); return; }
+    setSubmitting(true);
     try {
       await API.post('/orders', {
         items: items.map((i) => ({ productId: i.product._id, qty: i.qty })),
-        deliveryAddress: { line: form.line, ward: form.ward, phone: form.phone },
-        paymentMethod: form.paymentMethod,
+        deliveryAddress: { line: form.line, ward: form.ward, phone: form.phone, location },
+        paymentMethod: 'cod',
         slot: slot || undefined,
         deliveryInstructions: deliveryInstructions.trim() || undefined,
       });
@@ -63,17 +94,11 @@ export default function Checkout() {
       navigate('/orders');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to place order');
-    }
+    } finally { setSubmitting(false); }
   };
 
   if (!user) return <p className="empty">Please <Link to="/login">login</Link> to checkout.</p>;
   if (items.length === 0) return <p className="empty">Your cart is khali. <Link to="/">Go shopping</Link></p>;
-
-  const freeHint = options.freeOver > 0
-    ? (total >= options.freeOver
-      ? 'Free delivery applied to this order.'
-      : `Add ${money(options.freeOver - total)} more for free delivery.`)
-    : '';
 
   return (
     <div className="checkout">
@@ -85,18 +110,29 @@ export default function Checkout() {
         <label>Ward No.<input value={form.ward} onChange={set('ward')} /></label>
         <label>Phone<input required value={form.phone} onChange={(e) => { setUsingDefault(false); setForm({ ...form, phone: e.target.value }); }} placeholder="98XXXXXXXX" /></label>
 
-        <label>When should we deliver?
+        <div className="location-capture">
+          <button type="button" className="muted-btn" onClick={captureLocation} disabled={locating}>
+            <MapPin size={14} aria-hidden="true" /> {locating ? 'Finding your location…' : location ? 'Update delivery pin' : 'Add delivery pin'}
+          </button>
+          <small className="muted">A location pin is needed for late-night distance pricing. It is shared with your rider only after they accept.</small>
+          {location && <small className="save-msg">Delivery pin saved.</small>}
+        </div>
+
+        <label>Delivery window
           <select value={slot} onChange={(e) => setSlot(e.target.value)}>
             {options.slots.length === 0 && <option value="">Next available slot</option>}
-            {options.slots.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+            {options.slots.map((s) => <option key={s.key} value={s.key}>{s.label}{s.fee ? ` · ${money(s.fee)}` : ''}</option>)}
           </select>
         </label>
         {slot && (
           <p className="muted">
-            <Clock size={13} aria-hidden="true" /> Promised window:{' '}
-            {options.slots.find((s) => s.key === slot)?.label}
+            <Clock size={13} aria-hidden="true" /> Selected delivery window: {selectedSlot?.label}. {deliveryFee ? `Delivery charge: ${money(deliveryFee)}.` : 'Launch evening offer: free delivery.'}
           </p>
         )}
+        {options.pilotPricing && options.distanceKm != null && selectedSlot?.fee > 0 && <p className="muted">About {options.distanceKm} km straight-line estimate at रू {options.ratePerKm}/km. The route distance may differ.</p>}
+        {options.pilotPricing && !options.riderOnline && <p className="muted">Paid late-night delivery appears only while an approved rider is online.</p>}
+        {options.pilotPricing && options.riderOnline && !location && <p className="muted">Add a delivery pin to see the late-night delivery option.</p>}
+        {options.pilotPricing && options.riderOnline && location && !options.hasPickupLocation && <p className="muted">Late-night pricing is unavailable until this shop saves its pickup pin.</p>}
 
         <label>Note for the rider (optional)
           <input
@@ -108,10 +144,7 @@ export default function Checkout() {
         </label>
 
         <label>Payment
-          <select value={form.paymentMethod} onChange={set('paymentMethod')}>
-            <option value="cod">Cash on Delivery (COD)</option>
-            <option value="esewa">eSewa (pay on delivery scan)</option>
-          </select>
+          <span className="muted">Pay cash after you receive the order. No advance online payment.</span>
         </label>
         <div className="bill">
           <p className="bill-row"><span>Items</span><span>{money(total)}</span></p>
@@ -119,11 +152,13 @@ export default function Checkout() {
             <span><Truck size={14} aria-hidden="true" /> Delivery</span>
             <span>{deliveryFee === 0 ? 'Free' : money(deliveryFee)}</span>
           </p>
-          {freeHint && <p className="muted bill-hint">{freeHint}</p>}
           <p className="total-row"><strong>Order total: {money(grandTotal)}</strong></p>
         </div>
+        {cancellationPolicy?.enabled && cancellationPolicy.warning && <p className="error" role="status">You have {cancellationPolicy.recentCount} qualifying cancellations in the last {cancellationPolicy.windowDays} days. A third cancellation pauses ordering for {cancellationPolicy.restrictionDays || 7} days.</p>}
+        {cancellationPolicy?.restrictedUntil && <p className="error" role="alert">Ordering is paused until {new Date(cancellationPolicy.restrictedUntil).toLocaleDateString()}. Contact support to request a review.</p>}
+        {slotError && <p className="muted">{slotError}</p>}
         {error && <p className="error">{error}</p>}
-        <button type="submit">Place order</button>
+        <button type="submit" disabled={submitting || Boolean(slotError) || !slot || Boolean(cancellationPolicy?.restrictedUntil)}>{submitting ? 'Placing order…' : 'Place order'}</button>
       </form>
     </div>
   );

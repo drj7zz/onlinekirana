@@ -5,7 +5,11 @@ const User = require('../models/User');
 const Delivery = require('../models/Delivery');
 const { serverError } = require('../utils/errors');
 const { generateOtp, otpMatches } = require('../utils/otp');
-const { feeFor, slotByKey, slotLabel, availableSlots, SLOTS, FREE_OVER } = require('../config/delivery');
+const {
+  PILOT_DELIVERY_ENABLED, NIGHT_RATE_PER_KM, slotByKey, slotLabel,
+  availableSlots, feeForSlot, distanceKm, SLOTS,
+} = require('../config/delivery');
+const { notifyUsers } = require('../utils/notifications');
 
 // Mirrors the order status a delivery step implies, so the customer's order
 // timeline always agrees with what the rider has actually done.
@@ -23,8 +27,7 @@ const NEXT_STEP = {
   accepted: ['picked', 'failed'],
   picked: ['delivered', 'failed'],
   delivered: [],
-  // A failed job is only ever re-queued by the system (autoDispatch), never
-  // pushed forward by a rider, so the only legal target is back to `pending`.
+  // A failed job is re-queued as pending so another rider can accept it.
   failed: ['pending'],
 };
 
@@ -47,12 +50,6 @@ const jobOr404 = async (id, extra = {}) => {
  */
 const MAX_ACTIVE_JOBS = Number(process.env.RIDER_MAX_JOBS || 3);
 
-/** Normalise a ward number to a clean string; '' when it isn't a number. */
-const cleanWard = (v) => {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? String(n) : '';
-};
-
 const listRiders = () => User.find({ role: 'delivery' }).select('-password').sort({ name: 1 });
 
 // ---------- Public / customer ----------
@@ -60,11 +57,26 @@ const listRiders = () => User.find({ role: 'delivery' }).select('-password').sor
 /** GET /api/delivery/options — fees and the slots still promiseable right now. */
 exports.options = async (req, res) => {
   try {
-    const ward = cleanWard(req.query.ward);
+    let pickup = null;
+    if (req.query.sellerId && req.query.sellerId !== 'platform' && mongoose.isValidObjectId(req.query.sellerId)) {
+      const seller = await User.findOne({ _id: req.query.sellerId, role: 'merchant', merchantStatus: 'approved' }).select('shopAddress.location');
+      pickup = seller?.shopAddress?.location || null;
+    } else if (req.query.sellerId === 'platform' && process.env.PLATFORM_PICKUP_LAT && process.env.PLATFORM_PICKUP_LNG) {
+      pickup = { lat: Number(process.env.PLATFORM_PICKUP_LAT), lng: Number(process.env.PLATFORM_PICKUP_LNG) };
+    }
+    const destination = { lat: Number(req.query.lat), lng: Number(req.query.lng) };
+    const km = distanceKm(pickup, destination);
+    const riderOnline = await User.exists({ role: 'delivery', riderStatus: { $in: ['available', 'on_delivery'] }, merchantStatus: 'approved' });
+    const slots = availableSlots(new Date(), { riderOnline: Boolean(riderOnline), distanceKm: km })
+      .map((slot) => ({ ...slot, fee: feeForSlot(slot.key, km), distanceKm: km }));
     res.json({
-      fee: feeFor(0, ward),
-      freeOver: FREE_OVER,
-      slots: availableSlots().map(({ key, label }) => ({ key, label })),
+      pilotPricing: PILOT_DELIVERY_ENABLED,
+      ratePerKm: PILOT_DELIVERY_ENABLED ? NIGHT_RATE_PER_KM : 0,
+      distanceKm: km,
+      distanceType: 'straight-line estimate',
+      hasPickupLocation: Boolean(pickup),
+      riderOnline: Boolean(riderOnline),
+      slots,
     });
   } catch (e) {
     serverError(res, e);
@@ -79,6 +91,9 @@ exports.myCode = async (req, res) => {
     const order = await Order.findById(req.params.id).select('user');
     if (!order || String(order.user) !== String(req.user.id)) {
       return res.status(403).json({ message: 'Not allowed' });
+    }
+    if (!['picked', 'delivered'].includes(delivery.status)) {
+      return res.status(409).json({ message: 'Your hand-over code will appear after the rider collects your order.' });
     }
     res.json({ otp: delivery.otp, slot: delivery.slot, slotLabel: slotLabel(delivery.slot) });
   } catch (e) {
@@ -105,7 +120,7 @@ exports.confirmReceipt = async (req, res) => {
     if (delivery.status === 'delivered') {
       return res.json({ status: 'delivered', alreadyDone: true });
     }
-    if (!['picked', 'accepted'].includes(delivery.status)) {
+    if (delivery.status !== 'picked') {
       return res.status(400).json({ message: 'Your order has not reached your address yet' });
     }
     if (!otpMatches(req.body.otp, delivery.otp)) {
@@ -118,7 +133,7 @@ exports.confirmReceipt = async (req, res) => {
     await delivery.save();
 
     order.status = 'delivered';
-    if (order.paymentMethod === 'cod' || order.paymentStatus !== 'paid') order.paymentStatus = 'paid';
+    if (order.paymentMethod === 'cod') order.paymentStatus = 'paid';
     order.deliveredAt = new Date();
     await order.save();
 
@@ -137,6 +152,7 @@ exports.allJobs = async (req, res) => {
     const { status } = req.query;
     const filter = status ? { status } : {};
     const jobs = await Delivery.find(filter)
+      .select('-otp')
       .sort({ createdAt: -1 })
       .populate('rider', 'name phone riderVehicle riderStatus')
       .populate('order', 'total grandTotal status paymentMethod items');
@@ -165,7 +181,7 @@ exports.riders = async (req, res) => {
  * POST /api/delivery/riders/:id/status — approve, suspend or reinstate a rider.
  * This is the *only* rider field an admin may write by hand; everything else on
  * a delivery runs itself. A suspension immediately frees up their jobs so the
- * auto-dispatcher can re-line them.
+ * open pool so another rider can choose the job.
  */
 exports.setRiderStatus = async (req, res) => {
   try {
@@ -178,15 +194,19 @@ exports.setRiderStatus = async (req, res) => {
 
     rider.riderStatus = status;
     if (status === 'suspended') rider.merchantStatus = 'suspended';
-    if (status !== 'suspended') rider.merchantStatus = 'approved';
+    else if (status === 'pending') rider.merchantStatus = 'pending';
+    else rider.merchantStatus = 'approved';
 
     // Never send the whole document back: it carries the bcrypt hash. Rebuild
     // the response from the fields the desk actually renders.
     await rider.save();
 
-    // Approving a rider is the moment they become dispatchable, so anything
-    // stranded in the pool goes out now rather than at the next packing.
-    if (status === 'available') await dispatchWaitingJobs();
+    if (status === 'available') {
+      await notifyUsers([rider._id], {
+        type: 'approval', title: 'Rider account approved',
+        body: 'You can go on shift and accept available deliveries.', link: '/rider',
+      });
+    }
 
     if (status === 'suspended') {
       // hand the live jobs back to the pool instead of stranding the goods
@@ -198,7 +218,6 @@ exports.setRiderStatus = async (req, res) => {
         job.assignedBy = null;
         await job.save();
         await Order.updateOne({ _id: job.order, status: 'packed' });
-        await autoDispatch(job);
       }
     }
     res.json({
@@ -215,43 +234,6 @@ exports.setRiderStatus = async (req, res) => {
   }
 };
 
-/** Hand a job to a rider. */
-exports.assign = async (req, res) => {
-  try {
-    const { riderId } = req.body;
-    if (!pick(riderId)) return res.status(400).json({ message: 'Choose a rider' });
-
-    const rider = await User.findOne({ _id: riderId, role: 'delivery' });
-    if (!rider) return res.status(404).json({ message: 'Rider not found' });
-    if (rider.merchantStatus === 'suspended' || rider.riderStatus === 'suspended') {
-      return res.status(400).json({ message: 'That rider is suspended' });
-    }
-
-    const delivery = await Delivery.findOne({ order: req.params.id });
-    if (!delivery) return res.status(404).json({ message: 'Delivery not found' });
-    if (delivery.status === 'delivered') return res.status(400).json({ message: 'This delivery is already complete' });
-    if (delivery.rider && String(delivery.rider) !== riderId) {
-      return res.status(409).json({ message: 'Another rider is already on this delivery' });
-    }
-
-    delivery.rider = rider._id;
-    delivery.status = delivery.status === 'pending' ? 'assigned' : delivery.status;
-    await delivery.save();
-
-    // keep the order timeline honest
-    if (delivery.status === 'assigned' || delivery.status === 'accepted') {
-      await Order.updateOne({ _id: delivery.order }, { status: 'assigned' });
-    }
-
-    // auto-claim the rider for the rest of their shift
-    if (rider.riderStatus === 'available') await User.updateOne({ _id: rider._id }, { riderStatus: 'on_delivery' });
-
-    res.json(delivery);
-  } catch (e) {
-    serverError(res, e);
-  }
-};
-
 /** Move a job along (dispatch override, e.g. an admin confirms the drop-off). */
 exports.updateJob = async (req, res) => {
   try {
@@ -259,8 +241,8 @@ exports.updateJob = async (req, res) => {
     const delivery = await Delivery.findById(req.params.id);
     if (!delivery) return res.status(404).json({ message: 'Delivery not found' });
 
-    if (!NEXT_STEP[delivery.status]?.includes(status)) {
-      return res.status(400).json({ message: `Cannot go from ${delivery.status} to ${status}` });
+    if (delivery.status !== 'picked' || status !== 'delivered') {
+      return res.status(403).json({ message: 'Only a rider can advance delivery. Admins may confirm a picked order with the customer code.' });
     }
 
     // a dispatch-side completion still needs the customer's code
@@ -277,7 +259,14 @@ exports.updateJob = async (req, res) => {
     await delivery.save();
 
     const orderStatus = DELIVERY_TO_ORDER[status];
-    if (orderStatus) await Order.updateOne({ _id: delivery.order }, { status: orderStatus, paymentStatus: 'paid' });
+    if (orderStatus) {
+      const orderUpdate = { status: orderStatus };
+      if (status === 'delivered') {
+        const order = await Order.findById(delivery.order).select('paymentMethod');
+        if (order?.paymentMethod === 'cod') orderUpdate.paymentStatus = 'paid';
+      }
+      await Order.updateOne({ _id: delivery.order }, { $set: orderUpdate });
+    }
     if (status === 'failed') await Order.updateOne({ _id: delivery.order }, { status: 'cancelled', cancelReason: 'Delivery could not be completed' });
     if (status === 'delivered' || status === 'failed') await releaseRiderIfIdle(delivery.rider);
 
@@ -290,26 +279,42 @@ exports.updateJob = async (req, res) => {
 /** Call the whole order off and put the stock back. */
 exports.cancelOrder = async (req, res) => {
   try {
-    const order = await Order.findById(req.params.id);
-    if (!order) return res.status(404).json({ message: 'Order not found' });
-    if (['delivered', 'cancelled'].includes(order.status)) {
-      return res.status(400).json({ message: `This order is already ${order.status}` });
+    const reason = String(req.body.reason || 'Cancelled by OnlineKirana').slice(0, 300);
+    const order = await Order.findOneAndUpdate(
+      { _id: req.params.id, status: { $nin: ['delivered', 'cancelled'] } },
+      { $set: { status: 'cancelled', cancelReason: reason, cancelledBy: 'admin', cancelledAt: new Date() } },
+      { new: true }
+    );
+    if (!order) {
+      const existing = await Order.findById(req.params.id).select('status');
+      if (!existing) return res.status(404).json({ message: 'Order not found' });
+      return res.status(400).json({ message: `This order is already ${existing.status}` });
     }
-
-    order.status = 'cancelled';
-    order.cancelReason = String(req.body.reason || 'Cancelled by OnlineKirana').slice(0, 300);
-    order.paymentStatus = order.paymentStatus === 'paid' ? 'refunded' : 'unpaid';
-    await order.save();
+    if (order.paymentStatus === 'paid') {
+      order.paymentStatus = 'refunded';
+      await order.save();
+    }
 
     // return the reserved stock to the shelf
     for (const item of order.items) {
       await Product.updateOne({ _id: item.product }, { $inc: { stock: item.qty } });
     }
 
-    await Delivery.findOneAndUpdate(
+    const activeDelivery = await Delivery.findOne({
+      order: order._id,
+      status: { $nin: ['delivered', 'failed'] },
+    }).select('rider');
+    await Delivery.updateOne(
       { order: order._id, status: { $nin: ['delivered', 'failed'] } },
-      { status: 'failed', attemptNote: order.cancelReason, rider: null }
+      { status: 'failed', attemptNote: order.cancelReason, rider: null, assignedAt: null, assignedBy: null }
     );
+    if (activeDelivery?.rider) await releaseRiderIfIdle(activeDelivery.rider);
+    await notifyUsers([order.user, ...order.items.map((item) => item.merchant)], {
+      type: 'order',
+      title: 'Order cancelled',
+      body: `Order #${String(order._id).slice(-6).toUpperCase()} was cancelled.`,
+      link: '/orders',
+    });
 
     res.json(order);
   } catch (e) {
@@ -319,15 +324,28 @@ exports.cancelOrder = async (req, res) => {
 
 // ---------- Rider ----------
 
-/** GET /api/delivery/jobs — my queue plus the unclaimed jobs I can pick up. */
+/** GET /api/delivery/jobs — my queue plus packed jobs riders may accept. */
 exports.myJobs = async (req, res) => {
   try {
     const mine = await Delivery.find({ rider: pick(req.user.id) })
+      .select('-otp')
       .sort({ createdAt: 1 })
       .populate('order', 'total grandTotal status paymentMethod items');
-    const open = await Delivery.find({ rider: null, status: 'pending' })
+    const openJobs = await Delivery.find({ rider: null, status: 'pending' })
       .sort({ createdAt: 1 })
-      .populate('order', 'total grandTotal status paymentMethod items');
+      .populate({ path: 'order', select: 'total grandTotal status paymentMethod items', match: { status: 'packed' } });
+    // Until acceptance, riders only see the destination ward and the order
+    // contents. Customer name, phone, street address, delivery note and OTP are
+    // disclosed only after this rider owns the job.
+    const open = openJobs.filter((job) => job.order).map((job) => {
+      const { otp, ...safeJob } = job.toObject();
+      void otp;
+      return {
+        ...safeJob,
+        instructions: '',
+        dropoff: { ward: job.dropoff?.ward || '', city: 'Birgunj' },
+      };
+    });
     res.json({ mine, open });
   } catch (e) {
     serverError(res, e);
@@ -337,16 +355,50 @@ exports.myJobs = async (req, res) => {
 /** Claim an unassigned job. */
 exports.claim = async (req, res) => {
   try {
-    const delivery = await jobOr404(req.params.id, { status: 'pending', rider: null });
+    const rider = await User.findOne({ _id: req.user.id, role: 'delivery' }).select('riderStatus merchantStatus');
+    if (!rider || rider.merchantStatus !== 'approved' || rider.riderStatus === 'pending' || rider.riderStatus === 'suspended') {
+      return res.status(403).json({ message: 'Your rider account is not approved for deliveries.' });
+    }
+    if (!['available', 'on_delivery'].includes(rider.riderStatus)) {
+      return res.status(403).json({ message: 'Go on shift before accepting an order.' });
+    }
+    const candidate = await Delivery.findOne({ _id: pick(req.params.id), status: 'pending', rider: null }).select('order');
+    if (!candidate || !(await Order.exists({ _id: candidate.order, status: 'packed' }))) {
+      return res.status(409).json({ message: 'This order is no longer available to accept.' });
+    }
+    const activeJobs = await Delivery.countDocuments({
+      rider: req.user.id,
+      status: { $in: ['assigned', 'accepted', 'picked'] },
+    });
+    if (activeJobs >= MAX_ACTIVE_JOBS) {
+      return res.status(409).json({ message: `You already have ${MAX_ACTIVE_JOBS} active orders.` });
+    }
+    // Atomic conditional update: if two riders tap at once, exactly one gets it.
+    const delivery = await Delivery.findOneAndUpdate(
+      { _id: pick(req.params.id), status: 'pending', rider: null },
+      { $set: { rider: pick(req.user.id), status: 'assigned', assignedAt: new Date(), assignedBy: 'rider' } },
+      { new: true }
+    );
     if (!delivery) return res.status(409).json({ message: 'That job was just taken' });
-
-    delivery.rider = pick(req.user.id);
-    delivery.status = 'assigned';
-    await delivery.save();
-    await Order.updateOne({ _id: delivery.order }, { status: 'assigned' });
+    const orderUpdate = await Order.updateOne({ _id: delivery.order, status: 'packed' }, { status: 'assigned' });
+    if (orderUpdate.modifiedCount !== 1) {
+      await Delivery.updateOne({ _id: delivery._id, rider: req.user.id, status: 'assigned' }, { $set: { rider: null, status: 'pending', assignedAt: null, assignedBy: null } });
+      return res.status(409).json({ message: 'This order was changed before acceptance. Refresh your available deliveries.' });
+    }
     await User.updateOne({ _id: req.user.id }, { riderStatus: 'on_delivery' });
 
-    res.json(delivery);
+    const order = await Order.findById(delivery.order).select('user items');
+    const parties = [order?.user, ...(order?.items || []).map((item) => item.merchant)];
+    await notifyUsers(parties, {
+      type: 'delivery',
+      title: 'Rider accepted your order',
+      body: 'A delivery partner has accepted the job and can now see your delivery details.',
+      link: '/orders',
+    });
+
+    const { otp: hiddenOtp, ...safeDelivery } = delivery.toObject();
+    void hiddenOtp;
+    res.json(safeDelivery);
   } catch (e) {
     serverError(res, e);
   }
@@ -379,27 +431,43 @@ exports.advance = async (req, res) => {
     await delivery.save();
 
     // A rider who gives up must not strand the order. Put the job back in the
-    // pool as `pending`, free the rider, and put the order back to `packed` so
-    // the merchant still sees it as theirs. Then try again immediately — a
-    // different rider is often free by now. If nobody is, it stays claimable.
+    // open pool as `pending`, free the rider, and put the order back to `packed`.
     if (status === 'failed') {
       delivery.rider = null;
       delivery.assignedAt = null;
       delivery.assignedBy = null;
-      // `autoDispatch` only ever picks up `pending` jobs, so the status has to
-      // be reset too — otherwise the retry silently does nothing and the order
-      // is stranded with a dead rider attached.
+      // Reset the job to pending and clear its rider so another rider can
+      // choose to accept it.
       delivery.status = 'pending';
       await delivery.save();
       await Order.updateOne({ _id: delivery.order, status: { $nin: ['delivered', 'cancelled'] } }, { status: 'packed' });
-      await autoDispatch(delivery);
     } else {
       const orderStatus = DELIVERY_TO_ORDER[status];
-      if (orderStatus) await Order.updateOne({ _id: delivery.order }, { status: orderStatus, paymentStatus: 'paid' });
+      if (orderStatus) {
+        const orderUpdate = { status: orderStatus };
+        if (status === 'delivered') {
+          const order = await Order.findById(delivery.order).select('paymentMethod');
+          if (order?.paymentMethod === 'cod') orderUpdate.paymentStatus = 'paid';
+        }
+        await Order.updateOne({ _id: delivery.order }, { $set: orderUpdate });
+      }
+    }
+
+    if (['picked', 'delivered', 'failed'].includes(status)) {
+      const order = await Order.findById(delivery.order).select('user items');
+      const parties = [order?.user, ...(order?.items || []).map((item) => item.merchant)];
+      await notifyUsers(parties, {
+        type: 'delivery',
+        title: status === 'picked' ? 'Order is on the way' : status === 'delivered' ? 'Order delivered' : 'Delivery needs another rider',
+        body: status === 'picked' ? 'The rider collected your order from the shop.' : status === 'delivered' ? 'Your order has been handed over.' : 'This job is open for another rider to accept.',
+        link: '/orders',
+      });
     }
 
     if (status === 'delivered' || status === 'failed') await releaseRiderIfIdle(req.user.id);
-    res.json(delivery);
+    const { otp: hiddenOtp, ...safeDelivery } = delivery.toObject();
+    void hiddenOtp;
+    res.json(safeDelivery);
   } catch (e) {
     serverError(res, e);
   }
@@ -414,11 +482,11 @@ exports.setAvailability = async (req, res) => {
     // `req.user` is the JWT payload (id, role, name) — it carries no riderStatus,
     // so the real status has to be read from the database. Reading it is also the
     // only way to stop a suspended or not-yet-approved rider from flipping
-    // themselves to `available`, which is what the auto-dispatcher looks for.
-    const rider = await User.findById(req.user.id).select('riderStatus');
+    // themselves to `available` before approval.
+    const rider = await User.findById(req.user.id).select('riderStatus merchantStatus');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
 
-    if (rider.riderStatus === 'suspended') {
+    if (rider.merchantStatus !== 'approved' || rider.riderStatus === 'suspended') {
       return res.status(403).json({ message: 'Your account is suspended — contact the admin.' });
     }
     if (online && rider.riderStatus === 'pending') {
@@ -426,93 +494,16 @@ exports.setAvailability = async (req, res) => {
     }
 
     await User.updateOne({ _id: req.user.id }, { riderStatus: status });
-    // A rider coming online is the moment a stuck job can move again. Anything
-    // left sitting in the pool with nobody on it is offered to the fleet now,
-    // rather than waiting for a shopkeeper to pack something else.
-    if (online) await dispatchWaitingJobs();
     res.json({ riderStatus: status });
   } catch (e) {
     serverError(res, e);
   }
 };
 
-/**
- * Pick the right rider without anyone touching a screen.
- *
- * Order of preference:
- *   1. the least busy rider who is on shift and under the load cap
- *   2. if nobody is free, park the job as `pending` so a rider can claim it
- *
- * Runs the moment the merchant marks the order packed, so the shopkeeper never
- * picks a rider and the customer never waits on a manual dispatch tap.
- */
-async function autoDispatch(delivery) {
-  if (!delivery || delivery.rider || delivery.status !== 'pending') return delivery;
-
-  const load = await Delivery.aggregate([
-    { $match: { status: { $in: ['assigned', 'accepted', 'picked'] } } },
-    { $group: { _id: '$rider', n: { $sum: 1 } } },
-  ]);
-  const busy = new Map(load.map((row) => [String(row._id), row.n]));
-
-  const candidates = await User.find({
-    role: 'delivery',
-    riderStatus: 'available',
-  })
-    .select('_id name')
-    .lean();
-
-  const free = candidates
-    .filter((r) => (busy.get(String(r._id)) || 0) < MAX_ACTIVE_JOBS)
-    .sort((a, b) => (busy.get(String(a._id)) || 0) - (busy.get(String(b._id)) || 0));
-
-  const chosen = free[0];
-  if (!chosen) return delivery; // stays pending and claimable
-
-  delivery.rider = chosen._id;
-  // The job lands on `assigned`, NOT `accepted`: the rider is told about the job
-  // and starts towards the shop, but still taps "I've reached the shop" when they
-  // actually arrive. That tap is the merchant↔rider handoff — it is the moment
-  // the rider knows the packed goods are theirs, so it must not be skipped.
-  delivery.status = 'assigned';
-  delivery.assignedAt = new Date();
-  delivery.assignedBy = 'auto';
-  await delivery.save();
-
-  await Order.updateOne({ _id: delivery.order }, { status: 'assigned' });
-  await User.updateOne({ _id: chosen._id }, { riderStatus: 'on_delivery' });
-  return delivery;
-}
-
-/**
- * Run the auto-flow after the merchant packs an order. Nothing else in the
- * system has to be touched by a human for the delivery to move.
- */
 async function dispatchForOrder(orderId) {
-  const delivery = await Delivery.findOne({ order: orderId, status: 'pending', rider: null });
-  if (!delivery) return null;
-  return autoDispatch(delivery);
-}
-
-/**
- * Drain the pool: hand every unassigned job to an available rider. Called when a
- * rider comes online, so a job packed while nobody was on shift is picked up as
- * soon as anyone is. Oldest first, so nobody is left waiting behind newer work.
- */
-async function dispatchWaitingJobs() {
-  const waiting = await Delivery.find({ status: 'pending', rider: null }).sort({ createdAt: 1 });
-  const assigned = [];
-  for (const job of waiting) {
-    // `autoDispatch` returns the job untouched when no rider is free or every
-    // free rider is at the load cap. Once that happens the rest cannot succeed
-    // either, so stop rather than re-querying the same empty candidate set for
-    // every job still waiting.
-    const before = job.rider;
-    const out = await autoDispatch(job);
-    if (out?.rider && !before) assigned.push(out);
-    else if (!out?.rider) break;
-  }
-  return assigned;
+  // Packing leaves the job pending. The rider dashboard is the only automatic
+  // route to riders; assignment happens after their explicit acceptance.
+  return Delivery.findOne({ order: orderId, status: 'pending', rider: null });
 }
 
 /** A rider with nothing left in hand goes back to "available". */
@@ -523,21 +514,18 @@ async function releaseRiderIfIdle(riderId) {
     status: { $in: ['assigned', 'accepted', 'picked'] },
   });
   if (busy === 0) {
-    await User.updateOne({ _id: riderId }, { riderStatus: 'available' });
-    // Finishing a job frees a slot, and a free slot is the moment the next
-    // waiting job can move. Without this the pool stalls until another order is
-    // packed or a rider happens to toggle their shift.
-    await dispatchWaitingJobs();
+    await User.updateOne({ _id: riderId, riderStatus: 'on_delivery' }, { riderStatus: 'available' });
   }
 }
 
 /** Called from the order controller right after a successful checkout. */
-async function createForOrder({ order, shop, address, customerName, fee, slot, instructions }) {
+async function createForOrder({ order, shop, address, customerName, fee, slot, instructions, distance }) {
   return Delivery.create({
     order: order._id,
     status: 'pending',
     otp: generateOtp(),
     fee,
+    distanceKm: distance,
     slot: slotByKey(slot) ? slot : null,
     instructions: String(instructions || '').slice(0, 300),
     pickup: {
@@ -545,12 +533,14 @@ async function createForOrder({ order, shop, address, customerName, fee, slot, i
       line: shop?.shopAddress?.line || '',
       ward: shop?.shopAddress?.ward || '',
       phone: shop?.shopPhone || shop?.phone || '',
+      location: shop?.shopAddress?.location || null,
     },
     dropoff: {
       name: customerName || '',
       line: address?.line || '',
       ward: address?.ward || '',
       phone: address?.phone || '',
+      location: address?.location || null,
     },
   });
 }
@@ -563,7 +553,6 @@ module.exports = {
   riders: exports.riders,
   confirmReceipt: exports.confirmReceipt,
   setRiderStatus: exports.setRiderStatus,
-  assign: exports.assign,
   updateJob: exports.updateJob,
   cancelOrder: exports.cancelOrder,
   myJobs: exports.myJobs,
@@ -571,9 +560,8 @@ module.exports = {
   advance: exports.advance,
   setAvailability: exports.setAvailability,
   createForOrder,
-  autoDispatch,
   dispatchForOrder,
-  dispatchWaitingJobs,
+  releaseRiderIfIdle,
   MAX_ACTIVE_JOBS,
   DELIVERY_TO_ORDER,
   SLOTS,

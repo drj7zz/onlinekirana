@@ -5,29 +5,32 @@ import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import OrderCard from '@shared/components/OrderCard';
+import { productPath } from '@shared/lib/productUrl';
+import { STOREFRONT_URL } from '@shared/lib/apps';
+import { imageUrl } from '@shared/api';
 
 /**
  * What the shop is being asked to do right now. The merchant's whole job is to
- * pack the goods; the delivery system takes it from there on its own. This strip
- * is what closes the loop — it shows whether a rider is on the way to the
+ * pack the goods; riders choose open jobs from their dashboard. This strip
+ * shows whether a rider has accepted the job and is on the way to the
  * counter, so nobody has to phone to ask.
  */
 const STAGE = {
   pending: {
     label: 'Waiting to be packed',
-    hint: 'Pack the goods, then mark it packed — a rider is assigned automatically.',
+    hint: 'Pack the goods, then mark it packed — riders can choose to accept it.',
   },
   confirmed: {
     label: 'Waiting to be packed',
-    hint: 'Pack the goods, then mark it packed — a rider is assigned automatically.',
+    hint: 'Pack the goods, then mark it packed — riders can choose to accept it.',
   },
   packed: {
-    label: 'Packed — lining up a rider',
-    hint: 'You are done here. The dispatcher is finding a rider for this drop.',
+    label: 'Packed — waiting for a rider',
+    hint: 'You are done here. The job is open for riders to accept.',
   },
   assigned: {
-    label: 'Rider on the way to your shop',
-    hint: 'A rider has been assigned and is heading to your counter. Keep the goods ready.',
+    label: 'Rider accepted the delivery',
+    hint: 'A rider chose the job and is heading to your counter. Keep the goods ready.',
   },
   out_for_delivery: {
     label: 'Rider has collected the goods',
@@ -38,14 +41,14 @@ const STAGE = {
 };
 
 /** The rider panel — only once a rider is actually on the job. */
-function RiderPanel({ delivery }) {
+function RiderPanel({ delivery, orderStatus }) {
   if (!delivery) return null;
   const rider = delivery.rider;
   if (!rider) {
     return (
       <p className="order-note" style={{ marginBottom: '.6rem' }}>
         <Bike size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} aria-hidden="true" />
-        <strong>No rider yet.</strong> The job is open — any rider on shift can take it.
+        <strong>{orderStatus === 'packed' ? 'No rider yet.' : 'Waiting for the shop.'}</strong> {orderStatus === 'packed' ? 'The job is open — an on-shift rider can accept it.' : 'Riders can choose the job after you mark it packed.'}
       </p>
     );
   }
@@ -85,8 +88,7 @@ export default function Orders() {
   };
   useLive(load, 8000, [user?._id]);
 
-  // Packing is the merchant's one action. It hands the job to the delivery
-  // system, which auto-assigns a rider — so there is nothing to pick here.
+  // Packing makes the delivery available for riders to accept.
   const pack = async (id) => {
     setBusyId(id);
     setError('');
@@ -110,8 +112,8 @@ export default function Orders() {
     <div>
       <h1>Orders</h1>
       <p className="muted">
-        Pack the goods and mark each order packed. A rider is assigned automatically and
-        comes to your counter — you never have to choose one or call a delivery.
+        Pack the goods and mark each order packed. Riders see the open job and choose
+        whether to accept it; area alone never assigns an order to someone.
       </p>
 
       {error && <p className="error">{error}</p>}
@@ -154,13 +156,34 @@ export default function Orders() {
                     <ul>
                       {(o.items || [])
                         .filter((i) => i.merchant === user._id)
-                        .map((i, idx) => (
-                          <li key={idx}>
-                            <span className="oi-name">{i.name}</span>
-                            <span className="oi-qty">{i.qty} {i.unit}</span>
-                            <span className="oi-price">रू {Number(i.price || 0).toLocaleString('en-IN')}</span>
-                          </li>
-                        ))}
+                        .map((i, idx) => {
+                          const product = i.product && typeof i.product === 'object' ? i.product : null;
+                          const productId = product?._id || i.product;
+                          const photo = imageUrl(product?.imageUrl);
+                          return (
+                            <li key={idx}>
+                              <span className="oi-name">
+                                {productId ? (
+                                  <details className="partner-order-product">
+                                    <summary className="oi-link">{i.name}</summary>
+                                    <div className="partner-order-product-info">
+                                      {photo && <img src={photo} alt={i.name} loading="lazy" />}
+                                      <div>
+                                        {product?.category && <strong>{product.category}</strong>}
+                                        <p>{product?.description || 'No product description available.'}</p>
+                                        <a href={`${STOREFRONT_URL}${productPath({ _id: productId, name: i.name })}`} target="_blank" rel="noreferrer">
+                                          View product
+                                        </a>
+                                      </div>
+                                    </div>
+                                  </details>
+                                ) : i.name}
+                              </span>
+                              <span className="oi-qty">{i.qty} {i.unit}</span>
+                              <span className="oi-price">रू {Number(i.price || 0).toLocaleString('en-IN')}</span>
+                            </li>
+                          );
+                        })}
                     </ul>
                   </div>
 
@@ -193,7 +216,7 @@ export default function Orders() {
 
                     <p className="muted" style={{ margin: '0 0 .5rem' }}>{STAGE[o.status]?.hint}</p>
 
-                    <RiderPanel delivery={o.delivery} />
+                    <RiderPanel delivery={o.delivery} orderStatus={o.status} />
                   </article>
                 ))}
             </div>

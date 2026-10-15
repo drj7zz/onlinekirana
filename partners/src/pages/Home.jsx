@@ -22,11 +22,11 @@ const ROLES = [
     icon: Store,
     tone: 'green',
     title: 'Shopkeepers',
-    lede: 'Put your whole shop online and stop losing sales to stock-outs.',
+    lede: 'Show your products online and reach more local customers.',
     points: [
       'List products and photos in minutes',
       'Orders arrive in real time — pack and hand over',
-      'Weekly payouts, no setup fee',
+      'Manage your listings and incoming orders',
     ],
     cta: { to: '/register', label: 'Register a shop' },
   },
@@ -34,11 +34,11 @@ const ROLES = [
     icon: Bike,
     tone: 'amber',
     title: 'Delivery riders',
-    lede: 'Set your own hours and see exactly what each trip pays.',
+    lede: 'Choose your shift and accept the delivery jobs that work for you.',
     points: [
       'Choose when you are online',
-      'Transparent per-trip earnings',
-      'Insurance cover while on a delivery',
+      'Choose from available delivery jobs',
+      'See customer details after accepting a job',
     ],
     cta: { to: '/join', label: 'Apply as a rider' },
   },
@@ -49,8 +49,8 @@ const ROLES = [
     lede: 'Run the marketplace: orders, dispatch and partner approvals.',
     points: [
       'Oversee every order across the city',
-      'Assign riders and watch live status',
-      'Invite-only, fully audited access',
+      'Let on-shift riders accept jobs and watch live status',
+      'Admin tools for approved operations staff',
     ],
     cta: { to: '/login', label: 'Staff sign in' },
   },
@@ -70,15 +70,15 @@ const STEPS = [
     body: 'Fill in your shop page or rider profile, then list your first products or claim a shift.',
   },
   {
-    title: 'Get paid',
-    body: 'Orders come in, a rider is dispatched, and your earnings settle on a weekly cycle.',
+    title: 'Fulfil orders',
+    body: 'Orders come in, the shop packs them, and an on-shift rider chooses whether to accept.',
   },
 ];
 
 const PROOF = [
-  { icon: Clock, value: '30 min', label: 'Average delivery across Birgunj' },
-  { icon: Wallet, value: 'Weekly', label: 'Payout cycle for merchants' },
-  { icon: MapPin, value: 'All wards', label: 'Covered inside the city' },
+  { icon: Clock, value: '5 am–10 pm', label: 'Free launch delivery window' },
+  { icon: Wallet, value: '₹10/km', label: 'Late-night estimate, when a rider is online' },
+  { icon: MapPin, value: 'Birgunj', label: 'Delivery coverage depends on rider availability' },
   { icon: TrendingUp, value: 'Zero', label: 'Cost to register your shop' },
 ];
 
@@ -94,7 +94,7 @@ export default function Home() {
       {/* ===== hero ===== */}
       <section className="p-hero">
         <span className="p-pill">
-          <MapPin size={12} aria-hidden="true" /> Now live across Birgunj
+          <MapPin size={12} aria-hidden="true" /> Partnering in Birgunj
         </span>
         <h1 className="p-hero-title">
           One portal for every<br />business on <em>OnlineKirana</em>

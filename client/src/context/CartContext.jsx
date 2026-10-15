@@ -3,6 +3,11 @@ import { finalPrice } from '../lib/pricing';
 
 const CartContext = createContext(null);
 
+const sellerId = (product) => {
+  const merchant = product?.merchant;
+  return merchant ? String(typeof merchant === 'object' ? merchant._id || 'platform' : merchant) : 'platform';
+};
+
 export function CartProvider({ children }) {
   const [items, setItems] = useState([]); // [{ product, qty }]
 
@@ -13,6 +18,7 @@ export function CartProvider({ children }) {
     const cap = Math.max(1, product.stock || 1);
     let next = 0;
     setItems((prev) => {
+      if (prev.length && sellerId(prev[0].product) !== sellerId(product)) return prev;
       const found = prev.find((i) => i.product._id === product._id);
       if (found) {
         const bumped = Math.min(found.qty + qty, cap);
@@ -52,8 +58,10 @@ export function CartProvider({ children }) {
     [items],
   );
 
+  const canAddSeller = (product) => !items.length || sellerId(items[0].product) === sellerId(product);
+
   return (
-    <CartContext.Provider value={{ items, add, updateQty, remove, clear, count, total, qtyOf, unavailable }}>
+    <CartContext.Provider value={{ items, add, updateQty, remove, clear, count, total, qtyOf, unavailable, canAddSeller }}>
       {children}
     </CartContext.Provider>
   );

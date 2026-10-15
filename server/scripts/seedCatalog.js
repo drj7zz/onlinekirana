@@ -1,4 +1,4 @@
-re/**
+/**
  * Seed a realistic Birgunj grocery catalogue into MongoDB.
  *
  * Nothing in the UI hardcodes products — this script is the single source of
@@ -10,13 +10,7 @@ re/**
  *
  * Usage: npm run seed-catalog [-- --force]
  */
-require('dotenv').config({
-  path: require('path').join(
-    __dirname,
-    '..',
-    `.env.${process.env.NODE_ENV === 'production' || process.argv.includes('--prod') ? 'production' : 'development'}`
-  ),
-});
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const User = require('../models/User');
