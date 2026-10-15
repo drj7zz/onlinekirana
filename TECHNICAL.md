@@ -42,7 +42,7 @@ security posture, API surface and the reasoning behind key decisions.
 | File uploads | multer (disk storage) | ^2.4 |
 | CORS | cors | ^2.8 |
 | Env config | dotenv | ^16.4 |
-| Dev runner | nodemon | ^3.1 |
+| Dev runner | Node.js `--watch` | built in |
 
 ### Frontend (`client/`)
 | Layer | Choice | Version |
@@ -247,7 +247,7 @@ Base URL `/api`. Auth: `Authorization: Bearer <token>`.
 - **useLive(fn, intervalMs)** — visibility-aware polling: runs immediately, then on an
   interval, pausing when `document.visibilityState !== 'visible'`. Gives "live" order and
   stock updates without a page refresh or a websocket server.
-- **api.js** — axios instance (`baseURL = VITE_API_URL || http://localhost:5000` + `/api`),
+- **api.js** — axios instance (`baseURL = VITE_API_URL` + `/api`; required at build time),
   request interceptor for the bearer token, response interceptor for `401`, and an
   `imageUrl()` helper that normalises every stored image value (absolute URL, `data:`,
   `/uploads/…`, bare filename) into a loadable URL or `null`.
@@ -292,7 +292,7 @@ Base URL `/api`. Auth: `Authorization: Bearer <token>`.
 | Role escalation | `role` can only become `merchant`; admin is seeded offline |
 | Error leakage | `serverError()` + global handler never expose stack/DB details |
 | Uploads | mime allow-list (`jpeg/png/webp`), 3 MB cap, randomised filenames, per-kind folders |
-| CORS | Restricted to `CLIENT_URL` (falls back to `*` if unset) |
+| CORS | Restricted to exact `CLIENT_URL` origins; production startup rejects missing or wildcard origins |
 | Secrets | `.env` is gitignored; never commit real `MONGO_URI` / `JWT_SECRET` |
 
 **Production checklist**
@@ -314,16 +314,24 @@ cd server && npm install && npm run dev      # :5000
 # terminal 2
 cd client && npm install && npm run dev      # :5173
 ```
-The client defaults to `http://localhost:5000` for the API; override with
-`VITE_API_URL` in `client/.env`.
+Set `VITE_API_URL=http://localhost:5000` in `client/.env` for local work. It is
+required when building either web app; production values are baked into each
+frontend bundle at build time.
 
 **Production build**
 ```bash
 cd client && npm run build                   # outputs client/dist
 cd ../server && NODE_ENV=production npm start
 ```
-Serve `client/dist` as static files and reverse-proxy `/api` and `/uploads` to the
-Node process.
+Set `VITE_API_URL` in both frontend build environments to the public HTTPS API
+origin, without a trailing `/api`. Rebuild and redeploy both frontends whenever
+that value changes. Deploy the API separately with `NODE_ENV=production`, a
+32-character `JWT_SECRET`, MongoDB access, and `CLIENT_URL` set to the exact
+comma-separated HTTPS origins of the storefront and partner portal. The
+`PILOT_DELIVERY_ENABLED` and `PILOT_CANCELLATION_ENABLED` settings are API runtime
+flags; restarting/redeploying the API is required for changes to take effect.
+After deployment, check `/api/health`, confirm API CORS allows both frontend
+origins, and verify that late-night test orders quote the same fee as checkout.
 
 ---
 

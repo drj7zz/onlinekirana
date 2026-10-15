@@ -16,7 +16,7 @@ exports.place = async (req, res) => {
   const reserved = [];
   let createdOrder = null;
   try {
-    const { items, deliveryAddress, paymentMethod, slot, deliveryInstructions } = req.body;
+    const { items, deliveryAddress, paymentMethod, slot, quotedDeliveryFee, deliveryInstructions } = req.body;
     if (!Array.isArray(items) || items.length === 0) return res.status(400).json({ message: 'Cart is empty' });
     if (!deliveryAddress?.line || !deliveryAddress?.phone) {
       return res.status(400).json({ message: 'Delivery address and phone are required' });
@@ -78,6 +78,11 @@ exports.place = async (req, res) => {
     const deliveryFee = feeForSlot(slot, km);
     if (deliveryFee === null) {
       return res.status(400).json({ message: 'A shop pickup location and your delivery pin are required for paid late-night delivery.' });
+    }
+    // The server owns pricing; this quote check prevents stale frontend/API
+    // deployments from silently changing the customer's checkout total.
+    if (quotedDeliveryFee !== undefined && (!Number.isFinite(Number(quotedDeliveryFee)) || Number(quotedDeliveryFee) !== deliveryFee)) {
+      return res.status(409).json({ message: 'Delivery price changed. Refresh checkout to review the updated total before ordering.' });
     }
 
     const orderItems = [];

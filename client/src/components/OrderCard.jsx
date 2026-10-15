@@ -171,7 +171,8 @@ export default function OrderCard({
         <div className="order-items-head">
           <span><Package size={14} aria-hidden="true" /> {o.items.length} item{o.items.length === 1 ? '' : 's'} · {itemCount} unit{itemCount === 1 ? '' : 's'}</span>
           <span className="muted"><CalendarClock size={13} aria-hidden="true" /> {when}</span>
-        </div>        <ul>
+        </div>
+        <ul>
           {o.items.map((i, idx) => (
             <li key={idx}>
               <span className="oi-thumb" aria-hidden="true"><Store size={13} /></span>
@@ -207,7 +208,7 @@ export default function OrderCard({
           </span>
         </p>
         <p className="order-meta">
-          {addr.phone && <><Phone size={13} aria-hidden="true" /> {addr.phone}</>}
+          {addr.phone && <span className="order-phone"><Phone size={13} aria-hidden="true" /> {addr.phone}</span>}
           <span className="order-pay">
             <Wallet size={12} aria-hidden="true" /> {PAY_LABEL[o.paymentMethod] || 'Cash on delivery'}
           </span>
