@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Info as InfoIcon, Mail, Clock, ChevronDown,
-  Store, Truck, ShieldCheck, Send, CheckCircle2, FileText,
+  Info as InfoIcon, Mail, ChevronDown,
+  Store, Truck, ShieldCheck, CheckCircle2, FileText,
   ShoppingCart, Wallet, RotateCcw, UserCircle2,
 } from 'lucide-react';
 
