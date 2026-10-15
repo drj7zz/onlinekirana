@@ -3,7 +3,7 @@
 A full-stack **MERN** grocery marketplace built for **Birgunj, Nepal**. It is a
 **multi-vendor** store: local shopkeepers sign up as partners, list their products,
 and an admin approves them before they go live. Customers browse, order, and track
-delivery — all priced in **Nepali Rupees (रू)** with **ward-wise delivery** in Birgunj.
+delivery — all priced in **Nepali Rupees (रू)**, with delivery coverage based on active riders in Birgunj.
 
 > **Nothing is hardcoded.** The store starts empty. Every product, shop, order and
 > review lives in MongoDB and is created through the app itself.
@@ -18,7 +18,9 @@ delivery — all priced in **Nepali Rupees (रू)** with **ward-wise delivery*
 | **Admin moderation** | Admin approves partner applications and new/edited products before they appear in the shop. |
 | **Split apps** | The storefront (`:5173`) is shoppers-only. Merchants, riders and operations get their own portal (`:5174`) with a separate sign-in, enforced server-side via the login `scope`. |
 | **No paperwork** | No shop licence, PAN/VAT, citizenship or driving licence is required to join. A partner account is just a name, email, phone and password. |
-| **Self-service sign-up** | Shopkeepers *and* riders both apply from the same form, picking their role. Both land `pending`; an admin approves from the delivery desk. |
+| **Self-service sign-up** | Shopkeepers *and* riders both apply from the same form, picking their role. Both land `pending`; an admin reviews every application in the Approvals section. |
+| **Notifications** | In-app notifications are available across the storefront and partner portal, with optional browser push for order and approval updates. |
+| **Rider choice** | A packed order is offered to on-shift riders. A rider must accept it before customer contact details are revealed. Pilot delivery is free from 5 am–10 pm; 10 pm–midnight may be offered at ₹10 per started estimated kilometer when a rider is online. |
 | **One typeface** | Lato across both apps, loaded with preconnect so the render never waits on it. |
 | **Verified reviews** | One review per user per product. A review is marked **verified** only if the buyer has a *delivered* order for that product. |
 | **Role-based dashboards** | Same `/dashboard` route, three different views (customer / merchant / admin) rendered from one endpoint. |
@@ -26,7 +28,7 @@ delivery — all priced in **Nepali Rupees (रू)** with **ward-wise delivery*
 | **Hardened auth** | Bcrypt hashing, JWT sessions, login rate-limiting (per IP *and* per account), password strength policy, timing-safe login. |
 | **Server-authoritative pricing** | Prices, discounts and stock are always re-read from the DB on checkout — the client's numbers are never trusted. |
 | **Image uploads** | Avatars, shop logos and product photos, validated by type and size and stored per-folder. |
-| **Localized** | NPR currency, Birgunj wards, Nepali mobile number validation, COD & eSewa. |
+| **Localized** | NPR currency, Birgunj wards, Nepali mobile number validation, and cash after delivery only. |
 
 ---
 
@@ -50,6 +52,8 @@ attempt to self-assign the `admin` role.
 ```bash
 cd server
 npm install
+# Generate browser push keys once; keep the private key secret.
+npm run setup-push-keys
 ```
 
 Create `server/.env`:
@@ -64,7 +68,7 @@ CLIENT_URL=http://localhost:5173,http://localhost:5174
 # Used by the seed script
 ADMIN_NAME=OnlineKirana Admin
 ADMIN_EMAIL=admin@onlinekirana.com
-ADMIN_PASSWORD=ChangeMe@123
+# Set ADMIN_PASSWORD to a unique strong secret in your local .env or host secret store.
 ```
 
 Then:
@@ -74,6 +78,15 @@ npm run seed-admin     # creates/upgrades the admin account from .env
 npm run dev            # API on http://localhost:5000
 ```
 
+The pitch pilot rules are feature flags. Set `PILOT_DELIVERY_ENABLED=true` and
+`PILOT_CANCELLATION_ENABLED=true` in the API environment for a demo or staging
+deployment. The local ignored `server/.env` may enable them for development. Keep
+them off on a live service until these pilot policies are approved. Set
+`PLATFORM_PICKUP_LAT` and `PLATFORM_PICKUP_LNG` only if admin-listed products need
+a pickup point; merchant shops set their own pickup pin. Late-night distance is a
+straight-line estimate rounded to 0.1 km, billed at ₹10 per started kilometer;
+it is not a road-distance quote.
+
 ### 2. Storefront (`/client`)
 
 ```bash
@@ -82,7 +95,7 @@ npm install
 npm run dev            # app on http://localhost:5173
 ```
 
-Each app has two env files: `.env.development` (used by `npm run dev`) and `.env.production` (used by `npm run build`).
+Each app has one env file: `.env`, used for dev, build and preview.
 Set `VITE_API_URL` if the API is not on `localhost:5000`.
 `VITE_PARTNERS_URL` points at the partner portal (defaults to `http://localhost:5174`).
 
@@ -103,8 +116,8 @@ npm run dev            # portal on http://localhost:5174
 ### 4. Populate the store
 
 1. Log in as the admin **in the partner portal** (`http://localhost:5174`).
-2. **Admin → Partners** — approve any merchant applications.
-3. **Admin → Products** — approve merchant-submitted products, or add your own (rice, dal, sabzi, oil…).
+2. **Admin → Approvals** — review merchant, rider and product applications in one place.
+3. **Admin → Products** — add catalogue products (rice, dal, sabzi, oil…).
 4. Browse the store as a customer on `http://localhost:5173` and place a test order.
 
 > ⚠️ **Change the admin password after first login.** Use a strong `JWT_SECRET` and set
@@ -115,7 +128,13 @@ npm run dev            # portal on http://localhost:5174
 ## 🗺️ User flows
 
 **Shopping**
-`Home` → search / filter by category / sort → `Product detail` (+ reviews & related items) → `Cart` → `Checkout` (ward + phone, COD/eSewa) → `Orders` (live status).
+`Home` → search / filter by category / sort → `Product detail` (+ reviews & related items) → `Cart` → `Checkout` (one seller, address + phone + pin, cash after delivery) → `Orders` (live status).
+
+**Pilot delivery and cancellations**
+- Delivery is free from 5 am to 10 pm. From 10 pm to midnight, checkout may show a fee of ₹10 per started straight-line kilometer from shop to customer, only when an approved rider is online and both location pins are available. The estimate is not road distance.
+- One order contains products from one seller. Payment is cash after the goods arrive; checkout does not accept online payment.
+- Customers can cancel before rider pickup. Pre-packing cancellations do not count. Packed/assigned cancellations count in a rolling 30-day window; the second triggers a warning, and the third pauses new orders for 7 days. System, shop and rider failures are excluded. Admin can restore ordering after review.
+- The pitch policy says no returns or refunds during the pilot. Obtain local legal review and publish a legally compliant policy before accepting real customers.
 
 **Partner onboarding**
 `Register as merchant` → status *pending* → admin approves → `Shop Setup` (name, logo, description, address) → add products (*pending*) → admin approves → shop page live → fulfil orders.
@@ -123,18 +142,25 @@ npm run dev            # portal on http://localhost:5174
 **Order lifecycle**
 `pending → confirmed → packed → out_for_delivery → delivered` (or `cancelled`).
 
-**Merchant → rider handoff** (no phone calls at any step)
+**Merchant → rider handoff** (riders choose the jobs they accept)
 1. Customer orders from a shop and picks a slot.
-2. The merchant taps **Mark packed** — the shopkeeper's *only* action. This kicks the auto-dispatcher.
-3. The least-busy rider who is on shift is assigned automatically; the job goes to `assigned` and the merchant can see the rider's name and phone.
+2. The merchant taps **Mark packed** — the job is now available in the rider portal.
+3. An on-shift rider reviews open orders and taps **Accept order**. The order is assigned only after that choice; matching an area never assigns it automatically.
 4. The rider taps **I've reached the shop** on arrival, then **Goods collected**.
 5. The customer sees the order move to *On the way* from their own account.
 6. At the door the rider reads out the customer's 4-digit hand-over code. Only that code completes the drop.
 
-If no rider is free the job stays `pending` and any rider on shift can claim it. The pool is
-re-drained automatically whenever capacity appears — when a rider comes on shift, when an admin
-approves one, and when a rider finishes a job and frees a slot. A rider who marks a job `failed`
-has it taken off them, the order returns to `packed`, and it is re-dispatched immediately.
+Until a rider accepts it, the job stays `pending` and appears in the open orders list. Riders can
+accept only while on shift and below the active order limit. Customer name, phone, address and
+delivery notes become visible after acceptance. A rider who marks a job `failed` releases it back
+to the open list for another rider.
+
+### Browser push notifications
+
+The backend generates VAPID credentials into `server/.env` with `npm run setup-push-keys`.
+For deployment, set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` in the server
+environment and keep the private key secret. Users can enable browser push from the notification
+bell; browsers require HTTPS except on localhost. In-app notifications work without push enabled.
 
 ---
 
@@ -265,7 +291,7 @@ For a deeper look at the stack, data model, security and design decisions, see
 | `/login` | public | Merchant, rider and admin sign-in (`scope: 'portal'`) |
 | `/dashboard` | merchant, delivery, admin | Role-shaped overview |
 | `/shop-setup`, `/products`, `/orders` | merchant | Shop page, catalogue, fulfilment |
-| `/rider` | delivery | Shifts, open jobs, earnings |
+| `/rider` | delivery | Shifts, available jobs and delivery progress |
 | `/admin/orders`, `/admin/products`, `/admin/partners`, `/admin/delivery` | admin | Operations desk |
 
 ---

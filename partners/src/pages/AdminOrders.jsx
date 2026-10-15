@@ -7,9 +7,9 @@ import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import OrderCard from '@shared/components/OrderCard';
-import { ORDER_STATUSES, DELIVERY_LABEL, money, timeAgo } from '@shared/lib/delivery';
+import { DELIVERY_LABEL, DELIVERY_WINDOW_LABEL, money, timeAgo } from '@shared/lib/delivery';
 
-const STATUSES = ORDER_STATUSES;
+const STATUSES = ['cancelled'];
 
 /** Filter chips. `delivery` is the bucket that answers "where is my order?". */
 const FILTERS = [
@@ -26,12 +26,13 @@ function DeliveryStrip({ order }) {
   const d = order.delivery;
   if (!d) return null;
   const rider = d.rider;
+  const releasedToRiders = ['packed', 'assigned', 'out_for_delivery'].includes(order.status);
 
   return (
     <div className="order-note note-strip">
       <Bike size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} aria-hidden="true" />
-      <strong>{DELIVERY_LABEL[d.status] || d.status}</strong>
-      <span className="muted"> · {money(d.fee)} fee{d.slot ? ` · promised ${d.slot}` : ''}</span>
+      <strong>{releasedToRiders ? (DELIVERY_LABEL[d.status] || d.status) : 'Waiting for shop to pack'}</strong>
+      <span className="muted"> · {Number(d.fee || 0) === 0 ? 'Free delivery' : money(d.fee)}{d.slot ? ` · ${DELIVERY_WINDOW_LABEL[d.slot] || d.slot}` : ''}</span>
       <p className="muted">
         {rider ? (
           <>
@@ -40,7 +41,9 @@ function DeliveryStrip({ order }) {
             {rider.riderVehicle && <> · {rider.riderVehicle}</>}
           </>
         ) : (
-          'No rider on it yet — the auto-dispatcher is still looking for someone on shift.'
+          releasedToRiders
+            ? 'Waiting for an on-shift rider to choose this delivery.'
+            : 'The shop is preparing this order. Riders can choose it after it is packed.'
         )}
         {d.dropoff?.name && <> · dropping to {d.dropoff.name}</>}
       </p>
@@ -74,26 +77,42 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
+  const [reviewingCustomer, setReviewingCustomer] = useState('');
 
   const load = () =>
     API.get('/orders')
-      .then((r) => setOrders(r.data))
-      .catch(() => {})
+      .then((r) => { setOrders(r.data); setError(''); })
+      .catch(() => setError('Orders could not be loaded. Check your connection and try again.'))
       .finally(() => setLoading(false));
 
   // live: new orders and rider movements appear automatically, no refresh
   useLive(load, 6000, [user?._id]);
 
   const setStatus = async (id, status) => {
-    await API.patch(`/orders/${id}/status`, { status });
-    load();
+    try {
+      await API.patch(`/orders/${id}/status`, { status });
+      load();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Could not update the order.');
+    }
+  };
+
+  const restoreCustomerOrdering = async (customerId) => {
+    setReviewingCustomer(customerId); setError('');
+    try {
+      await API.patch(`/admin/partners/customers/${customerId}/order-restriction`, { clear: true });
+      load();
+    } catch (e) {
+      setError(e.response?.data?.message || 'Could not restore this customer’s ordering.');
+    } finally { setReviewingCustomer(''); }
   };
 
   if (!user) return <p className="empty">Please <Link to="/login">sign in</Link> to manage orders.</p>;
 
   // Orders that need a person: a job is stuck without a rider, or a rider is on it.
-  const inDelivery = (o) => o.delivery && !['delivered', 'failed'].includes(o.delivery.status);
-  const needRider = orders.filter((o) => o.delivery?.status === 'pending' && !o.delivery.rider);
+  const inDelivery = (o) => ['packed', 'assigned', 'out_for_delivery'].includes(o.status) && o.delivery && !['delivered', 'failed'].includes(o.delivery.status);
+  const needRider = orders.filter((o) => o.status === 'packed' && o.delivery?.status === 'pending' && !o.delivery.rider);
   const onTheRoad = orders.filter((o) => o.delivery?.rider && !['delivered', 'failed'].includes(o.delivery.status));
 
   const q = query.trim().toLowerCase();
@@ -137,8 +156,8 @@ export default function AdminOrders() {
             <div className="section" style={{ marginTop: '1.2rem' }}>
               <h2>Nobody on these yet</h2>
               <p className="section-sub">
-                No rider was on shift when these were packed. Approve or go on shift more riders,
-                or assign one by hand.
+                These packed orders remain open until an on-shift rider chooses to accept. Approve more riders
+                or invite the delivery team to go on shift.
               </p>
               {needRider.map((o) => (
                 <JobLine key={o._id} order={o} job={o.delivery} to="/admin/delivery" />
@@ -150,6 +169,8 @@ export default function AdminOrders() {
           )}
         </div>
       )}
+
+      {error && <p className="error" role="alert">{error}</p>}
 
       {/* search + filters */}
       <div className="search-wrap list-search">
@@ -185,6 +206,14 @@ export default function AdminOrders() {
         <div className="order-list">
           {visible.map((o) => (
             <div key={o._id}>
+              {o.user?.orderRestrictedUntil && new Date(o.user.orderRestrictedUntil) > new Date() && (
+                <p className="order-note cancel">
+                  Ordering paused for {o.user.name} until {new Date(o.user.orderRestrictedUntil).toLocaleDateString()}.{' '}
+                  <button type="button" disabled={reviewingCustomer === o.user._id} onClick={() => restoreCustomerOrdering(o.user._id)}>
+                    {reviewingCustomer === o.user._id ? 'Restoring…' : 'Restore ordering'}
+                  </button>
+                </p>
+              )}
               <OrderCard
                 order={o}
                 viewer="admin"

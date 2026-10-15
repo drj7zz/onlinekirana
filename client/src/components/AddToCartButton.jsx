@@ -21,13 +21,25 @@ import { Check, Minus, Plus, ShoppingCart, Trash2, Zap } from 'lucide-react';
  * wider one used on the product page.
  */
 export default function AddToCartButton({ product, compact = false, showBuyNow = false, initialQty = 1, className = '' }) {
-  const { add, updateQty, remove, qtyOf } = useCart();
+  const { add, updateQty, remove, qtyOf, items, clear, canAddSeller } = useCart();
   const navigate = useNavigate();
   const inCart = qtyOf(product._id);
+  const sellerConflict = items.length > 0 && !canAddSeller(product);
+  const merchant = product.merchant && typeof product.merchant === 'object' ? product.merchant : null;
+  const sellerName = merchant?.shopName || 'this seller';
   const stock = Math.max(0, product.stock ?? 0);
   const price = finalPrice(product);
   // how many one tap should add — the product page passes its quantity picker
   const per = Math.max(1, Math.min(Number(initialQty) || 1, stock));
+
+  if (sellerConflict) {
+    return (
+      <div className="cart-seller-notice" role="status">
+        <span>Check out one seller at a time so the rider has one pickup.</span>
+        <button type="button" onClick={() => { clear(); add(product, per); }}>Replace cart with this item from {sellerName}</button>
+      </div>
+    );
+  }
 
   if (stock <= 0) {
     return (

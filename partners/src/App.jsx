@@ -1,4 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from '@shared/context/AuthContext.jsx';
 
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
@@ -23,6 +24,14 @@ import AdminOrders from './pages/AdminOrders.jsx';
 import AdminProducts from './pages/AdminProducts.jsx';
 import AdminPartners from './pages/AdminPartners.jsx';
 import AdminDelivery from './pages/AdminDelivery.jsx';
+import AdminAudit from './pages/AdminAudit.jsx';
+
+function PortalHome() {
+  const { user } = useAuth();
+  if (!user) return <Landing />;
+  if ((user.role === 'merchant' && ['pending', 'suspended'].includes(user.merchantStatus)) || (user.role === 'delivery' && ['pending', 'suspended'].includes(user.riderStatus))) return <Pending />;
+  return <Dashboard />;
+}
 
 /**
  * The business portal. Everything that is not a shopper lives here: merchant
@@ -40,7 +49,7 @@ export default function App() {
       <Navbar />
       <main className="container app-main">
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<PortalHome />} />
           <Route path="/faq" element={<Faq />} />
           <Route path="/join" element={<Join />} />
           <Route path="/login" element={<Login />} />
@@ -50,7 +59,7 @@ export default function App() {
           <Route path="/pending" element={<Pending />} />
           {/* Any signed-in role has a profile. The page adapts its fields and its
               "my orders" shortcut to whichever role is signed in. */}
-          <Route path="/profile" element={<RequireRole roles={['merchant', 'delivery', 'admin']}><Profile /></RequireRole>} />
+          <Route path="/profile" element={<RequireRole roles={['merchant', 'delivery', 'admin']} allowPending><Profile /></RequireRole>} />
 
           <Route path="/dashboard" element={<RequireRole roles={['merchant', 'delivery', 'admin']}><Dashboard /></RequireRole>} />
           <Route path="/shop-setup" element={<RequireRole roles={['merchant']}><ShopSetup /></RequireRole>} />
@@ -62,6 +71,7 @@ export default function App() {
           <Route path="/admin/products" element={<RequireRole roles={['admin']}><AdminProducts /></RequireRole>} />
           <Route path="/admin/partners" element={<RequireRole roles={['admin']}><AdminPartners /></RequireRole>} />
           <Route path="/admin/delivery" element={<RequireRole roles={['admin']}><AdminDelivery /></RequireRole>} />
+          <Route path="/admin/audit" element={<RequireRole roles={['admin']}><AdminAudit /></RequireRole>} />
 
           {/* Shoppers belong on the storefront, not here. */}
           <Route path="*" element={<Navigate to="/" replace />} />

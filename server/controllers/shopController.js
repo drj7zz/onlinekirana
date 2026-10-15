@@ -21,7 +21,7 @@ exports.myShop = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(publicShop(user));
+    res.json({ ...publicShop(user), pickupLocation: user.shopAddress?.location || null });
   } catch (e) {
     serverError(res, e);
   }
@@ -40,19 +40,30 @@ exports.updateMyShop = async (req, res) => {
     const logoUrl = cleanStr(req.body.logoUrl, 300);
     const line = cleanStr(req.body.address?.line, 200);
     const ward = cleanStr(req.body.address?.ward, 20);
+    const pickupLocation = req.body.pickupLocation;
+    const hasLat = pickupLocation?.lat !== undefined && pickupLocation?.lat !== null;
+    const hasLng = pickupLocation?.lng !== undefined && pickupLocation?.lng !== null;
+    const lat = Number(pickupLocation?.lat);
+    const lng = Number(pickupLocation?.lng);
 
     if (shopName !== undefined && !shopName) errors.shopName = 'Shop name is required';
     if (phone && !PHONE_RE.test(phone)) errors.phone = 'Enter a valid Nepali mobile (98XXXXXXXX)';
+    if (hasLat !== hasLng || (hasLat && (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180))) {
+      errors.pickupLocation = 'Save a valid shop location from your device.';
+    }
     if (Object.keys(errors).length) return res.status(400).json({ message: 'Validation failed', errors });
 
     user.shopName = shopName || user.shopName;
     user.shopDescription = description;
     user.shopPhone = phone;
     user.shopLogoUrl = logoUrl;
-    user.shopAddress = { line, ward, city: 'Birgunj' };
+    user.shopAddress = {
+      line, ward, city: 'Birgunj',
+      location: hasLat && hasLng ? { lat, lng } : user.shopAddress?.location,
+    };
     await user.save();
 
-    res.json(publicShop(user));
+    res.json({ ...publicShop(user), pickupLocation: user.shopAddress?.location || null });
   } catch (e) {
     serverError(res, e);
   }

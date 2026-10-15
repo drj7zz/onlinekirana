@@ -16,11 +16,22 @@
 @import "tailwindcss";
 @import "@shared/styles.css";
 
+.audit-table-wrap { overflow-x: auto; }
+
 /* ===== portal-only page furniture ===== */
 
 /* Numbered step lists on /join — tighter than the shared `.info-block p` rhythm. */
 .info-steps li { margin-bottom: .4rem; }
 .info-steps li::marker { color: #1b5e20; font-weight: 700; }
+
+.partner-order-product summary { cursor: pointer; width: fit-content; }
+.partner-order-product-info {
+  display: flex; align-items: flex-start; gap: .75rem; margin-top: .45rem;
+  padding: .65rem; border: 1px solid var(--grey-200); border-radius: 8px; background: var(--surface);
+}
+.partner-order-product-info img { width: 68px; height: 68px; border-radius: 6px; object-fit: cover; }
+.partner-order-product-info p { margin: .2rem 0; color: var(--grey-600); font-size: .82rem; }
+.partner-order-product-info a { font-size: .82rem; font-weight: 700; }
 
 /* The delivery explainer on /join is a list, not paragraphs. */
 .info-block ol { color: #444; }

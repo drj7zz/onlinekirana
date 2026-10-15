@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Package, XCircle, MapPin, Phone, CalendarClock,
   KeyRound, Bike, Eye, EyeOff, Store, Wallet,
 } from 'lucide-react';
 import API from '../api';
-import { ORDER_STEPS, STATUS_LABEL, money } from '../lib/delivery';
+import { ORDER_STEPS, STATUS_LABEL, DELIVERY_LABEL, DELIVERY_WINDOW_LABEL, money } from '../lib/delivery';
 import { productPath } from '../lib/productUrl';
+import { STOREFRONT_URL } from '../lib/apps';
 
-const PAY_LABEL = { cod: 'Cash on delivery', esewa: 'eSewa' };
+const PAY_LABEL = { cod: 'Cash after delivery', esewa: 'eSewa' };
 
 // Human-friendly order reference — never the raw internal id
-export const orderRef = (id) => `#${String(id).slice(-6).toUpperCase()}`;
+const orderRef = (id) => `#${String(id).slice(-6).toUpperCase()}`;
 
 const statusIndex = (s) => ORDER_STEPS.findIndex((x) => x.key === s);
 
@@ -93,7 +93,7 @@ function DeliveryCode({ orderId }) {
  *   rider           – populated rider object, when the caller already has it
  */
 export default function OrderCard({
-  order, viewer = 'customer', onStatus, allowedStatuses, compact = false, showOtp = false, rider = null,
+  order, viewer = 'customer', onStatus, onCancel, allowedStatuses, compact = false, showOtp = false, rider = null,
 }) {
   const o = order;
   const total = money(o.grandTotal ?? o.total);
@@ -125,20 +125,32 @@ export default function OrderCard({
           )}
           {onStatus && (
             <select
-              aria-label="Update order status"
+              aria-label={viewer === 'admin' ? 'Order action' : 'Update order status'}
               value={o.status}
               onChange={(e) => onStatus(o._id, e.target.value)}
             >
+              {allowedStatuses && !allowedStatuses.includes(o.status) && <option value={o.status}>Current: {STATUS_LABEL[o.status] || o.status}</option>}
               {(allowedStatuses || Object.keys(STATUS_LABEL)).map((s) => (
                 <option key={s} value={s}>{STATUS_LABEL[s]}</option>
               ))}
             </select>
+          )}
+          {viewer === 'customer' && onCancel && ['pending', 'packed', 'assigned'].includes(o.status) && (
+            <button type="button" className="danger" onClick={() => onCancel(o._id)}>Cancel order</button>
           )}
         </div>
       </header>
 
       {/* delivery timeline */}
       <OrderProgress status={o.status} />
+
+      {viewer === 'customer' && o.delivery && !compact && (
+        <div className="order-note">
+          <strong>{o.delivery.status === 'pending' && o.status !== 'packed' ? 'The shop is preparing your order.' : DELIVERY_LABEL[o.delivery.status] || 'Delivery update'}</strong>
+          {o.delivery.slot && <span className="muted"> · {DELIVERY_WINDOW_LABEL[o.delivery.slot] || o.delivery.slot}</span>}
+          {o.delivery.status === 'pending' && o.status === 'packed' && <p className="muted">Waiting for an on-shift rider to accept. The fee shown above is fixed for this order.</p>}
+        </div>
+      )}
 
       {/* who is bringing it */}
       {rider && !compact && (
@@ -152,7 +164,7 @@ export default function OrderCard({
         </p>
       )}
 
-      {showOtp && !['delivered', 'cancelled'].includes(o.status) && <DeliveryCode orderId={o._id} />}
+      {showOtp && o.delivery?.status === 'picked' && <DeliveryCode orderId={o._id} />}
 
       {/* items */}
       <div className="order-items">
@@ -167,7 +179,11 @@ export default function OrderCard({
                 {/* an order line stores only the id and the name it was bought
                     under, so the path is built from those two — the slug comes
                     from the recorded name, which may since have been renamed. */}
-                {i.product ? <Link to={productPath({ _id: i.product, name: i.name })} className="oi-link">{i.name}</Link> : i.name}
+                {i.product ? (
+                  <a href={`${STOREFRONT_URL}${productPath({ _id: i.product, name: i.name })}`} className="oi-link" target="_blank" rel="noreferrer">
+                    {i.name}
+                  </a>
+                ) : i.name}
               </span>
               <span className="oi-qty">× {i.qty} <small>{i.unit}</small></span>
               <span className="oi-price">{money(i.price * i.qty)}</span>

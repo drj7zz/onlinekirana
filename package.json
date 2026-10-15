@@ -2,10 +2,17 @@
   "name": "onlinekirana-tools",
   "private": true,
   "version": "1.0.0",
-  "description": "Repo-root build/asset tooling for Online Kirana (client, partners, server live in subfolders)",
+  "description": "Online Kirana — MERN monorepo (server, client, partners)",
   "type": "module",
   "scripts": {
-    "logo": "node _logo-tool.mjs"
+    "install:all": "npm --prefix server install && npm --prefix client install && npm --prefix partners install",
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev:partners": "npm --prefix partners run dev",
+    "build": "npm --prefix client run build && npm --prefix partners run build",
+    "lint": "npm --prefix client run lint && npm --prefix partners run lint",
+    "seed-admin": "npm --prefix server run seed-admin"
   },
   "devDependencies": {
     "sharp": "^0.33.4"

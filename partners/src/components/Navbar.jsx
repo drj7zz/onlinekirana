@@ -3,12 +3,13 @@ import { createPortal } from 'react-dom';
 import {
   Store, Bike, LogOut, ChevronDown, Menu, X, UserCircle2,
   LayoutGrid, Package, HelpCircle, ArrowUpRight, LayoutDashboard,
-  Boxes, ShoppingBag, Settings2, ClipboardList, Truck, Users,
+  Boxes, ShoppingBag, Settings2, ClipboardList, Truck, Users, ScrollText,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@shared/context/AuthContext.jsx';
 import { imageUrl } from '@shared/api';
 import { STOREFRONT_URL } from '@shared/lib/apps';
+import NotificationCenter from '@shared/components/NotificationCenter';
 
 /**
  * Partner portal navigation.
@@ -41,10 +42,11 @@ const NAV_LINKS = [
   { to: '/shop-setup', label: 'Shop setup', icon: Settings2, roles: ['merchant'] },
   { to: '/rider', label: 'My shift', icon: Bike, roles: ['delivery'] },
 
+  { to: '/admin/partners', label: 'Approvals', icon: Users, roles: ['admin'] },
   { to: '/admin/orders', label: 'Orders', icon: ClipboardList, roles: ['admin'] },
-  { to: '/admin/products', label: 'Products', icon: ShoppingBag, roles: ['admin'] },
-  { to: '/admin/partners', label: 'Partners', icon: Users, roles: ['admin'] },
   { to: '/admin/delivery', label: 'Dispatch', icon: Truck, roles: ['admin'] },
+  { to: '/admin/products', label: 'Products', icon: ShoppingBag, roles: ['admin'] },
+  { to: '/admin/audit', label: 'Audit trail', icon: ScrollText, roles: ['admin'] },
 ];
 
 /**
@@ -63,9 +65,11 @@ const ROLE_QUICK = {
     { to: '/dashboard', icon: LayoutDashboard, title: 'Dashboard', sub: 'Earnings at a glance' },
   ],
   admin: [
+    { to: '/admin/partners', icon: Users, title: 'Approvals', sub: 'Review shops, riders and products' },
     { to: '/admin/orders', icon: ClipboardList, title: 'Orders', sub: 'Oversee every order' },
-    { to: '/admin/delivery', icon: Truck, title: 'Dispatch', sub: 'Assign riders' },
-    { to: '/admin/partners', icon: Users, title: 'Partners', sub: 'Approve applications' },
+    { to: '/admin/delivery', icon: Truck, title: 'Dispatch', sub: 'Monitor open jobs and fleet' },
+    { to: '/admin/products', icon: ShoppingBag, title: 'Products', sub: 'Manage the catalogue' },
+    { to: '/admin/audit', icon: ScrollText, title: 'Audit trail', sub: 'Review recent admin changes' },
   ],
 };
 
@@ -123,7 +127,11 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const links = NAV_LINKS.filter((l) => l.public || (user && l.roles?.includes(user.role)));
+  // Public onboarding links are for visitors; signed-in partners see only the
+  // tools for their role, with the dashboard as their portal home.
+  const links = user
+    ? NAV_LINKS.filter((l) => l.roles?.includes(user.role))
+    : NAV_LINKS.filter((l) => l.public);
   const closeAll = useCallback(() => { setMenuOpen(false); setDrawerOpen(false); }, []);
 
   const go = (path) => { closeAll(); navigate(path); };
@@ -168,6 +176,7 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
+          <NotificationCenter />
           {user && (
             <div className="account-menu" ref={menuRef}>
               <button type="button" onClick={() => setMenuOpen(!menuOpen)} aria-haspopup="menu" aria-expanded={menuOpen} className="account-btn">
@@ -208,7 +217,7 @@ export default function Navbar() {
           {/* The storefront lives on another origin. The storefront header marks
               the mirror-image link with `.portal-link`; reusing it here keeps the
               cross-app affordance identical in both directions. */}
-          <a href={STOREFRONT_URL} target="_blank" rel="noreferrer" className="portal-link">Storefront ↗</a>
+          <a href={STOREFRONT_URL} target="_blank" rel="noreferrer" className="portal-link">Storefront <ArrowUpRight size={13} aria-hidden="true" /></a>
 
           {/* mobile hamburger */}
           <button type="button" className="burger" onClick={() => setDrawerOpen(true)} aria-label="Open menu">

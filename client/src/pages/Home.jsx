@@ -13,11 +13,24 @@ export default function Home() {
   const [category, setCategory] = useState(params.get('category') || 'all');
   const [sort, setSort] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   /** Reset the category picker and the navbar's search term back to everything. */
-  const clearFilters = () => { setSearch(''); setCategory('all'); };
+  const clearFilters = () => { setSearch(''); setCategory('all'); setSort(''); };
 
-  useEffect(() => { API.get('/products/categories').then((r) => setCategories(['all', ...r.data])).catch(() => {}); }, []);
+  useEffect(() => {
+    let current = true;
+    API.get('/products/categories')
+      .then((r) => { if (current && Array.isArray(r.data)) setCategories(['all', ...r.data]); })
+      .catch(() => {});
+    return () => { current = false; };
+  }, []);
+
+  useEffect(() => {
+    setSearch(params.get('search') || '');
+    setCategory(params.get('category') || 'all');
+  }, [params]);
 
   // The listing title reflects what the shopper is actually looking at, so a
   // category or keyword page can rank for the term that led to it. A search
@@ -29,10 +42,10 @@ export default function Home() {
         ? `${category} — order online in Birgunj | OnlineKirana`
         : 'Online Grocery Delivery in Birgunj | OnlineKirana',
     description: search
-      ? `Results for “${search}” — order from local Birgunj shops with 30-minute delivery and cash on delivery.`
+      ? `Results for “${search}” — order from local Birgunj shops. Free delivery is available from 5 am–10 pm during launch; late-night delivery may have a distance fee. Pay after delivery.`
       : category !== 'all'
-        ? `Buy ${category.toLowerCase()} online from local shops in Birgunj. 30-minute ward-wise delivery, cash on delivery or eSewa.`
-        : 'Order groceries online from local shops across Birgunj, Nepal. 30-minute ward-wise delivery, cash on delivery or eSewa.',
+        ? `Buy ${category.toLowerCase()} online from local shops in Birgunj. Free delivery is available from 5 am–10 pm during launch; late-night delivery may have a distance fee. Pay after delivery.`
+        : 'Order groceries online from local shops in Birgunj, Nepal. Free delivery from 5 am–10 pm during launch; late-night delivery may have a distance fee when a rider is online. Pay after delivery.',
     noindex: Boolean(search),
   });
 
@@ -47,15 +60,19 @@ export default function Home() {
   }, [category, search]);
 
   useEffect(() => {
+    let current = true;
     setLoading(true);
+    setLoadError('');
     const params = {};
     if (search) params.search = search;
     if (category !== 'all') params.category = category;
     if (sort) params.sort = sort;
     API.get('/products', { params })
-      .then((r) => setProducts(r.data))
-      .finally(() => setLoading(false));
-  }, [search, category, sort]);
+      .then((r) => { if (current) setProducts(Array.isArray(r.data) ? r.data : []); })
+      .catch(() => { if (current) { setProducts([]); setLoadError('Products could not be loaded. Check your connection and try again.'); } })
+      .finally(() => { if (current) setLoading(false); });
+    return () => { current = false; };
+  }, [search, category, sort, reloadKey]);
 
   return (
     <>
@@ -65,20 +82,19 @@ export default function Home() {
         <h1>Shop groceries in Birgunj</h1>
         <p>
           Order from local shops across Birgunj, delivered to your ward.
-          Cash on delivery, or pay with eSewa.
+          Free delivery from 5 am–10 pm during launch. Late-night delivery may have a distance fee. Pay after your order arrives.
         </p>
       </div>
 
       {/* Blinkit-style category chips — built from the categories the API
           actually reports, so they always match what shops are selling. */}
       {categories.length > 1 && (
-        <div className="cat-chips" role="tablist" aria-label="Product categories">
+        <div className="cat-chips" role="group" aria-label="Product categories">
           {categories.map((c) => (
             <button
               key={c}
               type="button"
-              role="tab"
-              aria-selected={category === c}
+              aria-pressed={category === c}
               className={`cat-chip${category === c ? ' active' : ''}`}
               onClick={() => setCategory(c)}
             >
@@ -106,7 +122,9 @@ export default function Home() {
         </select>
       </div>
 
-      {loading ? <p className="loading-shimmer">Loading products</p> : products.length === 0 ? (
+      {loading ? <p className="loading-shimmer">Loading products</p> : loadError ? (
+        <div className="empty-state"><strong>Products unavailable</strong><p>{loadError}</p><button type="button" onClick={() => setReloadKey((key) => key + 1)}>Try again</button></div>
+      ) : products.length === 0 ? (
         <div className="empty-state">
           <PackageOpen size={34} aria-hidden="true" />
           <strong>{search || category !== 'all' ? 'Nothing matched that search' : 'The shelves are being filled'}</strong>

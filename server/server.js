@@ -3,21 +3,44 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 /**
- * Load the mode-specific env file: `.env.development` by default, and
- * `.env.production` when started with `--prod` (`npm start`, which is what
- * Render/Railway run) or with NODE_ENV=production set in the environment.
- *
- * Real environment variables (host dashboard, CI) always win over the file, so
- * a deployed host can override any value without touching the repo.
+ * One env file: `server/.env`. Real environment variables (host dashboard, CI)
+ * always win over the file, so a deployed host overrides any value without
+ * touching the repo.
  */
-const isProd =
-  process.env.NODE_ENV === 'production' || process.argv.includes('--prod');
-const envFile = path.join(__dirname, `.env.${isProd ? 'production' : 'development'}`);
-require('dotenv').config({ path: envFile });
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+
+const isProduction = process.env.NODE_ENV === 'production';
+if (!process.env.MONGO_URI) throw new Error('MONGO_URI is required.');
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET must be set to at least 32 characters.');
+}
+if (isProduction) {
+  const productionOrigins = (process.env.CLIENT_URL || '').split(',').map((origin) => origin.trim()).filter(Boolean);
+  const validOrigins = productionOrigins.length > 0 && productionOrigins.every((origin) => {
+    try {
+      const parsed = new URL(origin);
+      return parsed.protocol === 'https:' && parsed.origin === origin && !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname);
+    } catch {
+      return false;
+    }
+  });
+  if (!validOrigins) throw new Error('Set CLIENT_URL to exact HTTPS storefront and partner portal origins only (no wildcards or local hosts).');
+}
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
+app.use((req, res, next) => {
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('X-Frame-Options', 'DENY');
+  res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (isProduction && req.secure) res.set('Strict-Transport-Security', 'max-age=31536000');
+  next();
+});
 const auth = require('./middleware/auth');
 const { requireAdmin } = require('./middleware/roles');
+const auditAdmin = require('./middleware/auditAdmin');
 /**
  * Allowed browser origins.
  *
@@ -54,7 +77,7 @@ app.use(
       // Same-origin requests and non-browser clients (mobile, curl, tests) send no Origin.
       if (!origin) return cb(null, true);
       if (allowedOrigins.includes('*') || allowedVariants.has(origin)) return cb(null, true);
-      return cb(new Error('Origin not allowed by CORS'));
+      return cb(null, false);
     },
     exposedHeaders: ['Content-Type'],
   })
@@ -66,9 +89,11 @@ app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/delivery', require('./routes/deliveryRoutes'));
-app.use('/api/admin/products', auth, requireAdmin, require('./routes/adminRoutes'));
-app.use('/api/admin/partners', auth, requireAdmin, require('./routes/adminPartnerRoutes'));
-app.use('/api/admin/delivery', auth, requireAdmin, require('./routes/adminDeliveryRoutes'));
+app.use('/api/notifications', require('./routes/notificationRoutes'));
+app.use('/api/admin/products', auth, requireAdmin, auditAdmin, require('./routes/adminRoutes'));
+app.use('/api/admin/partners', auth, requireAdmin, auditAdmin, require('./routes/adminPartnerRoutes'));
+app.use('/api/admin/delivery', auth, requireAdmin, auditAdmin, require('./routes/adminDeliveryRoutes'));
+app.use('/api/admin/audit', auth, requireAdmin, require('./routes/adminAuditRoutes'));
 app.use('/api/partner', require('./routes/partnerRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));
 app.use('/api/profile', require('./routes/profileRoutes'));
@@ -78,7 +103,10 @@ app.use('/api/uploads', require('./routes/uploadRoutes'));
 // uploaded images (avatars, shop logos, product photos)
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
 
-app.get('/api/health', (req, res) => res.json({ ok: true, city: 'Birgunj' }));
+app.get('/api/health', (req, res) => {
+  const ready = mongoose.connection.readyState === 1;
+  res.status(ready ? 200 : 503).json({ ok: ready, city: 'Birgunj' });
+});
 
 // 404 for unknown API routes (JSON, not an HTML error page)
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));

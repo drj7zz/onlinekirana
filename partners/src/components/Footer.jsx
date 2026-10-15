@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Store, Bike, ShieldCheck, MapPin, Phone } from 'lucide-react';
+import { Store, Bike, ShieldCheck, MapPin } from 'lucide-react';
 import { STOREFRONT_URL } from '@shared/lib/apps';
 
 /**
@@ -58,8 +58,7 @@ export default function Footer() {
             their shifts, and the operations desk keeps the marketplace healthy.
           </p>
           <ul className="footer-contact">
-            <li><MapPin size={15} aria-hidden="true" /><span>Serving every ward, Birgunj, Nepal</span></li>
-            <li><Phone size={15} aria-hidden="true" /><span>Support: 9800000000</span></li>
+            <li><MapPin size={15} aria-hidden="true" /><span>Birgunj, Nepal · availability depends on rider coverage</span></li>
           </ul>
         </div>
 

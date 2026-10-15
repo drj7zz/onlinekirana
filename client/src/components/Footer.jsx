@@ -1,6 +1,6 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Truck, ShieldCheck, Store, MapPin, Phone } from 'lucide-react';
+import { ChevronDown, Truck, ShieldCheck, Store, MapPin } from 'lucide-react';
 import API from '../api';
 import { PORTAL_URL } from '../lib/apps';
 
@@ -52,8 +52,8 @@ export default function Footer() {
       {/* value strip */}
       <div className="footer-strip">
         <div className="footer-strip-inner">
-          <div className="footer-strip-item"><Truck size={20} aria-hidden="true" /><span><strong>30-minute delivery</strong>Across every ward in Birgunj</span></div>
-          <div className="footer-strip-item"><ShieldCheck size={20} aria-hidden="true" /><span><strong>Cash on delivery</strong>Or pay with eSewa</span></div>
+          <div className="footer-strip-item"><Truck size={20} aria-hidden="true" /><span><strong>Fast delivery</strong>Same-day windows when available</span></div>
+          <div className="footer-strip-item"><ShieldCheck size={20} aria-hidden="true" /><span><strong>Cash after delivery</strong>Pay when your order arrives</span></div>
           <div className="footer-strip-item"><Store size={20} aria-hidden="true" /><span><strong>Local shops</strong>Every order supports a shopkeeper</span></div>
         </div>
       </div>
@@ -65,12 +65,11 @@ export default function Footer() {
             <img src="/logo.png" alt="OnlineKirana" /> <span className="footer-logo-word">online<span className="footer-accent">kirana</span></span>
           </Link>
           <p className="footer-about">
-            Groceries from local Birgunj shops, delivered to your ward in 30 minutes. Cash on
-            delivery, or pay with eSewa.
+            Groceries from local Birgunj shops. Free delivery from 5 am–10 pm during launch; late-night delivery may have a distance fee.
+            Pay cash after your order arrives.
           </p>
           <ul className="footer-contact">
-            <li><MapPin size={15} aria-hidden="true" /><span>Serving every ward, Birgunj, Nepal</span></li>
-            <li><Phone size={15} aria-hidden="true" /><span>Support: 9800000000</span></li>
+            <li><MapPin size={15} aria-hidden="true" /><span>Birgunj, Nepal · availability depends on rider coverage</span></li>
           </ul>
         </div>
 

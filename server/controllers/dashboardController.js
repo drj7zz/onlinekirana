@@ -10,6 +10,10 @@ exports.stats = async (req, res) => {
     const role = req.user.role;
 
     if (role === 'admin') {
+      const [packedOrderIds, riderApplications] = await Promise.all([
+        Order.distinct('_id', { status: 'packed' }),
+        User.countDocuments({ role: 'delivery', riderStatus: 'pending' }),
+      ]);
       const [products, pendingProducts, partners, pendingPartners, orders, newOrders, deliveredOrders, revenueAgg, unassigned, onRoad, ridersOnline] = await Promise.all([
         Product.countDocuments({}),
         Product.countDocuments({ status: 'pending' }),
@@ -23,7 +27,7 @@ exports.stats = async (req, res) => {
           { $group: { _id: null, total: { $sum: '$total' } } },
         ]),
         // delivery desk: what needs a person right now
-        Delivery.countDocuments({ rider: null, status: 'pending' }),
+        Delivery.countDocuments({ order: { $in: packedOrderIds }, rider: null, status: 'pending' }),
         Delivery.countDocuments({ status: { $in: ['assigned', 'accepted', 'picked'] } }),
         User.countDocuments({ role: 'delivery', riderStatus: { $in: ['available', 'on_delivery'] } }),
       ]);
@@ -35,10 +39,11 @@ exports.stats = async (req, res) => {
           { key: 'pendingProducts', label: 'Awaiting approval', value: pendingProducts, accent: pendingProducts > 0 },
           { key: 'partners', label: 'Partners', value: partners },
           { key: 'pendingPartners', label: 'Partner applications', value: pendingPartners, accent: pendingPartners > 0 },
+          { key: 'pendingRiders', label: 'Rider applications', value: riderApplications, accent: riderApplications > 0 },
           { key: 'orders', label: 'Total orders', value: orders },
           { key: 'newOrders', label: 'New orders', value: newOrders, accent: newOrders > 0 },
           { key: 'delivered', label: 'Delivered', value: deliveredOrders },
-          { key: 'revenue', label: 'Revenue (रू)', value: revenueAgg[0]?.total || 0 },
+          { key: 'revenue', label: 'Order value (रू)', value: revenueAgg[0]?.total || 0 },
           { key: 'unassigned', label: 'Deliveries waiting', value: unassigned, accent: unassigned > 0 },
           { key: 'onRoad', label: 'Out on the road', value: onRoad },
           { key: 'ridersOnline', label: 'Riders online', value: ridersOnline },
@@ -70,7 +75,7 @@ exports.stats = async (req, res) => {
           { key: 'pendingMine', label: 'Awaiting approval', value: pendingMine, accent: pendingMine > 0 },
           { key: 'myOrders', label: 'Orders with my items', value: myOrders },
           { key: 'activeOrders', label: 'To fulfil', value: activeOrders, accent: activeOrders > 0 },
-          { key: 'revenue', label: 'My sales (रू)', value: Math.round((revenueAgg[0]?.total || 0) * 100) / 100 },
+          { key: 'revenue', label: 'Item order value (रू)', value: Math.round((revenueAgg[0]?.total || 0) * 100) / 100 },
         ],
         recentOrders,
       });
@@ -78,14 +83,11 @@ exports.stats = async (req, res) => {
 
     if (role === 'delivery') {
       const id = req.user.id;
-      const [activeJobs, doneJobs, openJobs, feesAgg] = await Promise.all([
+      const packedOrders = await Order.distinct('_id', { status: 'packed' });
+      const [activeJobs, doneJobs, openJobs] = await Promise.all([
         Delivery.countDocuments({ rider: mongooseId(id), status: { $in: ['assigned', 'accepted', 'picked'] } }),
         Delivery.countDocuments({ rider: mongooseId(id), status: 'delivered' }),
-        Delivery.countDocuments({ rider: null, status: 'pending' }),
-        Delivery.aggregate([
-          { $match: { rider: mongooseId(id), status: 'delivered' } },
-          { $group: { _id: null, total: { $sum: '$fee' } } },
-        ]),
+        Delivery.countDocuments({ order: { $in: packedOrders }, rider: null, status: 'pending' }),
       ]);
       const recentOrders = await Delivery.find({ rider: mongooseId(id) }).sort({ createdAt: -1 }).limit(5);
       return res.json({
@@ -94,7 +96,6 @@ exports.stats = async (req, res) => {
           { key: 'activeJobs', label: 'Jobs in hand', value: activeJobs, accent: activeJobs > 0 },
           { key: 'openJobs', label: 'Open jobs nearby', value: openJobs },
           { key: 'doneJobs', label: 'Delivered', value: doneJobs },
-          { key: 'fees', label: 'Fees earned (रू)', value: Math.round((feesAgg[0]?.total || 0) * 100) / 100 },
         ],
         recentOrders,
       });
@@ -118,7 +119,7 @@ exports.stats = async (req, res) => {
         { key: 'orders', label: 'My orders', value: orders },
         { key: 'active', label: 'In progress', value: active, accent: active > 0 },
         { key: 'delivered', label: 'Delivered', value: delivered },
-        { key: 'spent', label: 'Total spent (रू)', value: spentAgg[0]?.total || 0 },
+        { key: 'spent', label: 'Order value (रू)', value: spentAgg[0]?.total || 0 },
       ],
       recentOrders,
     });

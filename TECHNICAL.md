@@ -61,8 +61,10 @@ security posture, API surface and the reasoning behind key decisions.
 
 ### Data & services
 - **MongoDB** — local (`mongodb://127.0.0.1:27017/onlinekirana`) or **MongoDB Atlas**.
-- **Payments** — COD and eSewa are modelled as order options (`paymentMethod`).
-  eSewa is currently recorded as a preference, not an integrated live gateway.
+- **Payments** — Cash on delivery is currently supported. eSewa is a legacy stored value only and new online payments are disabled until a gateway is integrated.
+- **Pilot flags** — `PILOT_DELIVERY_ENABLED=true` enables free delivery from 5 am–10 pm and 10 pm–midnight delivery at ₹10 per started estimated kilometer when an approved rider is online. `PILOT_CANCELLATION_ENABLED=true` enables cancellation warnings and a 7-day ordering pause after three qualifying cancellations in 30 days. Both default off; use them for development/pitching only until policies are approved for a live service.
+- **Distance estimate** — Late-night pricing uses straight-line distance between shop pickup and customer pins, rounded to 0.1 km and billed by started kilometer. It is not road distance. Merchant pickup coordinates are stored in `shopAddress.location`; customer pins are saved to the order and delivery. Public shop listings omit pickup coordinates, and riders receive customer details only after accepting a job.
+- **Order constraints** — An order may contain one seller only. New checkout accepts COD (payment after delivery) only. Pilot cancellation counting excludes customer cancellations before packing and system/shop/rider failures; the admin can clear an active order restriction after review.
 - **Image hosting** — local disk; URLs are resolved by a small client helper (§7).
 
 ---
@@ -118,13 +120,13 @@ onlinekirana/
 |---|---|---|
 | `name`, `email`, `password` | String | `email` unique + lowercased; password bcrypt-hashed (10 rounds) |
 | `phone` | String | optional, Nepali mobile |
-| `address` | `{ line, ward, city='Birgunj' }` | delivery default |
+| `address` | `{ line, ward, city='Birgunj', location? }` | delivery default and optional customer pin |
 | `avatarUrl` | String | uploaded avatar |
 | `role` | enum | `customer` \| `merchant` \| `admin` (default `customer`) |
 | `shopName` | String | merchant only |
 | `merchantStatus` | enum | `pending` \| `approved` \| `suspended` |
 | `shopDescription` / `shopPhone` / `shopLogoUrl` | String | public shop profile |
-| `shopAddress` | `{ line, ward, city='Birgunj' }` | public shop address |
+| `shopAddress` | `{ line, ward, city='Birgunj', location? }` | address is public; pickup location remains private |
 | `createdAt` / `updatedAt` | Date | timestamps |
 
 Hooks: `pre('save')` hashes the password when modified; `comparePassword()` for login.
@@ -152,8 +154,10 @@ Hooks: `pre('save')` hashes the password when modified; `comparePassword()` for 
 | `user` | ObjectId → User |
 | `items[]` | `{ product, merchant, name, price, qty, unit }` — **price snapshot at order time** |
 | `total` | Number, server-computed |
-| `deliveryAddress` | `{ line, city='Birgunj', ward, phone }` |
-| `paymentMethod` | `cod` \| `esewa` |
+| `deliveryAddress` | `{ line, city='Birgunj', ward, phone, location? }` |
+| `deliveryFee`, `deliveryDistanceKm` | Fee and straight-line estimate snapshots for this order |
+| `paymentMethod` | `cod` only for new orders; `esewa` remains a legacy enum value |
+| `cancelledBy`, `cancelledAt`, `cancellationCounted` | Cancellation audit and pilot abuse controls |
 | `status` | `pending → confirmed → packed → out_for_delivery → delivered` \| `cancelled` |
 
 Storing `merchant` and `price` **inside each item** lets merchants query "orders that
@@ -335,15 +339,14 @@ Node process.
 | `DB_USER` / `DB_PASS` | server | Atlas credentials (informational; the full URI is in `MONGO_URI`) |
 | `VITE_API_URL` | client | API base URL for the SPA |
 
-> `server/.env` and `server/atlas-credentials.env` contain secrets — keep them out of
-> version control. `atlas-credentials.env` in particular holds live database credentials;
-> rotate them if they were ever exposed.
+> `server/.env` holds live database credentials and the JWT secret — keep it out of
+> version control and rotate both if they are ever exposed.
 
 ---
 
 ## 12. Known limitations & roadmap
 
-- **eSewa** is recorded as a preference, not a live payment integration.
+- **eSewa** is not available for new orders until a verified payment gateway is integrated.
 - **Rate limiting** and **"live" updates** are in-memory / polling — fine for a single
   city instance, but swap for Redis + WebSockets/SSE at scale.
 - **Uploads** on local disk are not horizontally scalable.

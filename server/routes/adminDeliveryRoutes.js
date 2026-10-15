@@ -1,15 +1,19 @@
 const router = require('express').Router();
+const crypto = require('crypto');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 const Delivery = require('../models/Delivery');
+const Order = require('../models/Order');
 const { serverError } = require('../utils/errors');
 const { cleanStr, PHONE_RE } = require('../middleware/validate');
+const { notifyUser } = require('../utils/notifications');
 
 // Dispatch-board numbers, shown as cards above the job board.
 const summary = async (req, res) => {
   try {
-    const [unassigned, inProgress, deliveredToday, failed, ridersOnline, feesAgg] = await Promise.all([
-      Delivery.countDocuments({ rider: null, status: 'pending' }),
+    const packedOrders = await Order.distinct('_id', { status: 'packed' });
+    const [unassigned, inProgress, deliveredToday, failed, ridersOnline] = await Promise.all([
+      Delivery.countDocuments({ order: { $in: packedOrders }, rider: null, status: 'pending' }),
       Delivery.countDocuments({ status: { $in: ['assigned', 'accepted', 'picked'] } }),
       Delivery.countDocuments({
         status: 'delivered',
@@ -17,10 +21,6 @@ const summary = async (req, res) => {
       }),
       Delivery.countDocuments({ status: 'failed' }),
       User.countDocuments({ role: 'delivery', riderStatus: { $in: ['available', 'on_delivery'] } }),
-      Delivery.aggregate([
-        { $match: { status: 'delivered' } },
-        { $group: { _id: null, total: { $sum: '$fee' } } },
-      ]),
     ]);
     res.json({
       cards: [
@@ -29,7 +29,6 @@ const summary = async (req, res) => {
         { key: 'deliveredToday', label: 'Delivered (24h)', value: deliveredToday },
         { key: 'failed', label: 'Could not deliver', value: failed, accent: failed > 0 },
         { key: 'ridersOnline', label: 'Riders online', value: ridersOnline },
-        { key: 'fees', label: 'Delivery fees collected (रू)', value: feesAgg[0]?.total || 0 },
       ],
     });
   } catch (e) {
@@ -56,7 +55,7 @@ const addRider = async (req, res) => {
 
     // Riders are onboarded with a generated one-time password; the rider is
     // expected to change it from their profile on first sign-in.
-    const tempPassword = `Ride@${Math.floor(100000 + Math.random() * 900000)}`;
+    const tempPassword = `Ride@${crypto.randomBytes(16).toString('base64url')}7!`;
 
     const rider = await User.create({
       name,
@@ -67,6 +66,7 @@ const addRider = async (req, res) => {
       riderArea,
       riderVehicle,
       riderStatus: 'available',
+      merchantStatus: 'approved',
     });
 
     res.status(201).json({
@@ -85,12 +85,21 @@ const setRiderStatus = async (req, res) => {
     if (!['pending', 'available', 'on_delivery', 'offline', 'suspended'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
+    const update = { riderStatus: status };
+    if (status === 'available') update.merchantStatus = 'approved';
+    if (status === 'suspended') update.merchantStatus = 'suspended';
     const rider = await User.findOneAndUpdate(
       { _id: req.params.id, role: 'delivery' },
-      { riderStatus: status },
+      update,
       { new: true }
     ).select('-password');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
+    if (status === 'available') {
+      await notifyUser(rider._id, {
+        type: 'approval', title: 'Rider account approved',
+        body: 'You can go on shift and accept available deliveries.', link: '/rider',
+      }).catch(() => {});
+    }
     res.json(rider);
   } catch (e) {
     serverError(res, e);

@@ -16,18 +16,28 @@ const roleTitle = {
 
 const roleActions = {
   admin: [
-    { to: '/admin/partners', label: 'Approvals & partners', icon: CircleCheck, hint: 'Review product submissions and partner applications' },
-    { to: '/admin/products', label: 'Manage products', icon: Package, hint: 'Full product catalogue control' },
-    { to: '/admin/orders', label: 'All orders', icon: ReceiptText, hint: 'Oversee and update every order' },
-    { to: '/admin/delivery', label: 'Dispatch desk', icon: Truck, hint: 'Unassigned deliveries and the rider fleet' },
+    { title: 'Approve', actions: [
+      { to: '/admin/partners', label: 'All approvals', icon: CircleCheck, hint: 'Review shop, rider and product applications' },
+    ] },
+    { title: 'View operations', actions: [
+      { to: '/admin/orders', label: 'Orders', icon: ReceiptText, hint: 'Review and update customer orders' },
+      { to: '/admin/delivery', label: 'Delivery desk', icon: Truck, hint: 'Open jobs and rider fleet' },
+    ] },
+    { title: 'Manage catalogue', actions: [
+      { to: '/admin/products', label: 'Products', icon: Package, hint: 'List and maintain the product catalogue' },
+    ] },
   ],
   merchant: [
-    { to: '/shop-setup', label: 'Shop setup', icon: Store, hint: 'Update your public shop page' },
-    { to: '/products', label: 'Add / update products', icon: PlusCircle, hint: 'Manage your product listings' },
-    { to: '/orders', label: 'Fulfil orders', icon: Truck, hint: 'Pack and mark deliveries' },
+    { title: 'My shop', actions: [
+      { to: '/shop-setup', label: 'Shop setup', icon: Store, hint: 'Update your public shop page' },
+      { to: '/products', label: 'Products', icon: PlusCircle, hint: 'Manage your product listings' },
+      { to: '/orders', label: 'Orders', icon: Truck, hint: 'Review items, pack orders and track delivery' },
+    ] },
   ],
   delivery: [
-    { to: '/rider', label: 'My deliveries', icon: Bike, hint: 'Pick up jobs and mark your drops' },
+    { title: 'Delivery', actions: [
+      { to: '/rider', label: 'My deliveries', icon: Bike, hint: 'Accept jobs and update delivery progress' },
+    ] },
   ],
 };
 
@@ -69,11 +79,16 @@ export default function Dashboard() {
       <div className="dash-cols">
         <div>
           <h2>Quick actions</h2>
-          {roleActions[user.role]?.map((a) => (
-            <Link key={a.label} to={a.to} className="action-row">
-              <strong><a.icon size={17} className="action-icon" aria-hidden="true" />{a.label}</strong>
-              <span className="muted">{a.hint}</span>
-            </Link>
+          {roleActions[user.role]?.map((section) => (
+            <section key={section.title} className="dash-action-section">
+              <h3>{section.title}</h3>
+              {section.actions.map((a) => (
+                <Link key={a.label} to={a.to} className="action-row">
+                  <strong><a.icon size={17} className="action-icon" aria-hidden="true" />{a.label}</strong>
+                  <span className="muted">{a.hint}</span>
+                </Link>
+              ))}
+            </section>
           ))}
         </div>
         <div>

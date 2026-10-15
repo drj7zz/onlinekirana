@@ -10,6 +10,7 @@ const userSchema = new mongoose.Schema({
     line: String,
     city: { type: String, default: 'Birgunj' },
     ward: String,
+    location: { lat: Number, lng: Number },
   },
   avatarUrl: { type: String, default: '' },
   // 'delivery' riders are staff of the delivery desk, not shop owners
@@ -30,12 +31,28 @@ const userSchema = new mongoose.Schema({
     line: { type: String, trim: true, default: '' },
     ward: { type: String, trim: true, default: '' },
     city: { type: String, default: 'Birgunj' },
+    location: { lat: Number, lng: Number },
+  },
+  orderRestrictedUntil: { type: Date, default: null },
+  pushSubscriptions: {
+    type: [{
+      endpoint: { type: String, trim: true },
+      keys: {
+        p256dh: { type: String, trim: true },
+        auth: { type: String, trim: true },
+      },
+    }],
+    default: [],
+    select: false,
   },
 }, { timestamps: true });
 
+userSchema.index({ role: 1, merchantStatus: 1 });
+userSchema.index({ role: 1, riderStatus: 1 });
+
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
-  this.password = await bcrypt.hash(this.password, 10);
+  this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 

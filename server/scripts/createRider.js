@@ -1,13 +1,7 @@
 // Creates (or reactivates) a delivery rider. Usage: npm run seed-rider
 // Details come from .env (RIDER_NAME / RIDER_EMAIL / RIDER_PASSWORD / RIDER_AREA / RIDER_VEHICLE)
 // CLI args still win: npm run seed-rider <email> <password> <name> [area] [vehicle]
-require('dotenv').config({
-  path: require('path').join(
-    __dirname,
-    '..',
-    `.env.${process.env.NODE_ENV === 'production' || process.argv.includes('--prod') ? 'production' : 'development'}`
-  ),
-});
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
@@ -26,7 +20,7 @@ const User = require('../models/User');
   }
 
   // upsert bypasses the pre('save') hook, so hash manually to keep comparePassword working
-  const hashed = await bcrypt.hash(password, 10);
+  const hashed = await bcrypt.hash(password, 12);
   const user = await User.findOneAndUpdate(
     { email },
     {

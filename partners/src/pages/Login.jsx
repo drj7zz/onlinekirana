@@ -27,10 +27,9 @@ export default function Login() {
     try {
       // `scope: 'portal'` means this is the business app — shoppers get sent to
       // the storefront instead of getting a workspace they cannot use.
-      const account = await login(API, form.email.trim(), form.password, { scope: 'portal' });
-      // send each role to the workspace that belongs to it
-      const home = { merchant: '/products', delivery: '/rider', admin: '/admin/orders' }[account?.role] || '/dashboard';
-      navigate(home, { replace: true });
+      await login(API, form.email.trim(), form.password, { scope: 'portal' });
+      // The portal home is role-aware: signed-in users land on their dashboard.
+      navigate('/', { replace: true });
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     } finally {

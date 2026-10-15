@@ -127,8 +127,8 @@ export default function Profile() {
           <RoleIcon size={19} className="action-icon" aria-hidden="true" />
           <strong>{user.role === 'delivery' ? 'My shift' : 'Orders'}</strong>
           <span className="muted">
-            {user.role === 'merchant' ? 'Pack orders, hand them to a rider and track payouts — go to shop orders →'
-              : user.role === 'delivery' ? 'Pick up, deliver and log your earnings — go to my shift →'
+            {user.role === 'merchant' ? 'Review order items, pack orders and track delivery — go to shop orders →'
+              : user.role === 'delivery' ? 'Choose open jobs and update delivery progress — go to my shift →'
                 : 'Oversee every order across the marketplace — go to orders →'}
           </span>
         </Link>

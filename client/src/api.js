@@ -11,7 +11,7 @@ export const API_BASE = (() => {
   const v = import.meta.env.VITE_API_URL;
   if (!v) {
     throw new Error(
-      '[config] VITE_API_URL is not set. Copy .env.example to .env and fill it in.'
+      '[config] VITE_API_URL is not set. Add it to client/.env.'
     );
   }
   return v.replace(/\/+$/, '');

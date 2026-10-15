@@ -7,7 +7,11 @@ const { serverError } = require('../utils/errors');
 // DELETE the previous file (if it was one of ours) so uploads don't pile up forever
 async function removeOld(publicPath) {
   if (!publicPath || !publicPath.startsWith('/uploads/')) return;
-  const abs = path.join(UPLOAD_ROOT, publicPath.replace('/uploads/', ''));
+  const rel = publicPath.slice('/uploads/'.length);
+  if (!/^(avatars|shops|products)\/[a-zA-Z0-9._-]+$/.test(rel)) return;
+  const abs = path.resolve(UPLOAD_ROOT, rel);
+  const relative = path.relative(UPLOAD_ROOT, abs);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) return;
   const fs = require('fs');
   fs.promises.unlink(abs).catch(() => {});
 }
@@ -46,6 +50,7 @@ exports.uploadShopLogo = async (req, res) => {
 // POST /api/uploads/product  (merchant or admin)  → returns URL, caller attaches it to the product
 exports.uploadProductImage = async (req, res) => {
   try {
+    if (!['merchant', 'admin', 'delivery'].includes(req.user.role)) return res.status(403).json({ message: 'Image upload is not available for this account.' });
     if (!req.file) return res.status(400).json({ message: 'No image received' });
     const url = `/uploads/products/${req.file.filename}`;
     if (req.query.linkTo) {

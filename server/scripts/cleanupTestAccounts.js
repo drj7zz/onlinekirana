@@ -10,13 +10,7 @@
  *   node scripts/cleanupTestAccounts.js          # dry run (default)
  *   node scripts/cleanupTestAccounts.js --apply  # actually delete
  */
-require('dotenv').config({
-  path: require('path').join(
-    __dirname,
-    '..',
-    `.env.${process.env.NODE_ENV === 'production' || process.argv.includes('--prod') ? 'production' : 'development'}`
-  ),
-});
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 const mongoose = require('mongoose');
 
 const APPLY = process.argv.includes('--apply');
