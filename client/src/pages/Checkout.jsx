@@ -83,15 +83,17 @@ export default function Checkout() {
     if (slotError) { setError(slotError); return; }
     setSubmitting(true);
     try {
-      await API.post('/orders', {
+      const { data: placedOrder } = await API.post('/orders', {
         items: items.map((i) => ({ productId: i.product._id, qty: i.qty })),
         deliveryAddress: { line: form.line, ward: form.ward, phone: form.phone, location },
         paymentMethod: 'cod',
         slot: slot || undefined,
+        quotedDeliveryFee: deliveryFee,
         deliveryInstructions: deliveryInstructions.trim() || undefined,
       });
       clear();
-      navigate('/orders');
+      sessionStorage.setItem('ok_last_order', JSON.stringify({ id: placedOrder._id, createdAt: placedOrder.createdAt }));
+      navigate('/orders?placed=1');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to place order');
     } finally { setSubmitting(false); }
@@ -126,7 +128,7 @@ export default function Checkout() {
         </label>
         {slot && (
           <p className="muted">
-            <Clock size={13} aria-hidden="true" /> Selected delivery window: {selectedSlot?.label}. {deliveryFee ? `Delivery charge: ${money(deliveryFee)}.` : 'Launch evening offer: free delivery.'}
+            <Clock size={13} aria-hidden="true" /> Selected delivery window: {selectedSlot?.label}. {deliveryFee ? `Delivery charge: ${money(deliveryFee)}.` : 'Delivery charge: Free.'}
           </p>
         )}
         {options.pilotPricing && options.distanceKm != null && selectedSlot?.fee > 0 && <p className="muted">About {options.distanceKm} km straight-line estimate at रू {options.ratePerKm}/km. The route distance may differ.</p>}

@@ -97,6 +97,11 @@ export default function Cart() {
   });
 
   if (items.length === 0) {
+    let recentOrder = null;
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('ok_last_order') || 'null');
+      if (stored?.createdAt && Date.now() - new Date(stored.createdAt).getTime() < 15 * 60 * 1000) recentOrder = stored;
+    } catch { /* Ignore malformed session data. */ }
     return (
       <div>
         <div className="page-head">
@@ -104,9 +109,7 @@ export default function Cart() {
         </div>
         <div className="empty-state">
           <PackageOpen size={34} aria-hidden="true" />
-          <strong>Your cart is khali</strong>
-          <p>Nothing here yet. Browse the shelves and add what you need — stock and prices update as you go.</p>
-          <Link to="/" className="cta-btn">Go shopping</Link>
+          {recentOrder ? <><strong>Your order has been placed</strong><p>Your cart is now empty. Follow its latest status in your order history.</p><Link to="/orders" className="cta-btn">View your orders</Link></> : <><strong>Your cart is khali</strong><p>Nothing here yet. Browse the shelves and add what you need — stock and prices update as you go.</p><Link to="/" className="cta-btn">Go shopping</Link></>}
         </div>
       </div>
     );

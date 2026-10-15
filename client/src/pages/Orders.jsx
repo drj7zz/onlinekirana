@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PackageOpen, ShoppingBag, Radio, XCircle, Layers } from 'lucide-react';
+import { PackageOpen, ShoppingBag, Radio, XCircle, Layers, Search } from 'lucide-react';
 import API from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useLive } from '../hooks/useLive';
@@ -18,6 +18,18 @@ export default function Orders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [cancellationPolicy, setCancellationPolicy] = useState(null);
+  const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
+  const [recentOrder] = useState(() => {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('ok_last_order') || 'null');
+      return stored?.createdAt && Date.now() - new Date(stored.createdAt).getTime() < 15 * 60 * 1000 ? stored : null;
+    } catch { return null; }
+  });
+  const filtered = [...orders]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .filter((o) => filter === 'all' || (filter === 'active' ? isLive(o) : filter === 'delivered' ? isDone(o) : isDead(o)))
+    .filter((o) => !search.trim() || `${o._id} ${o.status} ${o.items.map((i) => i.name).join(' ')}`.toLowerCase().includes(search.trim().toLowerCase()));
 
   // live: order status changes stream in automatically
   const load = () => {
@@ -56,18 +68,13 @@ export default function Orders() {
     done: orders.filter(isDone).length,
     dead: orders.filter(isDead).length,
   };
-  // newest first, and anything still in progress floats to the top
-  const sorted = [...orders].sort((a, b) => {
-    const l = isLive(b) - isLive(a);
-    return l !== 0 ? l : new Date(b.createdAt) - new Date(a.createdAt);
-  });
-
   return (
     <div>
       <div className="page-head">
         <h1>My orders</h1>
-        <p>Live status — every order updates here on its own, no refresh needed.</p>
+        <p>Order history, newest first. Live status updates automatically.</p>
       </div>
+      {recentOrder && <div className="order-placed-banner" role="status"><ShoppingBag size={19} aria-hidden="true" /><div><strong>Your order has been placed</strong><span>Track its progress below. Your cart is ready for your next shop.</span></div></div>}
       {cancellationPolicy?.enabled && cancellationPolicy.warning && <p className="order-note cancel" role="status">You have {cancellationPolicy.recentCount} qualifying cancellations in the last {cancellationPolicy.windowDays} days. {cancellationPolicy.limit} pauses ordering for {cancellationPolicy.restrictionDays} days.</p>}
       {cancellationPolicy?.restrictedUntil && <p className="order-note cancel" role="alert">Ordering is paused until {new Date(cancellationPolicy.restrictedUntil).toLocaleDateString()}. Contact support to request a review.</p>}
 
@@ -106,9 +113,15 @@ export default function Orders() {
           <Link to="/" className="cta-btn">Start shopping</Link>
         </div>
       ) : (
-        <div className="order-list">
-          {sorted.map((o) => <OrderCard key={o._id} order={o} viewer="customer" rider={o.delivery?.rider} showOtp onCancel={cancellationPolicy?.enabled ? cancelOrder : undefined} />)}
-        </div>
+        <>
+          <section className="history-tools" aria-label="Filter order history">
+            <label className="history-search"><Search size={16} aria-hidden="true" /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search orders or products" aria-label="Search order history" /></label>
+            <div className="history-filters" role="group" aria-label="Order status">
+              {[['all', 'All orders'], ['active', 'In progress'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']].map(([key, label]) => <button key={key} type="button" className={filter === key ? 'active' : ''} aria-pressed={filter === key} onClick={() => setFilter(key)}>{label}</button>)}
+            </div>
+          </section>
+          {filtered.length ? <div className="order-list">{filtered.map((o) => <OrderCard key={o._id} order={o} viewer="customer" rider={o.delivery?.rider} showOtp onCancel={cancellationPolicy?.enabled ? cancelOrder : undefined} />)}</div> : <div className="empty-state"><PackageOpen size={30} aria-hidden="true" /><strong>No matching orders</strong><p>Try another filter or search term.</p></div>}
+        </>
       )}
     </div>
   );

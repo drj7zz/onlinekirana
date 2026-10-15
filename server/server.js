@@ -34,7 +34,7 @@ app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
   res.set('X-Frame-Options', 'DENY');
   res.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
   if (isProduction && req.secure) res.set('Strict-Transport-Security', 'max-age=31536000');
   next();
 });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PackageOpen, Bike, Phone, Store, PackageCheck } from 'lucide-react';
+import { PackageOpen, Bike, Phone, Store, PackageCheck, Search } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
@@ -80,6 +80,8 @@ export default function Orders() {
   const [orders, setOrders] = useState([]);
   const [busyId, setBusyId] = useState(null);
   const [error, setError] = useState('');
+  const [historyFilter, setHistoryFilter] = useState('all');
+  const [historySearch, setHistorySearch] = useState('');
 
   const load = () => {
     API.get('/partner/orders')
@@ -107,6 +109,9 @@ export default function Orders() {
 
   const inDelivery = ['packed', 'assigned', 'out_for_delivery', 'delivered', 'cancelled'];
   const toPack = orders.filter((o) => !inDelivery.includes(o.status));
+  const history = [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .filter((o) => historyFilter === 'all' || (historyFilter === 'active' ? !['delivered', 'cancelled'].includes(o.status) : o.status === historyFilter))
+    .filter((o) => !historySearch.trim() || `${o._id} ${o.status} ${(o.items || []).map((i) => i.name).join(' ')}`.toLowerCase().includes(historySearch.trim().toLowerCase()));
 
   return (
     <div>
@@ -223,8 +228,14 @@ export default function Orders() {
           )}
 
           <h2>Full history</h2>
+          <section className="history-tools" aria-label="Filter order history">
+            <label className="history-search"><Search size={16} aria-hidden="true" /><input value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder="Search orders or products" aria-label="Search order history" /></label>
+            <div className="history-filters" role="group" aria-label="Order status">
+              {[['all', 'All orders'], ['active', 'In progress'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']].map(([key, label]) => <button key={key} type="button" className={historyFilter === key ? 'active' : ''} aria-pressed={historyFilter === key} onClick={() => setHistoryFilter(key)}>{label}</button>)}
+            </div>
+          </section>
           <div className="order-list">
-            {orders.map((o) => (
+            {history.map((o) => (
               <OrderCard key={o._id} order={o} viewer="merchant" compact />
             ))}
           </div>

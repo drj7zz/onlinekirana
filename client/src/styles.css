@@ -283,11 +283,21 @@ a { color: inherit; text-decoration: none; }
 .drawer-portal { display: block; text-align: center; font-size: .8rem; color: var(--grey-500); padding-top: .2rem; }
 .drawer-portal:hover { color: var(--grey-900); }
 
-/* ===== Orders =====
-   A row of counters across the top, then the order cards. Active orders sort
-   to the top so the thing you are waiting on is always the first thing seen. */
+/* ===== Orders ===== */
 .order-stats { list-style: none; margin: 0 0 1.2rem; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: .6rem; }
-.order-stat { display: flex; align-items: center; gap: .5rem; padding: .65rem .8rem; border-radius: 11px; background: var(--surface); border: 1px solid var(--grey-200); font-size: .82rem; color: var(--grey-600); }
+.order-stat { display: flex; align-items: center; gap: .5rem; min-width: 0; padding: .65rem .8rem; border-radius: 11px; background: var(--surface); border: 1px solid var(--grey-200); font-size: .82rem; color: var(--grey-600); }
+.order-stat svg { flex: 0 0 auto; }
+.history-tools { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; margin: 0 0 1rem; padding: .8rem; background: var(--surface); border: 1px solid var(--grey-200); border-radius: 12px; }
+.history-search { display: flex; align-items: center; gap: .5rem; flex: 1 1 220px; min-width: 0; color: var(--grey-500); }
+.history-search svg { flex: 0 0 auto; }
+.history-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--grey-900); font: inherit; }
+.history-filters { display: flex; gap: .35rem; flex-wrap: wrap; }
+.history-filters button { border: 1px solid var(--grey-200); border-radius: 999px; background: #fff; padding: .42rem .72rem; color: var(--grey-600); font: inherit; font-size: .82rem; cursor: pointer; }
+.history-filters button.active { border-color: var(--brand); background: var(--brand-tint); color: var(--brand); font-weight: 700; }
+.order-placed-banner { display: flex; align-items: center; gap: .75rem; margin: 0 0 1rem; padding: .85rem 1rem; border: 1px solid #bbdfbd; border-radius: 12px; background: var(--brand-tint); color: var(--brand); }
+.order-placed-banner > svg { flex: 0 0 auto; }
+.order-placed-banner div { display: flex; flex-direction: column; min-width: 0; }
+.order-placed-banner span { color: var(--grey-600); font-size: .86rem; }
 .order-stat svg { flex: 0 0 auto; color: var(--grey-400); }
 .order-stat strong { color: var(--grey-900); font-weight: 800; }
 .order-stat.is-live { border-color: #bfdbfe; background: #eff6ff; }
@@ -304,6 +314,10 @@ a { color: inherit; text-decoration: none; }
 .oi-qty small { color: var(--grey-400); }
 .oi-price { font-weight: 700; white-space: nowrap; }
 .order-pay { display: inline-flex; align-items: center; gap: .25rem; }
+.order-rider, .order-addr, .order-meta { display: flex; align-items: flex-start; gap: .45rem; min-width: 0; flex-wrap: wrap; }
+.order-rider > svg, .order-addr > svg, .order-meta > svg { flex: 0 0 auto; margin-top: .2rem; }
+.order-phone { display: inline-flex; align-items: center; gap: .3rem; }
+.order-phone svg { flex: 0 0 auto; }
 
 /* the product-page price block: original, payable price, badge, and the plain
    sentence that says what the discount actually saves in money */
@@ -1005,6 +1019,8 @@ td svg { margin-right: 4px; }
 .bill { background: var(--grey-100); border: 1px solid var(--grey-200); border-radius: 10px; padding: .7rem .85rem; margin: .3rem 0; }
 .bill-row { display: flex; align-items: center; justify-content: space-between; margin: .2rem 0; }
 .bill-row span:first-child { display: inline-flex; align-items: center; gap: .35rem; color: var(--grey-600); }
+.checkout > p.muted { display: flex; align-items: flex-start; gap: .4rem; }
+.checkout > p.muted svg { flex: 0 0 auto; margin-top: .25rem; }
 .bill-hint { font-size: .8rem; margin: .3rem 0 0; }
 
 /* ===== Rider & dispatch cards ===== */

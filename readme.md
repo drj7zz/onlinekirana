@@ -21,7 +21,7 @@ delivery — all priced in **Nepali Rupees (रू)**, with delivery coverage ba
 | **Self-service sign-up** | Shopkeepers *and* riders both apply from the same form, picking their role. Both land `pending`; an admin reviews every application in the Approvals section. |
 | **Notifications** | In-app notifications are available across the storefront and partner portal, with optional browser push for order and approval updates. |
 | **Rider choice** | A packed order is offered to on-shift riders. A rider must accept it before customer contact details are revealed. Pilot delivery is free from 5 am–10 pm; 10 pm–midnight may be offered at ₹10 per started estimated kilometer when a rider is online. |
-| **One typeface** | Lato across both apps, loaded with preconnect so the render never waits on it. |
+| **One typeface** | DM Sans across both apps, loaded with preconnect for a consistent, quick render. |
 | **Verified reviews** | One review per user per product. A review is marked **verified** only if the buyer has a *delivered* order for that product. |
 | **Role-based dashboards** | Same `/dashboard` route, three different views (customer / merchant / admin) rendered from one endpoint. |
 | **Live-ish updates** | Lists re-fetch on an interval while the tab is visible — orders and stock update without a page refresh. |
@@ -112,6 +112,8 @@ npm run dev            # portal on http://localhost:5174
 ```
 
 `VITE_API_URL` and `VITE_STOREFRONT_URL` are both configurable via `partners/.env`.
+For production, the API URL must be the public HTTPS API origin; it is embedded
+in the frontend at build time, so rebuild both apps after changing it.
 
 ### 4. Populate the store
 
@@ -122,6 +124,32 @@ npm run dev            # portal on http://localhost:5174
 
 > ⚠️ **Change the admin password after first login.** Use a strong `JWT_SECRET` and set
 > `CLIENT_URL` to your real origin before deploying.
+
+### Production deployment checklist
+
+Deploy the API and the two frontends as separate services. Keep API environment
+variables in the server host's secret settings, and set `VITE_API_URL` in each
+frontend's build settings to the public API origin (for example,
+`https://api.example.com`, without `/api`). `VITE_API_URL` is baked into the
+frontend bundle; changing it requires rebuilding and redeploying both frontends.
+
+Set `NODE_ENV=production`, `MONGO_URI`, a random `JWT_SECRET` of at least 32
+characters, and `CLIENT_URL` to the exact comma-separated HTTPS storefront and
+partner origins. For a pitch demo, set `PILOT_DELIVERY_ENABLED=true`; enable
+`PILOT_CANCELLATION_ENABLED=true` only if demonstrating that policy. These flags
+belong to the API environment, and changing them requires an API restart or
+redeploy. Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
+if browser push is part of the demo.
+
+After deployment, check `https://<api-host>/api/health`, load both sites, sign in
+to each role, and place one test order during the free window and one eligible
+late-night test order. Confirm the displayed checkout fee matches the saved
+order total. Seed the admin through the server host's one-off command using
+`ADMIN_NAME`, `ADMIN_EMAIL`, and a strong `ADMIN_PASSWORD`; change the password
+after the first sign-in. Use staging data for these checks. Confirm MongoDB
+allows connections from the API host, enable automated database backups, and
+configure persistent object storage for uploads before relying on local disk
+across server restarts.
 
 ---
 
@@ -300,7 +328,7 @@ For a deeper look at the stack, data model, security and design decisions, see
 
 | Location | Command | What it does |
 |---|---|---|
-| server | `npm run dev` | Start API with nodemon |
+| server | `npm run dev` | Start API with Node's built-in watch mode |
 | server | `npm start` | Start API (production) |
 | server | `npm run seed-admin` | Create/upgrade the admin user from `.env` |
 | server | `npm run cleanup-test-accounts` | Dry run by default; `--apply` deletes throwaway test accounts and their data |
