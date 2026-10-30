@@ -39,22 +39,28 @@ export default function Register() {
     }
   };
   return (
-    <form className="form narrow" onSubmit={submit}>
+    <form className="form narrow compact-form" onSubmit={submit}>
       <h1>Create account</h1>
-      <p className="muted">Shopper accounts. Want to run a shop, deliver, or join operations?{' '}
-        <a href={PORTAL_URL} target="_blank" rel="noreferrer">Use the partner portal</a>.
+      <p className="muted">All fields below are required. Shoppers only — to run a shop or deliver,{' '}
+        <a href={PORTAL_URL} target="_blank" rel="noreferrer">use the partner portal</a>.
       </p>
-      <label>Full name<input required value={form.name} onChange={set('name')} /></label>
+      {/* First two fields live side by side to keep the form short; at narrow
+          widths the CSS stacks them again. */}
+      <div className="field-row">
+        <label>Full name<input required value={form.name} onChange={set('name')} /></label>
+        <label>Phone (default for orders)<input required autoComplete="tel" value={form.phone} onChange={set('phone')} placeholder="98XXXXXXXX" inputMode="numeric" /></label>
+      </div>
+      {fieldErrors.name && <p className="error">{fieldErrors.name}</p>}
+      {fieldErrors.phone && <p className="error">{fieldErrors.phone}</p>}
       <label>Email<input type="email" required autoComplete="email" value={form.email} onChange={set('email')} /></label>
       {fieldErrors.email && <p className="error">{fieldErrors.email}</p>}
       <label>Password<PasswordField value={form.password} onChange={set('password')} /></label>
       <StrengthMeter password={form.password} name={form.name} email={form.email} />
-      <label>Phone<input autoComplete="tel" value={form.phone} onChange={set('phone')} placeholder="98XXXXXXXX" /></label>
-      {fieldErrors.phone && <p className="error">{fieldErrors.phone}</p>}
-      <label>Address — street / tole<input value={form.line} onChange={set('line')} /></label>
-      <label>Ward No.<input value={form.ward} onChange={set('ward')} /></label>
+      <div className="field-row">
+        <label>Address — street / tole (default for orders)<input required value={form.line} onChange={set('line')} placeholder="e.g. Ghantaghar, Raniganj" /></label>
+        <label>Ward No. (Birgunj)<input required value={form.ward} onChange={set('ward')} placeholder="e.g. 10" /></label>
+      </div>
       {error && <p className="error">{error}</p>}
-      {fieldErrors.name && <p className="error">{fieldErrors.name}</p>}
       <button type="submit" disabled={submitting}>{submitting ? 'Submitting…' : 'Register'}</button>
       <p className="muted">Already have an account? <Link to="/login">Login</Link></p>
     </form>

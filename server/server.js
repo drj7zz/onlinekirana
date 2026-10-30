@@ -2,6 +2,9 @@ const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const hpp = require('hpp');
 /**
  * One env file: `server/.env`. Real environment variables (host dashboard, CI)
  * always win over the file, so a deployed host overrides any value without
@@ -29,6 +32,37 @@ if (isProduction) {
 
 const app = express();
 app.disable('x-powered-by');
+
+// ---- Helmet: hardened security headers ----
+// CSP is API-safe: no inline scripts are served, so the default-src "none"
+// posture plus img-src for uploaded images covers everything this API emits.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: false,
+    directives: {
+      defaultSrc: ["'self'"],
+      imgSrc: ["'self'", 'data:'],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: 'same-site' },
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+  hsts: isProduction ? { maxAge: 31536000, includeSubDomains: true } : false,
+}));
+
+// ---- Query/body sanitisation ----
+// Strips `$` and `.` prefixed keys so a crafted query like ?price[$gt]= can
+// never become a MongoDB operator injection. (Mongoose 8 also sanitises
+// internally, but defence in depth is cheap here.)
+app.use(mongoSanitize());
+// Rejects duplicate query parameters (?a=1&a=2) that would otherwise become
+// arrays and silently change what a handler sees.
+app.use(hpp());
+
 app.set('trust proxy', process.env.TRUST_PROXY === 'true' ? 1 : false);
 app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
@@ -84,6 +118,13 @@ app.use(
 );
 app.use(express.json({ limit: '1mb' }));
 
+// Cookies are not part of the auth design (Bearer tokens only); refusing any
+// that arrive keeps request sizes tight and parser confusion impossible.
+app.use((req, res, next) => {
+  if (req.headers.cookie) return res.status(400).json({ message: 'Unexpected cookies in request' });
+  next();
+});
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
@@ -101,7 +142,14 @@ app.use('/api/shops', require('./routes/shopRoutes'));
 app.use('/api/uploads', require('./routes/uploadRoutes'));
 
 // uploaded images (avatars, shop logos, product photos)
-app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
+// - immutable caching: filenames are random hex, so content never changes
+// - index:false stops directory listing; dotfiles stay private
+app.use('/uploads', express.static(require('path').join(__dirname, 'uploads'), {
+  index: false,
+  dotfiles: 'ignore',
+  immutableMaxAge: '30d',
+  setHeaders(res) { res.set('Cross-Origin-Resource-Policy', 'cross-origin'); },
+}));
 
 app.get('/api/health', (req, res) => {
   const ready = mongoose.connection.readyState === 1;
@@ -110,6 +158,13 @@ app.get('/api/health', (req, res) => {
 
 // 404 for unknown API routes (JSON, not an HTML error page)
 app.use('/api', (req, res) => res.status(404).json({ message: 'Not found' }));
+
+// Reject anything that is not a normal browser/API method — TRACE, TRACK and
+// friends have no business reaching the app and only ever feed scanners.
+app.use((req, res, next) => {
+  if (['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'].includes(req.method)) return next();
+  res.status(405).json({ message: 'Method not allowed' });
+});
 
 // Last-resort error handler: log the real error, but never leak internals to clients
 // eslint-disable-next-line no-unused-vars
@@ -121,5 +176,11 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => app.listen(PORT, () => console.log(`onlinekirana API running on :${PORT}`)))
+  .then(() => {
+    app.listen(PORT, () => console.log(`onlinekirana API running on :${PORT}`));
+    // Background task worker — drains the Redis queue (notifications fan-out).
+    const { startWorker } = require('./lib/platform');
+    const { handle } = require('./workers/tasks');
+    if (startWorker(handle)) console.log('[worker] background task queue draining');
+  })
   .catch((e) => { console.error('MongoDB connection failed:', e.message); process.exit(1); });

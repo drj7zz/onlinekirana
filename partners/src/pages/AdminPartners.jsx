@@ -1,20 +1,75 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, CircleCheck, Ban } from 'lucide-react';
+import { Clock, CircleCheck, Ban, ChevronDown, UserCircle2 } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
+import { useToast } from '@shared/context/ToastContext';
 
 const statusIcon = { pending: <Clock size={14} color="#f9a825" />, approved: <CircleCheck size={14} color="#2e7d32" />, suspended: <Ban size={14} color="#c62828" /> };
 const partnerLabel = { pending: 'Pending', approved: 'Approved', suspended: 'Suspended' };
 
+/** Every field the admin's filled profile panel can show for a merchant. */
+function MerchantDetails({ m }) {
+  return (
+    <dl className="detail-grid">
+      <div><dt>Shop name</dt><dd>{m.shopName || 'Not set yet'}</dd></div>
+      <div><dt>Owner</dt><dd>{m.name || '—'}</dd></div>
+      <div><dt>Email</dt><dd>{m.email}</dd></div>
+      <div><dt>Phone</dt><dd>{m.phone || 'Not set'}</dd></div>
+      <div><dt>Shop contact</dt><dd>{m.shopPhone || 'Not set'}</dd></div>
+      <div><dt>Status</dt><dd>{partnerLabel[m.merchantStatus] || m.merchantStatus}</dd></div>
+      <div><dt>Joined</dt><dd>{new Date(m.createdAt).toLocaleDateString('en-IN')}</dd></div>
+      <div className="detail-wide"><dt>Shop address</dt>
+        <dd>{[m.shopAddress?.line, m.shopAddress?.ward && `Ward ${m.shopAddress.ward}`, 'Birgunj'].filter(Boolean).join(', ') || 'Not set yet'}</dd>
+      </div>
+      {m.shopDescription && <div className="detail-wide"><dt>Description</dt><dd>{m.shopDescription}</dd></div>}
+    </dl>
+  );
+}
+
+/** Every field the admin's filled profile panel can show for a rider. */
+function RiderDetails({ r }) {
+  return (
+    <dl className="detail-grid">
+      <div><dt>Name</dt><dd>{r.name}</dd></div>
+      <div><dt>Email</dt><dd>{r.email}</dd></div>
+      <div><dt>Phone</dt><dd>{r.phone || 'Not set'}</dd></div>
+      <div><dt>Vehicle</dt><dd>{r.riderVehicle || 'Not set'}</dd></div>
+      <div><dt>Area</dt><dd>{r.riderArea || 'Not set'}</dd></div>
+      <div><dt>Status</dt><dd>{RIDER_LABEL[r.riderStatus] || r.riderStatus}</dd></div>
+      <div><dt>Joined</dt><dd>{new Date(r.createdAt).toLocaleDateString('en-IN')}</dd></div>
+    </dl>
+  );
+}
+
+const RIDER_LABEL = { pending: 'Pending', available: 'Available', on_delivery: 'On delivery', offline: 'Offline', suspended: 'Suspended' };
+
+/** Expandable profile panel — collapsed by default, opens inline in place. */
+function ExpandableRow({ id, icon: Icon, title, subtitle, right, open, onToggle, children }) {
+  const rowId = `detail-${id}`;
+  return (
+    <div className={`profile-row${open ? ' open' : ''}`}>
+      <button type="button" className="profile-row-head" aria-expanded={open} aria-controls={rowId} onClick={onToggle}>
+        <Icon size={17} aria-hidden="true" />
+        <span className="profile-row-title"><strong>{title}</strong><small>{subtitle}</small></span>
+        <span className="profile-row-side">{right}<ChevronDown size={16} className={`profile-row-chevron${open ? ' is-open' : ''}`} aria-hidden="true" /></span>
+      </button>
+      {open && <div id={rowId} className="profile-row-body">{children}</div>}
+    </div>
+  );
+}
+
 export default function AdminPartners() {
   const { user } = useAuth();
+  const toast = useToast();
   const [partners, setPartners] = useState([]);
   const [pending, setPending] = useState([]);
   const [riders, setRiders] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
+  // one open panel at a time — tapping a merchant or a rider opens their filled details
+  const [openId, setOpenId] = useState(null);
 
   const load = async () => {
     setError('');
@@ -32,15 +87,21 @@ export default function AdminPartners() {
   // live updates: new submissions / applications appear automatically
   useLive(load, 6000, [user?._id]);
 
-  const act = async (key, request) => {
+  const act = async (key, request, onDone) => {
     setBusy(key); setError('');
-    try { await request(); await load(); }
-    catch (e) { setError(e.response?.data?.message || 'That action could not be completed.'); }
+    try { await request(); await load(); if (onDone) onDone(); }
+    catch (e) {
+      setError(e.response?.data?.message || 'That action could not be completed.');
+      toast.error('That action could not be completed');
+    }
     finally { setBusy(''); }
   };
-  const setPartnerStatus = (id, status) => act(id, () => API.patch(`/admin/partners/${id}/status`, { status }));
-  const approveRider = (id) => act(id, () => API.patch(`/admin/delivery/riders/${id}/status`, { status: 'available' }));
-  const review = (id, status) => act(id, () => API.patch(`/admin/partners/products/${id}/review`, { status }));
+  const setPartnerStatus = (id, status, name) => act(id, () => API.patch(`/admin/partners/${id}/status`, { status }),
+    () => toast.success(status === 'approved' ? `${name || 'Partner'} approved` : status === 'suspended' ? 'Partner suspended' : 'Partner re-pended'));
+  const approveRider = (id, name) => act(id, () => API.patch(`/admin/delivery/riders/${id}/status`, { status: 'available' }),
+    () => toast.success(`${name || 'Rider'} approved`));
+  const review = (id, status, name) => act(id, () => API.patch(`/admin/partners/products/${id}/review`, { status }),
+    () => toast.success(status === 'approved' ? `“${name || 'Product'}” approved and live` : `“${name || 'Product'}” rejected`));
 
   if (!user) return <p className="empty">Please <Link to="/login">login</Link> as admin.</p>;
   if (user.role !== 'admin') return <p className="empty">Admin access only.</p>;
@@ -66,8 +127,8 @@ export default function AdminPartners() {
           </div>
           <p>{p.description}</p>
           <div className="order-head" style={{ marginTop: '.5rem' }}>
-            <button disabled={busy === p._id} onClick={() => review(p._id, 'approved')}>Approve</button>
-            <button className="danger" disabled={busy === p._id} onClick={() => review(p._id, 'rejected')}>Reject</button>
+            <button disabled={busy === p._id} onClick={() => review(p._id, 'approved', p.name)}>Approve</button>
+            <button className="danger" disabled={busy === p._id} onClick={() => review(p._id, 'rejected', p.name)}>Reject</button>
           </div>
         </div>
       ))}
@@ -76,58 +137,59 @@ export default function AdminPartners() {
       <section className="section">
       <h2>Partner applications ({pendingPartners.length})</h2>
       {pendingPartners.length === 0 ? <p className="empty">No partner applications waiting.</p> : (
-        <table className="table">
-          <thead><tr><th>Shop</th><th>Contact</th><th>Action</th></tr></thead>
-          <tbody>
-            {pendingPartners.map((m) => (
-              <tr key={m._id}>
-                <td>{m.shopName || 'Shop not set up'} <small className="muted">({m.name})</small></td>
-                <td>{m.email}{m.phone && ` · ${m.phone}`}</td>
-                <td><button disabled={busy === m._id} onClick={() => setPartnerStatus(m._id, 'approved')}>Approve</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="profile-rows">
+          {pendingPartners.map((m) => (
+            <ExpandableRow key={m._id} id={m._id} icon={UserCircle2} title={m.shopName || 'Shop not set up'}
+              subtitle={`${m.name} · ${m.email}${m.phone ? ` · ${m.phone}` : ''}`}
+              right={<span className={`status s-${m.merchantStatus}`}>{partnerLabel[m.merchantStatus]}</span>}
+              open={openId === m._id} onToggle={() => setOpenId(openId === m._id ? null : m._id)}>
+              <MerchantDetails m={m} />
+              <div className="profile-row-actions">
+                <button disabled={busy === m._id} onClick={() => setPartnerStatus(m._id, 'approved', m.shopName || m.name)}>Approve</button>
+              </div>
+            </ExpandableRow>
+          ))}
+        </div>
       )}
       </section>
 
       <section className="section">
         <h2>Rider applications ({pendingRiders.length})</h2>
         {pendingRiders.length === 0 ? <p className="empty">No rider applications waiting.</p> : (
-          <table className="table">
-            <thead><tr><th>Rider</th><th>Contact</th><th>Area</th><th>Action</th></tr></thead>
-            <tbody>
-              {pendingRiders.map((r) => (
-                <tr key={r._id}>
-                  <td>{r.name} <small className="muted">({r.riderVehicle || 'rider'})</small></td>
-                  <td>{r.email}{r.phone && ` · ${r.phone}`}</td>
-                  <td>{r.riderArea || '—'}</td>
-                  <td><button disabled={busy === r._id} onClick={() => approveRider(r._id)}>Approve</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="profile-rows">
+            {pendingRiders.map((r) => (
+              <ExpandableRow key={r._id} id={r._id} icon={UserCircle2} title={r.name}
+                subtitle={`${r.riderVehicle || 'rider'} · ${r.email}${r.phone ? ` · ${r.phone}` : ''}`}
+                right={<span className="status s-pending">Pending</span>}
+                open={openId === r._id} onToggle={() => setOpenId(openId === r._id ? null : r._id)}>
+                <RiderDetails r={r} />
+                <div className="profile-row-actions">
+                  <button disabled={busy === r._id} onClick={() => approveRider(r._id, r.name)}>Approve</button>
+                </div>
+              </ExpandableRow>
+            ))}
+          </div>
         )}
       </section>
 
       <section className="section">
       <h2>Partner directory ({partners.length})</h2>
-      <table className="table">
-        <thead><tr><th>Shop</th><th>Contact</th><th>Status</th><th>Regulate</th></tr></thead>
-        <tbody>
+      {listedPartners.length === 0 ? <p className="empty">No partners listed yet.</p> : (
+        <div className="profile-rows">
           {listedPartners.map((m) => (
-            <tr key={m._id}>
-              <td>{m.shopName} <small className="muted">({m.name})</small></td>
-              <td>{m.email}{m.phone && ` · ${m.phone}`}</td>
-              <td>{statusIcon[m.merchantStatus]} {partnerLabel[m.merchantStatus]}</td>
-              <td>
-                {m.merchantStatus === 'approved' && <button className="danger" disabled={busy === m._id} onClick={() => setPartnerStatus(m._id, 'suspended')}>Suspend</button>}{' '}
-                {m.merchantStatus === 'suspended' && <button disabled={busy === m._id} onClick={() => setPartnerStatus(m._id, 'pending')}>Re-pend</button>}
-              </td>
-            </tr>
+            <ExpandableRow key={m._id} id={m._id} icon={UserCircle2} title={m.shopName || 'Shop not set up'}
+              subtitle={`${m.name} · ${m.email}${m.phone ? ` · ${m.phone}` : ''}`}
+              right={<span className={`status s-${m.merchantStatus}`}>{statusIcon[m.merchantStatus]} {partnerLabel[m.merchantStatus]}</span>}
+              open={openId === m._id} onToggle={() => setOpenId(openId === m._id ? null : m._id)}>
+              <MerchantDetails m={m} />
+              <div className="profile-row-actions">
+                {m.merchantStatus === 'approved' && <button className="danger" disabled={busy === m._id} onClick={() => setPartnerStatus(m._id, 'suspended', m.shopName || m.name)}>Suspend</button>}
+                {m.merchantStatus === 'suspended' && <button disabled={busy === m._id} onClick={() => setPartnerStatus(m._id, 'pending', m.shopName || m.name)}>Re-pend</button>}
+              </div>
+            </ExpandableRow>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
       </section>
     </div>
   );

@@ -10,6 +10,7 @@ const {
   availableSlots, feeForSlot, distanceKm, SLOTS,
 } = require('../config/delivery');
 const { notifyUsers } = require('../utils/notifications');
+const { decryptPII } = require('../lib/piiCrypto');
 
 // Mirrors the order status a delivery step implies, so the customer's order
 // timeline always agrees with what the rider has actually done.
@@ -537,9 +538,9 @@ async function createForOrder({ order, shop, address, customerName, fee, slot, i
     },
     dropoff: {
       name: customerName || '',
-      line: address?.line || '',
-      ward: address?.ward || '',
-      phone: address?.phone || '',
+      line: decryptPII(address?.line) || '',
+      ward: decryptPII(address?.ward) || '',
+      phone: decryptPII(address?.phone) || '',
       location: address?.location || null,
     },
   });

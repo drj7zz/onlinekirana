@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import { finalPrice, rupees } from '../lib/pricing';
 import { Check, Minus, Plus, ShoppingCart, Trash2, Zap } from 'lucide-react';
 
@@ -22,6 +23,7 @@ import { Check, Minus, Plus, ShoppingCart, Trash2, Zap } from 'lucide-react';
  */
 export default function AddToCartButton({ product, compact = false, showBuyNow = false, initialQty = 1, className = '' }) {
   const { add, updateQty, remove, qtyOf, items, clear, canAddSeller } = useCart();
+  const toast = useToast();
   const navigate = useNavigate();
   const inCart = qtyOf(product._id);
   const sellerConflict = items.length > 0 && !canAddSeller(product);
@@ -56,7 +58,7 @@ export default function AddToCartButton({ product, compact = false, showBuyNow =
         <button
           type="button"
           className="buy-btn buy-add"
-          onClick={() => add(product, per)}
+          onClick={() => { add(product, per); toast.success(`${product.name} added to cart`); }}
         >
           <ShoppingCart size={compact ? 15 : 17} aria-hidden="true" />
           {per > 1 ? `Add ${per} to cart` : 'Add to cart'}
@@ -83,7 +85,10 @@ export default function AddToCartButton({ product, compact = false, showBuyNow =
       <div className="buy-stepper">
         <button
           type="button"
-          onClick={() => (inCart <= 1 ? remove(product._id) : updateQty(product._id, inCart - 1))}
+          onClick={() => {
+            if (inCart <= 1) { remove(product._id); toast.info(`${product.name} removed from cart`); }
+            else { updateQty(product._id, inCart - 1); }
+          }}
           aria-label={inCart <= 1 ? `Remove ${product.name} from cart` : `Decrease ${product.name} quantity`}
         >
           {inCart <= 1 ? <Trash2 size={15} aria-hidden="true" /> : <Minus size={15} aria-hidden="true" />}
@@ -95,7 +100,7 @@ export default function AddToCartButton({ product, compact = false, showBuyNow =
 
         <button
           type="button"
-          onClick={() => updateQty(product._id, inCart + 1)}
+          onClick={() => { updateQty(product._id, inCart + 1); toast.info(`${product.name} × ${inCart + 1} in cart`); }}
           disabled={atMax}
           aria-label={`Increase ${product.name} quantity`}
           title={atMax ? `Only ${stock} in stock` : undefined}

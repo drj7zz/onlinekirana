@@ -103,15 +103,19 @@ export default function Register() {
       {!isRider && (
         <label>Shop name<input required value={form. shopName} onChange={set('shopName')} /></label>
       )}
-      <label>Full name<input required value={form. name} onChange={set('name')} /></label>
-      <label>Email<input type="email" required autoComplete="email" value={form. email} onChange={set('email')} /></label>
+      {/* Name and email sit side by side to keep the form short; narrow
+          screens stack the row again via the `.field-row` CSS. */}
+      <div className="field-row">
+        <label>Full name<input required value={form. name} onChange={set('name')} /></label>
+        <label>Email<input type="email" required autoComplete="email" value={form. email} onChange={set('email')} /></label>
+      </div>
       {fieldErrors. email && <p className="error">{fieldErrors. email}</p>}
       <label>Password<PasswordField value={form. password} onChange={set('password')} /></label>
       <StrengthMeter password={form. password} name={form. name} email={form. email} />
       <label>
         Phone
-        <input required={isRider} autoComplete="tel" value={form. phone} onChange={set('phone')} placeholder="98XXXXXXXX" />
-        {isRider && <span className="muted">Customers and shops use this to reach you during a delivery.</span>}
+        <input required autoComplete="tel" value={form. phone} onChange={set('phone')} placeholder="98XXXXXXXX" inputMode="numeric" />
+        {isRider ? <span className="muted">Customers and shops use this to reach you during a delivery.</span> : <span className="muted">Used for order updates and shop contact.</span>}
       </label>
       {fieldErrors. phone && <p className="error">{fieldErrors. phone}</p>}
 
@@ -119,12 +123,12 @@ export default function Register() {
         <>
           <label>
             Which wards do you cover?
-            <input value={form. riderArea} onChange={set('riderArea')} placeholder="e. g. Ward 1–5" />
+            <input required value={form.riderArea} onChange={set('riderArea')} placeholder="e. g. Ward 1–5" />
           </label>
           <label>
             How do you travel?
-            <select value={form. riderVehicle} onChange={set('riderVehicle')}>
-              <option value="">Choose…</option>
+            <select required value={form.riderVehicle} onChange={set('riderVehicle')}>
+              <option value="" disabled>Choose…</option>
               <option>Bike</option>
               <option>Cycle</option>
               <option>Scooter</option>
@@ -135,14 +139,17 @@ export default function Register() {
         </>
       ) : (
         <>
-          <label>Shop address — street / tole<input value={form. line} onChange={set('line')} /></label>
-          <label>Ward No. (Birgunj)<input value={form. ward} onChange={set('ward')} /></label>
+          <div className="field-row">
+            <label>Shop address — street / tole<input required value={form.line} onChange={set('line')} placeholder="e. g. Main Road, Raniganj" /></label>
+            <label>Ward No. (Birgunj)<input required value={form.ward} onChange={set('ward')} placeholder="e. g. 10" /></label>
+          </div>
         </>
       )}
 
       {error && <p className="error">{error}</p>}
       {fieldErrors. name && <p className="error">{fieldErrors. name}</p>}
       {fieldErrors. shopName && <p className="error">{fieldErrors. shopName}</p>}
+      {fieldErrors. riderArea && <p className="error">{fieldErrors. riderArea}</p>}
 
       <button type="submit" className="cta-btn" disabled={submitting}>
         {submitting ? 'Submitting…' : isRider ? 'Apply to deliver' : 'Apply as a partner'}

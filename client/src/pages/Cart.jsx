@@ -1,11 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  ArrowRight, Trash2, Minus, Plus, ShoppingCart, PackageOpen,
+  ArrowRight, Trash2, Minus, Plus, ShoppingCart as CartIcon, PackageOpen,
   Truck, ShieldCheck, Tag, AlertTriangle,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useSeo } from '../hooks/useSeo';
 import { imageUrl } from '../api';
+import SmartImage from '../components/SmartImage';
 import { finalPrice, listPrice, discountBadge, savedOnLine, rupees as fmt } from '../lib/pricing';
 import { productPath } from '../lib/productUrl';
 
@@ -26,9 +27,14 @@ function CartLine({ product, qty, updateQty, remove }) {
   return (
     <li className={`cart-line${stock <= 0 ? ' is-dead' : ''}`}>
       <Link to={productPath(product)} className="cart-line-media">
-        {product.imageUrl
-          ? <img src={imageUrl(product.imageUrl)} alt={product.name} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-          : <span className="cart-line-media-empty"><ShoppingCart size={20} aria-hidden="true" /></span>}
+        {/* SmartImage swaps to a basket icon if the stored photo 404s. */}
+        <SmartImage
+          src={product.imageUrl ? imageUrl(product.imageUrl) : null}
+          alt={product.name}
+          imgCls=""
+          fallbackCls="cart-line-media-empty"
+          fallback={<CartIcon size={20} aria-hidden="true" />}
+        />
         {off && <span className="cart-line-off">-{off}</span>}
       </Link>
 

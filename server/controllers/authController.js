@@ -2,11 +2,11 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { validateRegister, validateLogin, validatePassword } = require('../middleware/validate');
-const { loginIp, loginAccount } = require('../middleware/rateLimit');
+const { loginIp } = require('../middleware/rateLimit');
 const { notifyUsers } = require('../utils/notifications');
+const { revokeAllSessions } = require('../lib/platform');
 
-const signToken = (user) =>
-  jwt.sign({ id: user._id, role: user.role, name: user.name }, process.env.JWT_SECRET, { expiresIn: '24h' });
+const { signToken } = require('../lib/tokens');
 
 const publicUser = (u) => ({
   id: u._id, name: u.name, email: u.email, role: u.role,
@@ -17,6 +17,12 @@ const publicUser = (u) => ({
 
 // ---- LOGIN: rate-limited per IP + per account; identical failure response (no user enumeration) ----
 const DUMMY_HASH = bcrypt.hashSync('timing-safe-dummy', 12);
+
+// POST /api/auth/logout — revoke the caller's token in Redis (instant, server-side)
+exports.logout = async (req, res) => {
+  try { await revokeSession(String(req.user.id), req.user.jti); } catch { /* best-effort */ }
+  res.json({ message: 'Logged out' });
+};
 
 /**
  * The storefront and the partner portal share this one endpoint but serve
@@ -30,9 +36,7 @@ const SCOPES = {
 };
 
 exports.login = [
-  loginIp,
   validateLogin,
-  loginAccount,
   async (req, res) => {
     try {
       const { email, password, scope } = req.body;

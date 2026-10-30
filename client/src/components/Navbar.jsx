@@ -67,6 +67,10 @@ function Avatar({ user, cls = 'nav-avatar' }) {
   );
 }
 
+// "This avatar's URL is broken" state note: the onError swap above replaces the
+// <img> with an initials span — the DOM-based fallback that was already here is
+// retained (a state swap would remount the navbar dropdown).
+
 /** Highlight the matched part of a product name, case-insensitively. */
 function Highlight({ text, query }) {
   if (!query) return text;

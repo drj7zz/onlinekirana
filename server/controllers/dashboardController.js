@@ -126,7 +126,7 @@ exports.stats = async (req, res) => {
   } catch (e) {
     serverError(res, e);
   }
-};
+}
 
 const mongooseId = (id) => {
   const mongoose = require('mongoose');

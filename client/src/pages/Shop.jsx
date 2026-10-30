@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { Store, MapPin, Phone, PackageX, CalendarClock } from 'lucide-react';
 import API, { imageUrl } from '../api';
 import ProductCard from '../components/ProductCard';
+import SmartImage from '../components/SmartImage';
+import { SkeletonGrid } from '../components/Skeletons';
 
 export default function Shop() {
   const { id } = useParams();
@@ -29,16 +31,22 @@ export default function Shop() {
       <Link to="/" className="cta-btn">Back to shopfront</Link>
     </div>
   );
-  if (!data) return <p className="loading-shimmer">Loading shop</p>;
+  if (!data) return <SkeletonGrid n={4} />;
 
   const { shop, products } = data;
 
   return (
     <div>
       <div className="shop-hero">
-        {shop.logoUrl
-          ? <img src={imageUrl(shop.logoUrl)} alt={shop.shopName} className="shop-logo" />
-          : <div className="shop-logo shop-logo-fallback"><Store size={26} aria-hidden="true" /></div>}
+        {/* SmartImage swaps to the leaf fallback if the logo 404s, instead of
+            showing the browser's broken-image glyph. */}
+        <SmartImage
+          src={shop.logoUrl ? imageUrl(shop.logoUrl) : null}
+          alt={shop.shopName}
+          imgCls="shop-logo"
+          fallbackCls="shop-logo shop-logo-fallback"
+          fallback={<Store size={26} aria-hidden="true" />}
+        />
         <div className="shop-hero-info">
           <h1>{shop.shopName}</h1>
           {shop.description && <p>{shop.description}</p>}

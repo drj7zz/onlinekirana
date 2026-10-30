@@ -4,6 +4,18 @@ import { PackageOpen } from 'lucide-react';
 import API from '../api';
 import { useSeo } from '../hooks/useSeo';
 import ProductCard from '../components/ProductCard';
+import { SkeletonGrid } from '../components/Skeletons';
+import RecentStrip from '../components/RecentStrip';
+
+/** Blinkit-style emoji per category. Anything unmapped falls back to 🛍️. */
+const CATEGORY_EMOJI = {
+  sabzi: '🥬', phalphul: '🥦', 'chamal-dal': '🍚', chamal: '🍚', dal: '🫘',
+  dairy: '🥛', masala: '🌶️', oil: '🫒', atta: '🌾', sugar: '🧂',
+  snacks: '🍪', beverages: '🥤', tea: '🍵', coffee: '☕', eggs: '🥚',
+  chicken: '🍗', meat: '🥩', fish: '🐟', fruit: '🍎', sweets: '🍬',
+  household: '🧼', personal: '🧴', baby: '🍼', frozen: '🧊', bakery: '🍞',
+};
+const catEmoji = (c) => CATEGORY_EMOJI[String(c).toLowerCase().replace(/\s+/g, '-')] || '🛍️';
 
 export default function Home() {
   const [params, setParams] = useSearchParams();
@@ -98,6 +110,9 @@ export default function Home() {
               className={`cat-chip${category === c ? ' active' : ''}`}
               onClick={() => setCategory(c)}
             >
+              {/* A face on every chip — recognisable at a glance while the row
+                  scrolls horizontally on a phone. */}
+              <span className="cat-emoji" aria-hidden="true">{c === 'all' ? '🛒' : catEmoji(c)}</span>
               <span>{c === 'all' ? 'All' : c}</span>
             </button>
           ))}
@@ -122,7 +137,9 @@ export default function Home() {
         </select>
       </div>
 
-      {loading ? <p className="loading-shimmer">Loading products</p> : loadError ? (
+      {/* Skeleton cards hold the grid's shape while the list loads — no layout
+          jump when real cards replace them. */}
+      {loading ? <SkeletonGrid n={8} /> : loadError ? (
         <div className="empty-state"><strong>Products unavailable</strong><p>{loadError}</p><button type="button" onClick={() => setReloadKey((key) => key + 1)}>Try again</button></div>
       ) : products.length === 0 ? (
         <div className="empty-state">
@@ -142,6 +159,10 @@ export default function Home() {
           {products.map((p) => <ProductCard key={p._id} product={p} />)}
         </div>
       )}
+
+      {/* What this shopper looked at before, straight from localStorage — no
+          server call, and hidden until there is something to show. */}
+      {!loading && !loadError && <RecentStrip />}
     </>
   );
 }

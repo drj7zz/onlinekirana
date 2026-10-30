@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleCheck, Package, ReceiptText, PlusCircle, Truck, Bike, Store } from 'lucide-react';
+import { CircleCheck, Package, ReceiptText, PlusCircle, Truck, Bike, Store, ChevronRight } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
@@ -94,11 +94,18 @@ export default function Dashboard() {
         <div>
           <h2>Recent orders</h2>
           {data.recentOrders.length === 0 && <p className="empty">Nothing yet.</p>}
+          {/* Compact minimal history — collapsed order cards; tap one to open
+              its items, bill and delivery details in place. */}
           <div className="order-list">
             {data.recentOrders.map((o) => (
               <OrderCard key={o._id} order={o} viewer={user.role} compact showOtp={user.role === 'customer'} />
             ))}
           </div>
+          {user.role === 'merchant' && data.recentOrders.length > 0 && (
+            <Link to="/orders" className="dash-see-all muted">
+              Full order history <ChevronRight size={13} aria-hidden="true" />
+            </Link>
+          )}
         </div>
       </div>
     </div>

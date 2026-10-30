@@ -1,29 +1,19 @@
 const path = require('path');
 const User = require('../models/User');
 const Product = require('../models/Product');
-const { UPLOAD_ROOT } = require('../middleware/upload');
+const { UPLOAD_ROOT, cloudEnabled, removeOld } = require('../middleware/upload');
 const { serverError } = require('../utils/errors');
-
-// DELETE the previous file (if it was one of ours) so uploads don't pile up forever
-async function removeOld(publicPath) {
-  if (!publicPath || !publicPath.startsWith('/uploads/')) return;
-  const rel = publicPath.slice('/uploads/'.length);
-  if (!/^(avatars|shops|products)\/[a-zA-Z0-9._-]+$/.test(rel)) return;
-  const abs = path.resolve(UPLOAD_ROOT, rel);
-  const relative = path.relative(UPLOAD_ROOT, abs);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) return;
-  const fs = require('fs');
-  fs.promises.unlink(abs).catch(() => {});
-}
+const { encryptPII } = require('../lib/piiCrypto');
 
 // POST /api/uploads/avatar  (multipart: image)  → sets user.avatarUrl
 exports.uploadAvatar = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No image received' });
+    const url = req.uploadedUrl || (cloudEnabled ? req.file.cloudinaryUrl : `/uploads/avatars/${req.file.filename}`);
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     await removeOld(user.avatarUrl);
-    user.avatarUrl = `/uploads/avatars/${req.file.filename}`;
+    user.avatarUrl = url;
     await user.save();
     res.json({ url: user.avatarUrl });
   } catch (e) {
@@ -36,10 +26,11 @@ exports.uploadShopLogo = async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'No image received' });
     if (req.user.role !== 'merchant') return res.status(403).json({ message: 'Merchant (partner) access only' });
+    const url = req.uploadedUrl || (cloudEnabled ? req.file.cloudinaryUrl : `/uploads/shops/${req.file.filename}`);
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
     await removeOld(user.shopLogoUrl);
-    user.shopLogoUrl = `/uploads/shops/${req.file.filename}`;
+    user.shopLogoUrl = url;
     await user.save();
     res.json({ url: user.shopLogoUrl });
   } catch (e) {
@@ -52,7 +43,7 @@ exports.uploadProductImage = async (req, res) => {
   try {
     if (!['merchant', 'admin', 'delivery'].includes(req.user.role)) return res.status(403).json({ message: 'Image upload is not available for this account.' });
     if (!req.file) return res.status(400).json({ message: 'No image received' });
-    const url = `/uploads/products/${req.file.filename}`;
+    const url = req.uploadedUrl || (cloudEnabled ? req.file.cloudinaryUrl : `/uploads/products/${req.file.filename}`);
     if (req.query.linkTo) {
       const filter = req.user.role === 'admin'
         ? { _id: req.query.linkTo }

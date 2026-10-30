@@ -3,6 +3,8 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const { cleanStr, PHONE_RE } = require('../middleware/validate');
 const { serverError } = require('../utils/errors');
+const { cached, cacheInvalidate } = require('../lib/platform');
+const { encryptPII } = require('../lib/piiCrypto');
 
 // Public view of a shop — only approved partners get a live shop page
 const publicShop = (u) => ({
@@ -62,6 +64,8 @@ exports.updateMyShop = async (req, res) => {
       location: hasLat && hasLng ? { lat, lng } : user.shopAddress?.location,
     };
     await user.save();
+    // the cached public shop page is now stale
+    await cacheInvalidate(`shop:${user._id}`).catch(() => {});
 
     res.json({ ...publicShop(user), pickupLocation: user.shopAddress?.location || null });
   } catch (e) {
@@ -69,17 +73,19 @@ exports.updateMyShop = async (req, res) => {
   }
 };
 
-// ---- Public: shop page — shop info + its live (approved) products ----
+// Public: shop info + its live (approved) products — cached 30s per shop.
 exports.getShop = async (req, res) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Shop not found' });
-    const user = await User.findById(req.params.id);
-    if (!user || user.role !== 'merchant' || user.merchantStatus !== 'approved') {
-      return res.status(404).json({ message: 'Shop not found' });
-    }
-    const products = await Product.find({ merchant: user._id, isActive: true, status: 'approved' })
-      .sort({ createdAt: -1 });
-    res.json({ shop: publicShop(user), products });
+    const payload = await cached(`shop:${req.params.id}`, 30, async () => {
+      const user = await User.findById(req.params.id);
+      if (!user || user.role !== 'merchant' || user.merchantStatus !== 'approved') return null;
+      const products = await Product.find({ merchant: user._id, isActive: true, status: 'approved' })
+        .sort({ createdAt: -1 });
+      return { shop: publicShop(user), products: JSON.parse(JSON.stringify(products)) };
+    });
+    if (!payload) return res.status(404).json({ message: 'Shop not found' });
+    res.json(payload);
   } catch (e) {
     serverError(res, e);
   }

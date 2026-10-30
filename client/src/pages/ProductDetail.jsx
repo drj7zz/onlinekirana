@@ -12,6 +12,10 @@ import { useSeo } from '../hooks/useSeo';
 import ProductCard from '../components/ProductCard';
 import AddToCartButton from '../components/AddToCartButton';
 import ReviewSection from '../components/ReviewSection';
+import SmartImage from '../components/SmartImage';
+import ImageZoom from '../components/ImageZoom';
+import { rememberProduct } from '../lib/recent';
+import { SkeletonCard, SkeletonLine } from '../components/Skeletons';
 import { finalPrice, listPrice, discountBadge, savedPerUnit, rupees } from '../lib/pricing';
 import { productPath, productIdFromPath } from '../lib/productUrl';
 
@@ -71,6 +75,13 @@ export default function ProductDetail() {
   const product = result.id === id ? result.data : null;
   const error = result.id === id ? result.error : '';
 
+  // Every product viewed is remembered locally so the Home page can offer a
+  // "recently viewed" strip. Local-only: nothing about browsing leaves the
+  // device, and the strip has its own one-tap clear.
+  useEffect(() => {
+    if (product) rememberProduct(product);
+  }, [product]);
+
   // Send a bare-id or stale-slug URL to the canonical name+id address, so there
   // is exactly one indexable URL per product and the name in the address bar
   // always matches the product.
@@ -107,7 +118,19 @@ export default function ProductDetail() {
       <Link to="/" className="cta-btn">Back to shopfront</Link>
     </div>
   );
-  if (!product) return <p className="loading-shimmer">Loading product</p>;
+  if (!product) {
+    return (
+      <div className="detail">
+        <SkeletonCard />
+        <div className="detail-buy sk-card">
+          <SkeletonLine w="70%" h={22} />
+          <SkeletonLine w="45%" />
+          <SkeletonLine w="60%" />
+          <SkeletonLine w="35%" h={18} />
+        </div>
+      </div>
+    );
+  }
 
   const out = product.stock <= 0;
   const now = finalPrice(product);
@@ -132,19 +155,18 @@ export default function ProductDetail() {
       </nav>
 
       <div className="detail">
-        {/* image */}
+        {/* image — tapping opens the same photo full-screen in a lightbox */}
         <div className="detail-media">
-          {product.imageUrl && (
-            <img
-              src={imageUrl(product.imageUrl)}
+          <ImageZoom src={product.imageUrl ? imageUrl(product.imageUrl) : null} alt={product.name}>
+            {/* SmartImage swaps to the leaf fallback if the stored photo 404s. */}
+            <SmartImage
+              src={product.imageUrl ? imageUrl(product.imageUrl) : null}
               alt={product.name}
-              className="detail-img"
-              onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling?.removeAttribute('hidden'); }}
+              imgCls="detail-img"
+              fallbackCls="img-placeholder big"
+              fallback={<Leaf size={64} aria-hidden="true" />}
             />
-          )}
-          <div className="img-placeholder big" hidden={!!product.imageUrl}>
-            <Leaf size={64} aria-hidden="true" />
-          </div>
+          </ImageZoom>
         </div>
 
         {/* buy box */}
@@ -239,9 +261,14 @@ export default function ProductDetail() {
         <section className="pdp-block">
           <h2>Sold by</h2>
           <div className="shop-inline">
-            {shop.shopLogoUrl
-              ? <img src={imageUrl(shop.shopLogoUrl)} alt={shop.shopName} className="shop-inline-logo" />
-              : <div className="shop-inline-logo shop-logo-fallback"><Store size={22} aria-hidden="true" /></div>}
+            {/* Shop logo with an icon fallback if it fails to load. */}
+            <SmartImage
+              src={shop.shopLogoUrl ? imageUrl(shop.shopLogoUrl) : null}
+              alt={shop.shopName}
+              imgCls="shop-inline-logo"
+              fallbackCls="shop-inline-logo shop-logo-fallback"
+              fallback={<Store size={22} aria-hidden="true" />}
+            />
             <div className="shop-inline-info">
               <Link to={`/shop/${shop._id}`} className="shop-inline-name">
                 {shop.shopName} <BadgeCheck size={15} aria-hidden="true" className="shop-verif" />

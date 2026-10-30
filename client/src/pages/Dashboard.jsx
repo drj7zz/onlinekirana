@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleCheck, ShoppingCart, ClipboardList, UserCircle2, ExternalLink } from 'lucide-react';
+import { CircleCheck, ShoppingCart, ClipboardList, UserCircle2, ExternalLink, ChevronRight } from 'lucide-react';
 import API from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useLive } from '../hooks/useLive';
@@ -15,7 +15,7 @@ const roleActions = {
   customer: [
     { to: '/', label: 'Shop groceries', icon: ShoppingCart, hint: 'Fresh sabzi, phalphul, chamal & more' },
     { to: '/orders', label: 'My orders', icon: ClipboardList, hint: 'Track your deliveries' },
-    { to: '/profile', label: 'My profile & address', icon: UserCircle2, hint: 'Edit the default delivery info for orders' },
+    { to: '/profile?edit=1', label: 'My profile & address', icon: UserCircle2, hint: 'Edit the default delivery info for orders' },
   ],
   merchant: [
     { to: '/', label: 'Shop groceries', icon: ShoppingCart, hint: 'Browse what other shops are selling' },
@@ -88,11 +88,18 @@ export default function Dashboard() {
         <div>
           <h2>Recent orders</h2>
           {data.recentOrders.length === 0 && <p className="empty">Nothing yet.</p>}
+          {/* Compact minimal purchase history — collapsed cards; tap one to
+              open its items, bill and delivery details in place. */}
           <div className="order-list">
             {data.recentOrders.map((o) => (
               <OrderCard key={o._id} order={o} viewer={user.role} compact showOtp={isShopper} />
             ))}
           </div>
+          {isShopper && data.recentOrders.length > 0 && (
+            <Link to="/orders" className="dash-see-all muted">
+              Full purchase history <ChevronRight size={13} aria-hidden="true" />
+            </Link>
+          )}
         </div>
       </div>
     </div>

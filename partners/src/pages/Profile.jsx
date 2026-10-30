@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { UserCircle, Save, KeyRound, CircleCheck, TriangleAlert, Store, Bike, ShieldCheck } from 'lucide-react';
+import { UserCircle, Save, KeyRound, CircleCheck, TriangleAlert, Store, Bike, ShieldCheck, Pencil } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
+import { useToast } from '@shared/context/ToastContext';
 import { PasswordField, StrengthMeter, checkPassword } from '@shared/components/PasswordSecurity';
 import ImageUpload from '@shared/components/ImageUpload';
 import useSeo from '@shared/hooks/useSeo';
@@ -38,6 +39,7 @@ const ORDERS_ROUTE = {
 
 export default function Profile() {
   const { user, updateUser } = useAuth();
+  const toast = useToast();
   const [form, setForm] = useState(emptyForm);
   const [pw, setPw] = useState(emptyPw);
   const [msg, setMsg] = useState('');
@@ -47,6 +49,7 @@ export default function Profile() {
   const [pwSaving, setPwSaving] = useState(false);
 
   const [avatarUrl, setAvatarUrl] = useState(user?.avatarUrl || '');
+  const [editing, setEditing] = useState(false);   // saved-view first, fields open on "Edit profile"
 
   useSeo({
     title: 'My Profile — OnlineKirana Partners',
@@ -71,9 +74,11 @@ export default function Profile() {
       const { data } = await API.put('/profile', { name: form.name, phone: form.phone });
       updateUser({ name: data.name });
       setMsg('Profile saved.');
+      toast.success('Profile saved');
     } catch (err) {
       setErrors(err.response?.data?.errors || {});
       setMsg(err.response?.data?.message || 'Save failed');
+      toast.error('Could not save your profile');
     } finally {
       setSaving(false);
     }
@@ -90,8 +95,10 @@ export default function Profile() {
       await API.put('/profile/password', { currentPassword: pw.currentPassword, newPassword: pw.newPassword });
       setPw(emptyPw);
       setPwMsg({ ok: true, text: 'Password updated' });
+      toast.success('Password updated');
     } catch (err) {
       setPwMsg({ ok: false, text: err.response?.data?.message || 'Password change failed' });
+      toast.error('Password change failed');
     } finally {
       setPwSaving(false);
     }
@@ -137,20 +144,45 @@ export default function Profile() {
       <section className="card-panel">
         <h2><UserCircle size={19} className="action-icon" aria-hidden="true" />Personal info</h2>
         <p className="muted">The operations desk uses this number to reach you about orders and approvals.</p>
-        <form className="form" onSubmit={saveProfile}>
-          <label>Full name
-            <input required value={form.name} onChange={set('name')} />
-            {errors.name && <span className="field-error">{errors.name}</span>}
-          </label>
-          <label>Phone
-            <input value={form.phone} onChange={set('phone')} placeholder="98XXXXXXXX" />
-            {errors.phone && <span className="field-error">{errors.phone}</span>}
-          </label>
-          {msg && <p className="save-msg"><CircleCheck size={14} aria-hidden="true" /> {msg}</p>}
-          {Object.keys(errors).length > 0 && !msg && <p className="error"><TriangleAlert size={14} aria-hidden="true" /> Fix the highlighted fields</p>}
-          <button type="submit" className="cta-btn" disabled={saving}>
-            <Save size={16} aria-hidden="true" /> {saving ? 'Saving…' : 'Save profile'}
-          </button>
+        <form className={`form profile-form${editing ? ' is-editing' : ''}`} onSubmit={saveProfile}>
+          {editing ? (
+            <>
+              {/* Name and phone share a row in edit mode — a partner's profile
+                  has only two editable fields, so one row reads cleaner. */}
+              <div className="field-row">
+                <label>Full name
+                  <input required value={form.name} onChange={set('name')} />
+                  {errors.name && <span className="field-error">{errors.name}</span>}
+                </label>
+                <label>Phone
+                  <input required inputMode="numeric" value={form.phone} onChange={set('phone')} placeholder="98XXXXXXXX" />
+                  {errors.phone && <span className="field-error">{errors.phone}</span>}
+                </label>
+              </div>
+            </>
+          ) : (
+            <dl className="profile-details">
+              <div><dt>Email</dt><dd>{user.email}</dd></div>
+              <div><dt>Role</dt><dd>{user.role}</dd></div>
+              <div><dt>Phone</dt><dd>{form.phone || 'Not set yet'}</dd></div>
+            </dl>
+          )}
+          {editing && msg && <p className="save-msg"><CircleCheck size={14} aria-hidden="true" /> {msg}</p>}
+          {editing && Object.keys(errors).length > 0 && !msg && <p className="error"><TriangleAlert size={14} aria-hidden="true" /> Fix the highlighted fields</p>}
+          {editing ? (
+            <div className="profile-actions">
+              <button type="submit" className="cta-btn" disabled={saving}>
+                <Save size={16} aria-hidden="true" /> {saving ? 'Saving…' : 'Save profile'}
+              </button>
+              <button type="button" className="muted-btn" disabled={saving} onClick={() => { setEditing(false); setErrors({}); setMsg(''); }}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="cta-btn" onClick={() => setEditing(true)}>
+              <Pencil size={15} aria-hidden="true" /> Edit profile
+            </button>
+          )}
         </form>
         {user.role === 'merchant' && (
           /* The shop's name, logo, description and contact live on their own

@@ -10,6 +10,8 @@ const {
 } = require('../config/delivery');
 const { createForOrder } = require('./deliveryController');
 const { notifyUsers } = require('../utils/notifications');
+const { encryptPII, decryptPII } = require('../lib/piiCrypto');
+const { cleanStr } = require('../middleware/validate');
 
 // Place order: cart items come from client, but prices are re-read from DB (never trust client prices)
 exports.place = async (req, res) => {
@@ -116,7 +118,8 @@ exports.place = async (req, res) => {
         line: deliveryAddress.line,
         city: 'Birgunj',
         ward: deliveryAddress.ward,
-        phone: deliveryAddress.phone,
+        // PII: phone + street/ward are AES-256-GCM encrypted before they touch the DB
+        phone: encryptPII(cleanStr(deliveryAddress.phone, 15)),
         ...(hasLat && hasLng && { location: { lat: Number(location.lat), lng: Number(location.lng) } }),
       },
       deliveryDistanceKm: km,
@@ -130,7 +133,7 @@ exports.place = async (req, res) => {
     // job. If job creation fails, the outer handler removes the order and stock
     // reservation so checkout can safely be retried.
     await createForOrder({
-      order: createdOrder,
+      order: { ...createdOrder.toObject(), deliveryAddress: { ...createdOrder.deliveryAddress.toObject(), phone: decryptPII(createdOrder.deliveryAddress.phone), line: decryptPII(createdOrder.deliveryAddress.line), ward: decryptPII(createdOrder.deliveryAddress.ward) } },
       shop,
       address: deliveryAddress,
       customerName: orderCustomer?.name || '',
