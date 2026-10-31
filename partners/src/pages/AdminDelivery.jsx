@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Bike, PackageOpen, UserPlus, Phone, MapPin, KeyRound, Store, Ban, Power,
+  Bike, PackageOpen, UserPlus, Phone, MapPin, KeyRound, Store, Ban, Power, ChevronDown, UserCircle2,
 } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
+import { useToast } from '@shared/context/ToastContext';
 import {
   DELIVERY_LABEL, DELIVERY_WINDOW_LABEL, RIDER_STATUS_LABEL, RIDER_STATUS_TONE, money, timeAgo,
 } from '@shared/lib/delivery';
@@ -123,6 +124,7 @@ function JobRow({ job, onAdvance, onCancel }) {
 
 export default function AdminDelivery() {
   const { user } = useAuth();
+  const toast = useToast();
   const [jobs, setJobs] = useState([]);
   const [riders, setRiders] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -130,6 +132,8 @@ export default function AdminDelivery() {
   const [created, setCreated] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // the rider whose filled profile panel is currently open
+  const [riderOpen, setRiderOpen] = useState(null);
 
   const load = () => {
     API.get('/delivery/orders').then(({ data }) => setJobs(data)).catch(() => setError('Could not load the dispatch board.'));
@@ -156,7 +160,8 @@ export default function AdminDelivery() {
     } finally { setBusy(false); }
   };
 
-  const setRiderStatus = (id, status) => guard(() => API.patch(`/admin/delivery/riders/${id}/status`, { status }));
+  const setRiderStatus = (id, status, name) => guard(() => API.patch(`/admin/delivery/riders/${id}/status`, { status }))
+    .then(() => toast.success(status === 'available' ? `${name || 'Rider'} reinstated` : `${name || 'Rider'} suspended`));
 
   if (!user) return <p className="empty">Please <Link to="/login">sign in</Link> to manage delivery.</p>;
   if (user.role !== 'admin') return <p className="empty">Admin access only.</p>;
@@ -224,8 +229,8 @@ export default function AdminDelivery() {
         <label>Phone<input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="98XXXXXXXX" /></label>
         <label>Area they cover<input value={form.riderArea} onChange={(e) => setForm({ ...form, riderArea: e.target.value })} placeholder="e.g. Ward 1-5" /></label>
         <label>Vehicle
-          <select value={form.riderVehicle} onChange={(e) => setForm({ ...form, riderVehicle: e.target.value })}>
-            <option value="">Choose…</option>
+          <select required value={form.riderVehicle} onChange={(e) => setForm({ ...form, riderVehicle: e.target.value })}>
+            <option value="" disabled>Choose…</option>
             <option>Bike</option>
             <option>Cycle</option>
             <option>Scooter</option>
@@ -244,27 +249,55 @@ export default function AdminDelivery() {
       </form>
 
       <table className="table">
-        <thead><tr><th>Rider</th><th>Area</th><th>Load</th><th>Status</th><th>Supervise</th></tr></thead>
+        <thead><tr><th>Rider</th><th>Contact</th><th>Details</th><th>Load</th><th>Status</th><th>Supervise</th></tr></thead>
         <tbody>
           {riders.map((r) => (
-            <tr key={r._id}>
+            <tr key={r._id} className={riderOpen === r._id ? 'expanded' : ''}>
               <td>{r.name} <small className="muted">({r.riderVehicle || 'rider'})</small></td>
-              <td>{r.riderArea || '—'}</td>
+              <td>{r.email}{r.phone && ` · ${r.phone}`}</td>
+              <td>
+                <button type="button" className="muted-btn detail-toggle" aria-expanded={riderOpen === r._id}
+                  onClick={() => setRiderOpen(riderOpen === r._id ? null : r._id)}>
+                  <UserCircle2 size={14} aria-hidden="true" /> {riderOpen === r._id ? 'Hide' : 'View'}
+                  <ChevronDown size={13} className={`profile-row-chevron${riderOpen === r._id ? ' is-open' : ''}`} aria-hidden="true" />
+                </button>
+              </td>
               <td>{r.activeJobs}</td>
               <td><span className={`tone-${RIDER_STATUS_TONE[r.riderStatus] || 'muted'}`}>{RIDER_STATUS_LABEL[r.riderStatus] || r.riderStatus}</span></td>
               <td>
                 {r.riderStatus === 'suspended' ? (
-                  <button onClick={() => setRiderStatus(r._id, 'available')}><Power size={13} aria-hidden="true" /> Reinstate</button>
+                  <button onClick={() => setRiderStatus(r._id, 'available', r.name)}><Power size={13} aria-hidden="true" /> Reinstate</button>
                 ) : r.riderStatus === 'pending' ? (
                   <Link to="/admin/partners">Review in Approvals</Link>
                 ) : (
-                  <button className="danger" onClick={() => setRiderStatus(r._id, 'suspended')}><Ban size={13} aria-hidden="true" /> Suspend</button>
+                  <button className="danger" onClick={() => setRiderStatus(r._id, 'suspended', r.name)}><Ban size={13} aria-hidden="true" /> Suspend</button>
                 )}
               </td>
             </tr>
           ))}
         </tbody>
       </table>
+      {riderOpen && (() => {
+        const r = riders.find((x) => x._id === riderOpen);
+        if (!r) return null;
+        return (
+          <div className="card-panel" style={{ marginTop: '.6rem' }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '.4rem', fontSize: '1rem', marginBottom: '.5rem' }}>
+              <UserCircle2 size={17} aria-hidden="true" /> {r.name} — rider profile
+            </h3>
+            <dl className="detail-grid">
+              <div><dt>Name</dt><dd>{r.name}</dd></div>
+              <div><dt>Email</dt><dd>{r.email}</dd></div>
+              <div><dt>Phone</dt><dd>{r.phone || 'Not set'}</dd></div>
+              <div><dt>Vehicle</dt><dd>{r.riderVehicle || 'Not set'}</dd></div>
+              <div><dt>Area covered</dt><dd>{r.riderArea || 'Not set'}</dd></div>
+              <div><dt>Status</dt><dd>{RIDER_STATUS_LABEL[r.riderStatus] || r.riderStatus}</dd></div>
+              <div><dt>Active jobs</dt><dd>{r.activeJobs}</dd></div>
+              <div><dt>Joined</dt><dd>{r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-IN') : '—'}</dd></div>
+            </dl>
+          </div>
+        );
+      })()}
     </div>
   );
 }

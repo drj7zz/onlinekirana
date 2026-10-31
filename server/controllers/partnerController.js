@@ -4,7 +4,7 @@ const User = require('../models/User');
 const Delivery = require('../models/Delivery');
 const { serverError } = require('../utils/errors');
 const deliveryController = require('./deliveryController');
-const { notifyUsers } = require('../utils/notifications');
+const { enqueue } = require('../lib/platform');
 
 // Guard: only approved merchants can manage products
 exports.requireMerchant = async (req, res, next) => {
@@ -51,7 +51,9 @@ exports.update = async (req, res) => {
     const wasApproved = product.status === 'approved';
     let meaningfulChange = false;
     for (const k of EDITABLE) {
-      if (req.body[k] !== undefined && req.body[k] !== product[k]) {
+      // Only copy values the client actually sent, from the whitelist — never a
+      // raw spread, so a merchant cannot rewrite `merchant` or `status`.
+      if (req.body?.[k] !== undefined && req.body[k] !== product[k]) {
         product[k] = req.body[k];
         if (['name', 'category', 'price', 'discountPercent', 'imageUrl'].includes(k)) meaningfulChange = true;
       }
@@ -130,31 +132,9 @@ exports.updateOrderStatus = async (req, res) => {
     await order.save();
 
     const delivery = await deliveryController.dispatchForOrder(order._id);
-    await notifyUsers([order.user], {
-      type: 'order',
-      title: 'Order packed',
-      body: 'The shop packed your items. A rider will accept the delivery next.',
-      link: '/orders',
-    });
-    if (delivery) {
-      const [riders, loads] = await Promise.all([
-        User.find({ role: 'delivery', riderStatus: { $in: ['available', 'on_delivery'] } }).select('_id').lean(),
-        Delivery.aggregate([
-          { $match: { status: { $in: ['assigned', 'accepted', 'picked'] } } },
-          { $group: { _id: '$rider', count: { $sum: 1 } } },
-        ]),
-      ]);
-      const active = new Map(loads.map((row) => [String(row._id), row.count]));
-      const eligible = riders
-        .filter((rider) => (active.get(String(rider._id)) || 0) < deliveryController.MAX_ACTIVE_JOBS)
-        .map((rider) => rider._id);
-      await notifyUsers(eligible, {
-        type: 'delivery',
-        title: 'Delivery available',
-        body: `A packed order is ready to accept${delivery.dropoff?.ward ? ` · Ward ${delivery.dropoff.ward}` : ''}${delivery.fee ? ` · Late delivery charge रू ${delivery.fee}` : ' · Free evening delivery'}.`,
-        link: '/rider',
-      });
-    }
+    // Notifications fan-out runs as background tasks — packing returns instantly.
+    await enqueue({ type: 'order-packed', orderId: String(order._id), orderUser: String(order.user) }).catch(() => {});
+    if (delivery) await enqueue({ type: 'notify-riders', deliveryId: String(delivery._id) }).catch(() => {});
 
     res.json({ order, delivery });
   } catch (e) {

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Package, XCircle, MapPin, Phone, CalendarClock,
-  KeyRound, Bike, Eye, EyeOff, Store, Wallet,
+  KeyRound, Bike, Eye, EyeOff, Store, Wallet, ChevronDown,
 } from 'lucide-react';
 import API from '../api';
 import { ORDER_STEPS, STATUS_LABEL, DELIVERY_LABEL, DELIVERY_WINDOW_LABEL, money } from '../lib/delivery';
@@ -88,13 +88,19 @@ function DeliveryCode({ orderId }) {
  *   viewer          – 'customer' | 'merchant' | 'admin'
  *   onStatus        – (id, status) => void  (status control; omit to hide)
  *   allowedStatuses – optional list to limit the status dropdown
- *   compact         – tighter layout (dashboard lists)
+ *   compact         – tighter layout (dashboard lists): the basket, bill and
+ *                     footer collapse behind a tap so a dashboard shows a
+ *                     minimal history instead of five full receipts
  *   showOtp         – show the hand-over code (the buyer's own order)
  *   rider           – populated rider object, when the caller already has it
  */
 export default function OrderCard({
   order, viewer = 'customer', onStatus, onCancel, allowedStatuses, compact = false, showOtp = false, rider = null,
 }) {
+  // Compact cards start collapsed and open on tap; every other layout renders
+  // fully open (expanded defaults to true so full-page order lists are unchanged).
+  const [open, setOpen] = useState(!compact);
+  const expanded = !compact || open;
   const o = order;
   const total = money(o.grandTotal ?? o.total);
   const goods = Number(o.total || 0);
@@ -106,7 +112,12 @@ export default function OrderCard({
   const addr = o.deliveryAddress || {};
 
   return (
-    <article className={`order-card${compact ? ' compact' : ''}`}>
+    <article className={`order-card${compact ? ' compact' : ''}${compact && !open ? ' collapsed' : ''}`}
+      {...(compact ? {
+        role: 'button', tabIndex: 0, 'aria-expanded': open,
+        onClick: () => setOpen((v) => !v),
+        onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v); } },
+      } : {})}>
       {/* header */}
       <header className="order-head">
         <div className="order-head-main">
@@ -125,6 +136,7 @@ export default function OrderCard({
           )}
           {onStatus && (
             <select
+              className="status-select"
               aria-label={viewer === 'admin' ? 'Order action' : 'Update order status'}
               value={o.status}
               onChange={(e) => onStatus(o._id, e.target.value)}
@@ -134,6 +146,11 @@ export default function OrderCard({
                 <option key={s} value={s}>{STATUS_LABEL[s]}</option>
               ))}
             </select>
+          )}
+          {compact && (
+            <span className="compact-chevron" aria-hidden="true">
+              <ChevronDown size={16} className={open ? 'is-open' : ''} />
+            </span>
           )}
           {viewer === 'customer' && onCancel && ['pending', 'packed', 'assigned'].includes(o.status) && (
             <button type="button" className="danger" onClick={() => onCancel(o._id)}>Cancel order</button>
@@ -166,8 +183,9 @@ export default function OrderCard({
 
       {showOtp && o.delivery?.status === 'picked' && <DeliveryCode orderId={o._id} />}
 
-      {/* items */}
-      <div className="order-items">
+      {/* items — hidden until the compact card is tapped open */}
+      {!expanded && <p className="compact-hint muted"><Package size={13} aria-hidden="true" /> {o.items.length} item{o.items.length === 1 ? '' : 's'} · {money(goods)} · tap to view</p>}
+      {expanded && <div className="order-items">
         <div className="order-items-head">
           <span><Package size={14} aria-hidden="true" /> {o.items.length} item{o.items.length === 1 ? '' : 's'} · {itemCount} unit{itemCount === 1 ? '' : 's'}</span>
           <span className="muted"><CalendarClock size={13} aria-hidden="true" /> {when}</span>
@@ -197,10 +215,10 @@ export default function OrderCard({
           <span className="order-bill-total">Total</span>
           <span className="order-bill-total">{total}</span>
         </div>
-      </div>
+      </div>}
 
       {/* delivery summary */}
-      <footer className="order-foot">
+      {expanded && <footer className="order-foot">
         <p className="order-addr">
           <MapPin size={14} aria-hidden="true" />
           <span>
@@ -213,9 +231,9 @@ export default function OrderCard({
             <Wallet size={12} aria-hidden="true" /> {PAY_LABEL[o.paymentMethod] || 'Cash on delivery'}
           </span>
         </p>
-      </footer>
+      </footer>}
 
-      {o.deliveryInstructions && (
+      {expanded && o.deliveryInstructions && (
         <p className="order-note"><strong>Note for the rider:</strong> {o.deliveryInstructions}</p>
       )}
       {o.cancelReason && (

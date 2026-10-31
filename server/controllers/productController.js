@@ -3,6 +3,7 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const Review = require('../models/Review');
 const { serverError } = require('../utils/errors');
+const { cached, cacheInvalidate } = require('../lib/platform');
 
 // Attach { ratingAverage, ratingCount } to a list of plain product objects in one query
 const attachRatings = async (products) => {
@@ -25,39 +26,44 @@ const attachRatings = async (products) => {
 };
 
 // Public: list products with search / category / sort
+// Cached in Redis for 45s — the storefront home/shop page hits this on every
+// visit; a short TTL absorbs traffic spikes while staying fresh enough.
 exports.list = async (req, res) => {
   try {
     const { search, category, sort, min, max } = req.query;
-    const approvedMerchants = await User.distinct('_id', { role: 'merchant', merchantStatus: 'approved' });
-    const q = {
-      isActive: true, status: 'approved',
-      $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
-    };
-    if (search) {
-      const safeSearch = String(search).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      q.$and = [{ $or: [
-        { name: { $regex: safeSearch, $options: 'i' } },
-        { category: { $regex: safeSearch, $options: 'i' } },
-      ] }];
-    }
-    if (category && category !== 'all') q.category = String(category).slice(0, 80);
-    const minValue = min === undefined ? null : Number(min);
-    const maxValue = max === undefined ? null : Number(max);
-    if ((minValue !== null && Number.isFinite(minValue)) || (maxValue !== null && Number.isFinite(maxValue))) {
-      q.price = {
-        ...(minValue !== null && Number.isFinite(minValue) ? { $gte: Math.max(0, minValue) } : {}),
-        ...(maxValue !== null && Number.isFinite(maxValue) ? { $lte: Math.max(0, maxValue) } : {}),
+    const cacheKey = `products:${search || ''}:${category || ''}:${sort || ''}:${min || ''}:${max || ''}`;
+    const products = await cached(cacheKey, 45, async () => {
+      const approvedMerchants = await User.distinct('_id', { role: 'merchant', merchantStatus: 'approved' });
+      const q = {
+        isActive: true, status: 'approved',
+        $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
       };
-    }
+      if (search) {
+        const safeSearch = String(search).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        q.$and = [{ $or: [
+          { name: { $regex: safeSearch, $options: 'i' } },
+          { category: { $regex: safeSearch, $options: 'i' } },
+        ] }];
+      }
+      if (category && category !== 'all') q.category = String(category).slice(0, 80);
+      const minValue = min === undefined ? null : Number(min);
+      const maxValue = max === undefined ? null : Number(max);
+      if ((minValue !== null && Number.isFinite(minValue)) || (maxValue !== null && Number.isFinite(maxValue))) {
+        q.price = {
+          ...(minValue !== null && Number.isFinite(minValue) ? { $gte: Math.max(0, minValue) } : {}),
+          ...(maxValue !== null && Number.isFinite(maxValue) ? { $lte: Math.max(0, maxValue) } : {}),
+        };
+      }
 
-    let sortOpt = { createdAt: -1 };
-    if (sort === 'price_asc') sortOpt = { price: 1 };
-    if (sort === 'price_desc') sortOpt = { price: -1 };
-    if (sort === 'name') sortOpt = { name: 1 };
+      let sortOpt = { createdAt: -1 };
+      if (sort === 'price_asc') sortOpt = { price: 1 };
+      if (sort === 'price_desc') sortOpt = { price: -1 };
+      if (sort === 'name') sortOpt = { name: 1 };
 
-    const products = await Product.find(q).sort(sortOpt)
-      .populate('merchant', 'shopName merchantStatus')
-      .lean();
+      return Product.find(q).sort(sortOpt)
+        .populate('merchant', 'shopName merchantStatus')
+        .lean();
+    });
     res.json(await attachRatings(products));
   } catch (e) {
     serverError(res, e);
@@ -117,10 +123,13 @@ exports.getOne = async (req, res) => {
 
 exports.categories = async (req, res) => {
   try {
-    const approvedMerchants = await User.distinct('_id', { role: 'merchant', merchantStatus: 'approved' });
-    const cats = await Product.distinct('category', {
-      isActive: true, status: 'approved',
-      $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
+    // categories rarely change — cache for 5 minutes
+    const cats = await cached('product-categories', 300, async () => {
+      const approvedMerchants = await User.distinct('_id', { role: 'merchant', merchantStatus: 'approved' });
+      return Product.distinct('category', {
+        isActive: true, status: 'approved',
+        $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
+      });
     });
     res.json(cats);
   } catch (e) {

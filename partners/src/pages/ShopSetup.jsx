@@ -4,11 +4,13 @@ import { Store, Save, ExternalLink, CircleCheck, TriangleAlert, Image as ImageIc
 import API, { imageUrl } from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import ImageUpload from '@shared/components/ImageUpload';
+import { useToast } from '@shared/context/ToastContext';
 
 const empty = { shopName: '', description: '', phone: '', logoUrl: '', line: '', ward: '', pickupLocation: null };
 
 export default function ShopSetup() {
   const { user, updateUser } = useAuth();
+  const toast = useToast();
   const [form, setForm] = useState(empty);
   const [msg, setMsg] = useState(null);
   const [errors, setErrors] = useState({});
@@ -61,9 +63,11 @@ export default function ShopSetup() {
       setShopId(data.id);
       updateUser({ shopName: data.shopName }); // navbar shows the new name immediately
       setMsg({ ok: true, text: 'Shop page updated.' });
+      toast.success('Shop page updated');
     } catch (err) {
       setErrors(err.response?.data?.errors || {});
       setMsg({ ok: false, text: err.response?.data?.message || 'We could not save your shop. Please check the details and try again.' });
+      toast.error('Could not save your shop');
     } finally {
       setSaving(false);
     }
@@ -101,12 +105,14 @@ export default function ShopSetup() {
           <label>Shop logo</label>
           <ImageUpload endpoint="/uploads/shop-logo" value={form.logoUrl} round size={84}
             label="Upload logo" onChange={(url) => setForm((f) => ({ ...f, logoUrl: url }))} />
-          <label>Shop address — street / tole
-            <input value={form.line} onChange={set('line')} placeholder="e.g. Main Road, Birgunj" />
-          </label>
-          <label>Ward No. (Birgunj)
-            <input value={form.ward} onChange={set('ward')} placeholder="e.g.10" />
-          </label>
+          <div className="field-row">
+            <label>Shop address — street / tole
+              <input value={form.line} onChange={set('line')} placeholder="e.g. Main Road, Birgunj" />
+            </label>
+            <label>Ward No. (Birgunj)
+              <input value={form.ward} onChange={set('ward')} placeholder="e.g.10" />
+            </label>
+          </div>
           <div className="location-capture">
             <button type="button" className="muted-btn" onClick={capturePickup} disabled={locating}>
               {locating ? 'Finding shop location…' : 'Save this device as shop pickup location'}

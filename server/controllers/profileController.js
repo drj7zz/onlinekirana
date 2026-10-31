@@ -1,6 +1,8 @@
 const User = require('../models/User');
 const { cleanStr, validatePassword, NAME_RE, PHONE_RE } = require('../middleware/validate');
 const { serverError } = require('../utils/errors');
+const { revokeAllSessions } = require('../lib/platform');
+const { encryptPII, decryptPII } = require('../lib/piiCrypto');
 
 // Everything the logged-in user may see about themselves (never the password hash)
 const myView = (u) => ({
@@ -9,8 +11,12 @@ const myView = (u) => ({
   email: u.email,
   role: u.role,
   avatarUrl: u.avatarUrl || '',
-  phone: u.phone || '',
-  address: u.address || { line: '', city: 'Birgunj', ward: '' },
+  phone: decryptPII(u.phone) || '',
+  address: {
+    line: decryptPII(u.address?.line) || '',
+    city: u.address?.city || 'Birgunj',
+    ward: decryptPII(u.address?.ward) || '',
+  },
   shopName: u.shopName || '',
   merchantStatus: u.merchantStatus || undefined,
   shopDescription: u.shopDescription || '',
@@ -55,12 +61,13 @@ exports.updateMe = async (req, res) => {
     if (Object.keys(errors).length) return res.status(400).json({ message: 'Validation failed', errors });
 
     user.name = name;
-    user.phone = phone || undefined;
+    // PII (phone + street/ward) is AES-256-GCM encrypted before it touches the DB
+    user.phone = encryptPII(phone) || undefined;
     // keep the default-delivery shape: { line, city, ward }
     user.address = {
-      line: line || undefined,
+      line: encryptPII(line) || undefined,
       city: 'Birgunj',
-      ward: ward || undefined,
+      ward: encryptPII(ward) || undefined,
     };
     await user.save();
     res.json(myView(user));
@@ -84,6 +91,8 @@ exports.changePassword = async (req, res) => {
 
     user.password = String(newPassword); // hashed by the pre('save') hook
     await user.save();
+    // Security: a password change kills every existing session for this user.
+    await revokeAllSessions(String(user._id)).catch(() => {});
     res.json({ message: 'Password updated' });
   } catch (e) {
     serverError(res, e);
