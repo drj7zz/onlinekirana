@@ -52,6 +52,7 @@ function GoogleIdentityButton({ onCredential }) {
         shape: 'rectangular',
         width,
         logo_alignment: 'left',
+        locale: 'en',
       });
       setStatus('ready');
     };
@@ -236,8 +237,6 @@ export default function CustomerAuth() {
             </label>
             {isRegister && form.password && <StrengthMeter password={form.password} name={form.name} email={form.email} />}
             {fieldErrors.password && <p className="error">{fieldErrors.password}</p>}
-            {!isRegister && <Link className="customer-auth-help" to="/register">New to OnlineKirana? Create an account</Link>}
-
             {isRegister && (
               <>
                 {hasGoogleRegistration && <p className="customer-auth-note">Google verified your email. Add your delivery details to finish creating your account.</p>}

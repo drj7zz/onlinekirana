@@ -176,9 +176,26 @@ a { color: inherit; text-decoration: none; }
    scrim then covers only the nav and the panel looks transparent/collapsed. The
    drawer is also portalled to <body> so nothing above it can constrain it. */
 .site-header { position: sticky; top: 0; z-index: 50; background: var(--surface); color: var(--grey-900); border-bottom: 1px solid var(--grey-200); }
-.pwa-install-btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 36px; padding: 0 .7rem; border: 1px solid var(--grey-300); border-radius: 9px; background: var(--surface); color: var(--brand); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
-.pwa-install-btn:hover { background: var(--brand-tint); border-color: var(--brand); }
-.pwa-install-drawer { width: 100%; margin-top: .5rem; }
+.pwa-install-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: .8rem;
+  max-width: 1180px; margin: 0 auto .65rem; padding: .6rem .75rem;
+  border: 1px solid var(--brand-border); border-radius: 13px;
+  background: linear-gradient(100deg, var(--brand-tint), var(--surface));
+  box-shadow: var(--shadow-sm);
+}
+.pwa-install-banner-copy { display: flex; align-items: center; gap: .65rem; min-width: 0; }
+.pwa-install-banner-icon { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 38px; flex: 0 0 auto; border-radius: 11px; background: var(--surface); color: var(--brand); }
+.pwa-install-banner-copy > span:last-child { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.pwa-install-banner-copy strong { color: var(--grey-900); font-size: .84rem; }
+.pwa-install-banner-copy small { color: var(--grey-500); font-size: .74rem; }
+.pwa-install-banner-actions { display: flex; align-items: center; gap: .45rem; flex: 0 0 auto; }
+.pwa-install-banner-cta { min-height: 38px; padding: .45rem .85rem; border: 1px solid var(--brand); border-radius: 9px; background: var(--brand); color: var(--on-accent); font: inherit; font-size: .82rem; font-weight: 750; cursor: pointer; transition: background .15s, transform .15s; }
+.pwa-install-banner-cta:hover { background: var(--brand-strong); transform: translateY(-1px); }
+.pwa-install-banner-close { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--grey-200); border-radius: 9px; background: var(--surface); color: var(--grey-500); cursor: pointer; }
+.pwa-install-banner-close:hover { background: var(--grey-100); color: var(--grey-900); }
+.pwa-install-banner-cta:focus-visible, .pwa-install-banner-close:focus-visible,
+.search-all:focus-visible, .profile-logout-btn:focus-visible,
+.pwa-install-close:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 35%, transparent); outline-offset: 2px; }
 /* dark mode: the bar follows the theme instead of staying a white strip on a
    dark page (it also sits above the canvas on scroll, so it needs its own fill) */
 :root[data-theme='dark'] .site-header { background: var(--surface); color: var(--grey-900); border-bottom-color: var(--grey-200); }
@@ -330,8 +347,6 @@ a { color: inherit; text-decoration: none; }
 .search-clear { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; padding: 0; border: 1px solid var(--grey-200); background: var(--surface); color: var(--grey-500); cursor: pointer; border-radius: 8px; transition: background .15s, border-color .15s, color .15s; }
 .search-clear:hover { color: var(--danger); border-color: var(--danger-border); background: var(--danger-soft); }
 .search-clear:focus-visible, .search-group-head button:focus-visible, .search-empty-chips button:focus-visible,
-.search-all:focus-visible, .profile-logout-btn:focus-visible, .pwa-install-btn:focus-visible,
-.pwa-install-close:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 35%, transparent); outline-offset: 2px; }
 .search-spinner { color: var(--grey-400); flex: 0 0 auto; animation: spin .8s linear infinite; }
 
 /* On phones the header search is a full-width row of its own, so the panel is
@@ -1661,10 +1676,20 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
 .toast-x:hover { opacity: 1; }
 @media (max-width: 720px) {
   .site-header { padding-top: env(safe-area-inset-top, 0px); }
-  .pwa-install-btn { width: 40px; min-height: 40px; padding: 0; }
-  .pwa-install-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
-  .toast-stack { top: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 10px); right: 12px; left: 12px; align-items: stretch; }
+  .pwa-install-banner { width: calc(100% - 1.5rem); margin-bottom: .55rem; padding: .55rem; gap: .45rem; }
+  .pwa-install-banner-copy { gap: .5rem; }
+  .pwa-install-banner-icon { width: 34px; height: 34px; }
+  .pwa-install-banner-copy strong { font-size: .78rem; }
+  .pwa-install-banner-copy small { font-size: .68rem; }
+  .pwa-install-banner-actions { gap: .3rem; }
+  .pwa-install-banner-cta { min-height: 36px; padding: .35rem .55rem; font-size: .76rem; white-space: nowrap; }
+  .pwa-install-banner-close { width: 32px; height: 32px; }
+  .toast-stack { top: calc(190px + env(safe-area-inset-top, 0px)); bottom: auto; right: 12px; left: 12px; align-items: stretch; }
   .toast { max-width: none; }
+}
+@media (max-width: 380px) {
+  .pwa-install-banner-copy small { display: none; }
+  .pwa-install-banner-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 
 @media (max-width: 720px) {
@@ -1997,19 +2022,13 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
 .customer-auth-form input[readonly] { color: var(--grey-600); background: var(--grey-100); cursor: not-allowed; }
 .customer-auth-submit { width: 100%; justify-content: center; margin-top: .2rem; }
 .customer-auth-submit:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 38%, transparent); outline-offset: 3px; }
-.customer-auth-help {
-  display: inline-flex; align-self: flex-end; align-items: center; min-height: 38px;
-  padding: .4rem .7rem; border: 1px solid var(--brand-border); border-radius: 9px;
-  background: var(--brand-tint); color: var(--brand); font-size: .82rem; font-weight: 700;
-  transition: background .15s, border-color .15s, transform .15s;
-}
-.customer-auth-help:hover { border-color: var(--brand); background: var(--brand-tint); transform: translateY(-1px); }
-.customer-auth-help:focus-visible { outline: 3px solid color-mix(in srgb, var(--brand) 38%, transparent); outline-offset: 2px; }
 .customer-auth-divider { display: flex; align-items: center; gap: .8rem; margin: 1.35rem 0 .9rem; color: var(--grey-500); font-size: .76rem; }
 .customer-auth-divider::before, .customer-auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--grey-200); }
-.google-signin { display: flex; justify-content: center; width: 100%; min-height: 44px; }
-.google-signin-button { display: flex; justify-content: center; width: 100%; max-width: 100%; min-height: 44px; overflow: visible; }
-.google-signin-button iframe { max-width: 100%; }
+.google-signin { display: flex; flex-direction: column; align-items: stretch; justify-content: center; width: 100%; min-width: 0; min-height: 44px; }
+.google-signin-button { display: flex; justify-content: center; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; overflow: visible; }
+.google-signin-button iframe { display: block; width: 100%; max-width: 100%; }
+.google-signin-button .nsm7Bb-HzV7m-LgbsSe-bN97Pc-sM5MNb { width: 100%; }
+.google-signin-button .nsm7Bb-HzV7m-LgbsSe-BPrWId { font-family: var(--font-sans); font-size: .9rem; font-weight: 650; }
 .customer-auth-note { padding: .65rem .75rem; border: 1px solid var(--info-border); border-radius: 8px; background: var(--info-soft); color: var(--grey-700); font-size: .8rem; }
 .customer-auth-partner { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: .35rem; margin-top: 1.5rem; color: var(--grey-500); font-size: .77rem; text-align: center; }
 .customer-auth-partner a { color: var(--brand); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
