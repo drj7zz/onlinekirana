@@ -11,6 +11,7 @@ import Faq from './pages/Faq.jsx';
 import Join from './pages/Join.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
+import VerifyEmail from './pages/VerifyEmail.jsx';
 import Pending from './pages/Pending.jsx';
 import Profile from './pages/Profile.jsx';
 
@@ -25,6 +26,7 @@ import AdminProducts from './pages/AdminProducts.jsx';
 import AdminPartners from './pages/AdminPartners.jsx';
 import AdminDelivery from './pages/AdminDelivery.jsx';
 import AdminAudit from './pages/AdminAudit.jsx';
+import AdminIntegrations from './pages/AdminIntegrations.jsx';
 
 function PortalHome() {
   const { user } = useAuth();
@@ -54,6 +56,7 @@ export default function App() {
           <Route path="/join" element={<Join />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           {/* Application-pending notice. Open to any signed-in partner: a brand new
               account has no workspace to enter until an admin approves it. */}
           <Route path="/pending" element={<Pending />} />
@@ -72,6 +75,7 @@ export default function App() {
           <Route path="/admin/partners" element={<RequireRole roles={['admin']}><AdminPartners /></RequireRole>} />
           <Route path="/admin/delivery" element={<RequireRole roles={['admin']}><AdminDelivery /></RequireRole>} />
           <Route path="/admin/audit" element={<RequireRole roles={['admin']}><AdminAudit /></RequireRole>} />
+          <Route path="/admin/integrations" element={<RequireRole roles={['admin']}><AdminIntegrations /></RequireRole>} />
 
           {/* Shoppers belong on the storefront, not here. */}
           <Route path="*" element={<Navigate to="/" replace />} />

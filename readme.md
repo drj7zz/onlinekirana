@@ -151,6 +151,27 @@ belong to the API environment, and changing them requires an API restart or
 redeploy. Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
 if browser push is part of the demo.
 
+Partner applications currently use a temporary six-digit in-app code. The code
+is shown in the partner portal, expires after 15 minutes, and allows five
+attempts before it must be reissued. Reissuing requires the application
+password. This does **not** prove email ownership; do not treat it as an
+identity or account-recovery check. Delivery hand-over codes are available to
+customers in their order card after rider pickup, so checkout does not require
+email configuration.
+
+Resend is optional for partner signup and checkout. To enable the additional
+transactional notification emails, configure `RESEND_API_KEY` and `EMAIL_FROM`
+on the API host; `EMAIL_FROM` must use a domain verified with Resend. Never put
+the Resend key in Vercel or commit it. If email is not configured, those
+optional emails are not delivered, but completed registrations, orders, and
+admin actions are not rolled back.
+
+Admins can check Resend sender-domain status, Cloudinary connectivity, and
+Redis availability at `/admin/integrations` in the partner portal. The check
+does not send a test email or reveal credentials. Set `CLOUDINARY_URL` and a
+shared `REDIS_URL` in the API host for durable uploaded images and
+cross-instance rate limits/background jobs.
+
 After deployment, check `https://<api-host>/api/health`, load both sites, sign in
 to each role, and place one test order during the free window and one eligible
 late-night test order. Confirm the displayed checkout fee matches the saved

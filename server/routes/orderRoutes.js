@@ -7,13 +7,14 @@ const { cancelOrder } = require('../controllers/deliveryController');
 const auditAdmin = require('../middleware/auditAdmin');
 const { rateLimit } = require('../middleware/rateLimit');
 const customerCancelLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 6, keyFn: (req) => `cancel:${req.user.id}` });
+const customerOrderEmailLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 8, keyFn: (req) => `order-email:${req.user.id}` });
 
 router.use(auth);
 router.param('id', (req, res, next, id) => {
   if (!mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'That is not a valid id.' });
   next();
 });
-router.post('/', place);
+router.post('/', customerOrderEmailLimit, place);
 router.get('/mine', myOrders);
 router.get('/:id/reorder', reorder);
 router.get('/wishlist', getWishlist);

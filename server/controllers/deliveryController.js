@@ -11,6 +11,7 @@ const {
 } = require('../config/delivery');
 const { notifyUsers } = require('../utils/notifications');
 const { decryptPII } = require('../lib/piiCrypto');
+const { notifyPartnerStatus, notifyOrderStatus } = require('../lib/emailNotifications');
 
 // Mirrors the order status a delivery step implies, so the customer's order
 // timeline always agrees with what the rider has actually done.
@@ -139,6 +140,7 @@ exports.confirmReceipt = async (req, res) => {
     await order.save();
 
     await releaseRiderIfIdle(delivery.rider);
+    await notifyOrderStatus(order, 'delivered');
     res.json({ status: 'delivered' });
   } catch (e) {
     serverError(res, e);
@@ -190,9 +192,13 @@ exports.setRiderStatus = async (req, res) => {
     if (!['pending', 'available', 'suspended'].includes(status)) {
       return res.status(400).json({ message: 'Riders can only be approved, available or suspended' });
     }
-    const rider = await User.findOne({ _id: req.params.id, role: 'delivery' });
+    const rider = await User.findOne({ _id: req.params.id, role: 'delivery' }).select('-password');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
+    if (status === 'available' && !rider.emailVerified) {
+      return res.status(409).json({ message: 'The rider must complete the in-app code step before approval.' });
+    }
 
+    const previousStatus = rider.riderStatus;
     rider.riderStatus = status;
     if (status === 'suspended') rider.merchantStatus = 'suspended';
     else if (status === 'pending') rider.merchantStatus = 'pending';
@@ -202,11 +208,14 @@ exports.setRiderStatus = async (req, res) => {
     // the response from the fields the desk actually renders.
     await rider.save();
 
-    if (status === 'available') {
+    if (status === 'available' && previousStatus !== status) {
       await notifyUsers([rider._id], {
         type: 'approval', title: 'Rider account approved',
         body: 'You can go on shift and accept available deliveries.', link: '/rider',
       });
+    }
+    if (['available', 'suspended'].includes(status) && previousStatus !== status) {
+      await notifyPartnerStatus(rider, status);
     }
 
     if (status === 'suspended') {
@@ -270,7 +279,7 @@ exports.updateJob = async (req, res) => {
     }
     if (status === 'failed') await Order.updateOne({ _id: delivery.order }, { status: 'cancelled', cancelReason: 'Delivery could not be completed' });
     if (status === 'delivered' || status === 'failed') await releaseRiderIfIdle(delivery.rider);
-
+    if (status === 'delivered' || status === 'failed') await notifyOrderStatus(delivery.order, status);
     res.json(delivery);
   } catch (e) {
     serverError(res, e);
@@ -316,6 +325,7 @@ exports.cancelOrder = async (req, res) => {
       body: `Order #${String(order._id).slice(-6).toUpperCase()} was cancelled.`,
       link: '/orders',
     });
+    await notifyOrderStatus(order, 'cancelled');
 
     res.json(order);
   } catch (e) {
@@ -463,6 +473,7 @@ exports.advance = async (req, res) => {
         body: status === 'picked' ? 'The rider collected your order from the shop.' : status === 'delivered' ? 'Your order has been handed over.' : 'This job is open for another rider to accept.',
         link: '/orders',
       });
+      await notifyOrderStatus(delivery.order, status);
     }
 
     if (status === 'delivered' || status === 'failed') await releaseRiderIfIdle(req.user.id);
