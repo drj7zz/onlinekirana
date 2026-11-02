@@ -46,8 +46,8 @@ export default function Login() {
       <button type="submit" className="cta-btn" disabled={submitting}>
         {submitting ? 'Logging in…' : <>Login <ArrowRight size={17} className="cta-arrow" aria-hidden="true" /></>}
       </button>
-      <p className="muted"><UserPlus size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} aria-hidden="true" />New customer? <Link to="/register">Register here</Link></p>
-      <p className="muted"><Store size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} aria-hidden="true" />Merchant, rider or operations? <a href={PORTAL_URL} target="_blank" rel="noreferrer">Sign in on the partner portal</a></p>
+      <p className="muted inline-icon-row"><UserPlus size={13} aria-hidden="true" />New customer? <Link to="/register">Register here</Link></p>
+      <p className="muted inline-icon-row"><Store size={13} aria-hidden="true" />Merchant, rider or operations? <a href={PORTAL_URL} target="_blank" rel="noreferrer">Sign in on the partner portal</a></p>
     </form>
   );
 }

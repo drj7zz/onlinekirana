@@ -47,7 +47,11 @@ exports.place = async (req, res) => {
     }
 
     const ids = normalized.map((item) => item.productId);
-    const products = await Product.find({ _id: { $in: ids }, isActive: true, status: 'approved' });
+    const approvedMerchants = await User.distinct('_id', { role: 'merchant', merchantStatus: 'approved' });
+    const products = await Product.find({
+      _id: { $in: ids }, isActive: true, status: 'approved',
+      $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
+    });
     if (products.length !== ids.length) return res.status(400).json({ message: 'Some products are unavailable' });
 
     const pickupSources = new Set(products.map((product) => String(product.merchant || 'platform')));
@@ -265,6 +269,90 @@ exports.myOrders = async (req, res) => {
     const byOrder = new Map(jobs.map((job) => [String(job.order), job]));
     for (const order of orders) order.delivery = byOrder.get(String(order._id)) || null;
     res.json(orders);
+  } catch (e) {
+    serverError(res, e);
+  }
+};
+
+// ---------- Reorder ----------
+// One tap on a delivered order returns everything needed to refill the cart:
+// the product snapshot (id/name/unit/price/stock/image), current availability
+// and seller. Items whose product was delisted since come back flagged so the
+// UI can say "2 of 4 items available" instead of silently dropping them.
+exports.reorder = async (req, res) => {
+  try {
+    const order = await Order.findOne({ _id: req.params.id, user: req.user.id }).lean();
+    if (!order) return res.status(404).json({ message: 'Order not found' });
+    const Product = require('../models/Product');
+    const ids = order.items.map((i) => i.product).filter(Boolean);
+    const approvedMerchants = await User.distinct('_id', { role: 'merchant', merchantStatus: 'approved' });
+    const live = await Product.find({
+      _id: { $in: ids }, isActive: true, status: 'approved',
+      $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
+    })
+      .populate('merchant', 'shopName merchantStatus')
+      .lean();
+    const byId = new Map(live.map((p) => [String(p._id), p]));
+    const items = order.items.map((i) => {
+      const p = i.product ? byId.get(String(i.product)) : null;
+      return p
+        ? {
+            product: {
+              _id: p._id, name: p.name, unit: p.unit, price: p.price,
+              discountPercent: p.discountPercent || 0, stock: p.stock,
+              imageUrl: p.imageUrl || '', category: p.category,
+              merchant: p.merchant || null,
+            },
+            qty: Math.min(i.qty, Math.max(1, p.stock || 1)),
+            available: (p.stock || 0) > 0,
+          }
+        : { product: null, name: i.name, qty: i.qty, available: false };
+    });
+    // sellers must match for a single cart, same rule the storefront enforces
+    const sellers = new Set(items
+      .filter((item) => item.product)
+      .map((item) => String(item.product.merchant?._id || item.product.merchant || 'platform')));
+    res.json({ items, singleSeller: sellers.size <= 1, orderId: order._id });
+  } catch (e) {
+    serverError(res, e);
+  }
+};
+
+// ---------- Wishlist ----------
+// Saved-for-later list, stored on the user document (no extra collection).
+// A wishlist product that was later delisted is simply filtered out on read.
+exports.getWishlist = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const user = await User.findById(req.user.id).select('wishlist').populate({
+      path: 'wishlist',
+      match: { isActive: true, status: 'approved' },
+      select: 'name category price unit stock imageUrl discountPercent merchant createdAt',
+      populate: { path: 'merchant', select: 'shopName merchantStatus' },
+    });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json((user.wishlist || []).filter(Boolean));
+  } catch (e) {
+    serverError(res, e);
+  }
+};
+
+exports.toggleWishlist = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const id = req.body?.productId;
+    if (!id || !mongoose.isValidObjectId(id)) return res.status(400).json({ message: 'Invalid product' });
+    const exists = await Product.exists({ _id: id, isActive: true, status: 'approved' });
+    if (!exists) return res.status(404).json({ message: 'Product not found' });
+    const user = await User.findById(req.user.id).select('wishlist');
+    const has = (user.wishlist || []).some((w) => String(w) === id);
+    if (has) {
+      user.wishlist = user.wishlist.filter((w) => String(w) !== id);
+    } else {
+      user.wishlist = [...(user.wishlist || []), id];
+    }
+    await user.save();
+    res.json({ saved: !has });
   } catch (e) {
     serverError(res, e);
   }

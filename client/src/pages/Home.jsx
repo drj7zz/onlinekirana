@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { PackageOpen } from 'lucide-react';
+import { PackageOpen, LayoutGrid, ArrowUpDown } from 'lucide-react';
 import API from '../api';
+import Dropdown from '../components/Dropdown';
 import { useSeo } from '../hooks/useSeo';
 import ProductCard from '../components/ProductCard';
 import { SkeletonGrid } from '../components/Skeletons';
@@ -26,10 +27,11 @@ export default function Home() {
   const [sort, setSort] = useState('');
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [fuzzy, setFuzzy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   /** Reset the category picker and the navbar's search term back to everything. */
-  const clearFilters = () => { setSearch(''); setCategory('all'); setSort(''); };
+  const clearFilters = () => { setSearch(''); setCategory('all'); setSort(''); setFuzzy(false); };
 
   useEffect(() => {
     let current = true;
@@ -40,8 +42,13 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    setSearch(params.get('search') || '');
-    setCategory(params.get('category') || 'all');
+    // derive state asynchronously so we don't setState synchronously in the effect
+    const sync = setTimeout(() => {
+      setSearch(params.get('search') || '');
+      setCategory(params.get('category') || 'all');
+      if (!params.get('search')) setFuzzy(false);
+    }, 0);
+    return () => clearTimeout(sync);
   }, [params]);
 
   // The listing title reflects what the shopper is actually looking at, so a
@@ -73,17 +80,26 @@ export default function Home() {
 
   useEffect(() => {
     let current = true;
-    setLoading(true);
-    setLoadError('');
+    const begin = setTimeout(() => {
+      setLoading(true);
+      setLoadError('');
+    }, 0);
     const params = {};
     if (search) params.search = search;
     if (category !== 'all') params.category = category;
     if (sort) params.sort = sort;
     API.get('/products', { params })
-      .then((r) => { if (current) setProducts(Array.isArray(r.data) ? r.data : []); })
+      .then((r) => {
+       if (current) {
+         // the API returns { fuzzy, items } for searches, a bare array otherwise
+         const payload = Array.isArray(r.data) ? { fuzzy: false, items: r.data } : r.data;
+         setProducts(Array.isArray(payload.items) ? payload.items : []);
+         setFuzzy(payload.fuzzy === true);
+       }
+      })
       .catch(() => { if (current) { setProducts([]); setLoadError('Products could not be loaded. Check your connection and try again.'); } })
       .finally(() => { if (current) setLoading(false); });
-    return () => { current = false; };
+    return () => { current = false; clearTimeout(begin); };
   }, [search, category, sort, reloadKey]);
 
   return (
@@ -92,10 +108,6 @@ export default function Home() {
           visually quiet on purpose — the products are the point. */}
       <div className="page-head">
         <h1>Shop groceries in Birgunj</h1>
-        <p>
-          Order from local shops across Birgunj, delivered to your ward.
-          Free delivery from 5 am–10 pm during launch. Late-night delivery may have a distance fee. Pay after your order arrives.
-        </p>
       </div>
 
       {/* Blinkit-style category chips — built from the categories the API
@@ -126,15 +138,25 @@ export default function Home() {
           listing (category + sort), which also lines the page up with the
           navbar's search sitting directly above it. */}
       <div className="filters">
-        <select aria-label="Filter by category" value={category} onChange={(e) => setCategory(e.target.value)}>
-          {categories.map((c) => <option key={c} value={c}>{c === 'all' ? 'All categories' : c}</option>)}
-        </select>
-        <select aria-label="Sort products" value={sort} onChange={(e) => setSort(e.target.value)}>
-          <option value="">Newest</option>
-          <option value="price_asc">Price: low → high</option>
-          <option value="price_desc">Price: high → low</option>
-          <option value="name">Name A–Z</option>
-        </select>
+        <Dropdown
+          label="Category"
+          value={category}
+          options={categories.map((c) => ({ value: c, label: c === 'all' ? 'All categories' : c }))}
+          onChange={setCategory}
+          icon={LayoutGrid}
+        />
+        <Dropdown
+          label="Sort"
+          value={sort}
+          options={[
+            { value: '', label: 'Newest' },
+            { value: 'price_asc', label: 'Price: low → high' },
+            { value: 'price_desc', label: 'Price: high → low' },
+            { value: 'name', label: 'Name A–Z' },
+          ]}
+          onChange={setSort}
+          icon={ArrowUpDown}
+        />
       </div>
 
       {/* Skeleton cards hold the grid's shape while the list loads — no layout
@@ -155,9 +177,19 @@ export default function Home() {
           )}
         </div>
       ) : (
-        <div className="grid">
-          {products.map((p) => <ProductCard key={p._id} product={p} />)}
-        </div>
+        <>
+          {/* Typo-tolerant notice: every result came from fuzzy matching, so say
+              so plainly instead of pretending the exact term matched. */}
+          {search && fuzzy && (
+            <p className="fuzzy-note" role="status">
+              Showing closest matches for <strong>“{search}”</strong>.
+              {' '}<button type="button" className="link-btn" onClick={clearFilters}>Clear search</button>
+            </p>
+          )}
+          <div className="grid">
+            {products.map((p) => <ProductCard key={p._id} product={p} />)}
+          </div>
+        </>
       )}
 
       {/* What this shopper looked at before, straight from localStorage — no

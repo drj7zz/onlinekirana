@@ -12,7 +12,7 @@ import { imageUrl } from '@shared/api';
 
 const empty = { name: '', category: '', price: '', unit: 'kg', stock: '', imageUrl: '', discountPercent: 0, description: '' };
 
-const statusIcon = { pending: <Clock size={14} color="#fbbf24" />, approved: <CircleCheck size={14} color="#4ade80" />, rejected: <CircleX size={14} color="#f87171" /> };
+const statusIcon = { pending: <Clock size={14} color="var(--warning-accent)" />, approved: <CircleCheck size={14} color="var(--success)" />, rejected: <CircleX size={14} color="var(--danger)" /> };
 const statusLabel = { pending: 'Pending review', approved: 'Live in shop', rejected: 'Not approved' };
 
 /**

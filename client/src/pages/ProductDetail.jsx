@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   Leaf, Store, Star, MapPin, Phone, PackageX,
-  Truck, ShieldCheck, Minus, Plus, ChevronRight, BadgeCheck,
+  Truck, ShieldCheck, Minus, Plus, ChevronRight, BadgeCheck, Clock,
 } from 'lucide-react';
 import API, { imageUrl } from '../api';
 import { useAuth } from '../context/AuthContext';
@@ -236,6 +236,7 @@ export default function ProductDetail() {
 
           {/* trust strip */}
           <ul className="trust-strip">
+            <li className="slot-chip"><Clock size={15} aria-hidden="true" /> Delivery today 5–10 pm</li>
             <li><Truck size={15} aria-hidden="true" /> Delivered across Birgunj</li>
             <li><ShieldCheck size={15} aria-hidden="true" /> Pay cash after delivery</li>
           </ul>

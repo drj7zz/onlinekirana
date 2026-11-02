@@ -43,7 +43,7 @@ export function PasswordField({ value, onChange, name = 'password', autoComplete
         style={{ width: '100%', paddingRight: '3.2rem' }}
       />
       <button type="button" className="muted-btn" onClick={() => setShow(!show)}
-        style={{ position: 'absolute', right: 4, top: 0, padding: '8px 10px', background: 'transparent', color: '#1b5e20', border: 'none', cursor: 'pointer' }}>
+        style={{ position: 'absolute', right: 4, top: 0, padding: '8px 10px', background: 'transparent', color: 'var(--brand)', border: 'none', cursor: 'pointer' }}>
         {show ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
       </button>
     </div>
@@ -55,16 +55,19 @@ export function StrengthMeter({ password, name, email }) {
   const errors = checkPassword(password, name, email);
   if (!password) return null;
   const labels = ['Very weak', 'Weak', 'Okay', 'Good', 'Strong', 'Excellent'];
-  const colors = ['#c62828', '#e65100', '#f9a825', '#9e9d24', '#2e7d32', '#1b5e20'];
+  const colors = [
+    'var(--strength-weak)', 'var(--strength-low)', 'var(--strength-fair)',
+    'var(--strength-good)', 'var(--strength-strong)', 'var(--strength-best)',
+  ];
   return (
     <div style={{ marginTop: '.3rem' }}>
       <div style={{ display: 'flex', gap: 4 }}>
         {[0, 1, 2, 3, 4].map((i) => (
-          <div key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i < score ? colors[score] : '#ddd' }} />
+          <div key={i} style={{ flex: 1, height: 5, borderRadius: 3, background: i < score ? colors[score] : 'var(--grey-200)' }} />
         ))}
       </div>
       <p className="muted" style={{ marginTop: '.2rem' }}>
-        {errors.length === 0 ? <><CircleCheck size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} aria-hidden="true" />{labels[score]} password</> : `Needs: ${errors.join(', ')}`}
+        {errors.length === 0 ? <><CircleCheck size={13} className="inline-icon" aria-hidden="true" />{labels[score]} password</> : `Needs: ${errors.join(', ')}`}
       </p>
     </div>
   );

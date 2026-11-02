@@ -1,18 +1,20 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ShoppingCart, Search, UserCircle2, LogOut, ChevronDown, Menu, X, MapPin,
-  Package, Store, HelpCircle, XCircle, Loader2, LayoutGrid,
-  Clock, TrendingUp, SearchX, ArrowUpRight, Tag,
+  ShoppingCart, Search, LogOut, ChevronDown, Menu, X,
+  Store, HelpCircle, XCircle, Loader2, LayoutGrid, Heart, Package, UserCircle2,
+  Clock, TrendingUp, SearchX, ArrowUpRight, Tag, Sparkles, Moon, Sun,
 } from 'lucide-react';
 import API, { imageUrl } from '../api';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
+import { useToast } from '../context/ToastContext';
 import { PORTAL_URL } from '../lib/apps';
 import { discountBadge, finalPrice, listPrice, rupees } from '../lib/pricing';
 import { productPath } from '../lib/productUrl';
 import NotificationCenter from './NotificationCenter';
+import { applyTheme, initialTheme } from '../lib/theme';
 
 /**
  * Storefront navigation.
@@ -36,8 +38,7 @@ import NotificationCenter from './NotificationCenter';
  */
 const NAV_LINKS = [
   { to: '/', label: 'Shop', icon: LayoutGrid, end: true },
-  { to: '/orders', label: 'My Orders', icon: Package, auth: true },
-  { to: '/faq', label: 'FAQ', icon: HelpCircle },
+  { to: '/faq', label: 'FAQ', icon: HelpCircle, guestOnly: true },
 ];
 
 const initialsOf = (u) => (u?.name || 'U').split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase();
@@ -115,11 +116,15 @@ const POPULAR = ['rice', 'dal', 'oil', 'chicken', 'soap', 'sabzi'];
  */
 function SearchBox({ id, onSubmitted }) {
   const navigate = useNavigate();
+  const { add } = useCart();
+  const toast = useToast();
+  const [adding, setAdding] = useState(null); // product id being added
   const [term, setTerm] = useState('');
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('idle'); // idle | loading | ready
   const [active, setActive] = useState(-1);
+  const [fuzzy, setFuzzy] = useState(false);
   const [recent, setRecent] = useState(readRecent);
   const [cats, setCats] = useState([]);
   const boxRef = useRef(null);
@@ -138,19 +143,30 @@ function SearchBox({ id, onSubmitted }) {
 
   useEffect(() => {
     const q = term.trim();
-    if (q.length < 2) {
-      setItems([]);
-      setStatus('idle');
-      return undefined;
-    }
     const mine = ++seq.current;
-    setStatus('loading');
+    if (q.length < 2) {
+      // reset asynchronously so we don't setState synchronously in the effect
+      const reset = setTimeout(() => {
+        if (mine !== seq.current) return;
+        setItems([]);
+        setFuzzy(false);
+        setStatus('idle');
+      }, 0);
+      return () => clearTimeout(reset);
+    }
+    // setStatus asynchronously so we don't setState synchronously in the effect
+    const pending = setTimeout(() => {
+      if (mine !== seq.current) return;
+      setStatus('loading');
+    }, 0);
     // 220ms skips most keystrokes while still feeling live
     const timer = setTimeout(() => {
       API.get('/products', { params: { search: q } })
         .then((r) => {
           if (mine !== seq.current) return; // a newer query already won
-          setItems(Array.isArray(r.data) ? r.data.slice(0, 6) : []);
+          const payload = Array.isArray(r.data) ? { fuzzy: false, items: r.data } : r.data;
+          setItems(Array.isArray(payload.items) ? payload.items.slice(0, 6) : []);
+          setFuzzy(payload.fuzzy === true);
           setStatus('ready');
         })
         .catch(() => {
@@ -159,7 +175,7 @@ function SearchBox({ id, onSubmitted }) {
           setStatus('ready');
         });
     }, 220);
-    return () => clearTimeout(timer);
+    return () => { clearTimeout(pending); clearTimeout(timer); };
   }, [term]);
 
   // clicking anywhere else closes the panel
@@ -188,6 +204,9 @@ function SearchBox({ id, onSubmitted }) {
     if (!clean) return;
     remember(clean);
     setTerm('');
+    // keep the suggestions visible after navigating — the parent Home page
+    // renders the same term's full result grid; the panel is closed only when
+    // the input loses focus (outside-click) or Escape is pressed
     go(`/?search=${encodeURIComponent(clean)}`);
   };
 
@@ -260,6 +279,8 @@ function SearchBox({ id, onSubmitted }) {
             : null}
       </div>
 
+      {/* clicking elsewhere / Escape closes it; navigating keeps it open so the
+          term the shopper searched is still visible above their results */}
       {showPanel && (
         <div className="search-panel" id={listId} role="listbox">
 
@@ -366,6 +387,12 @@ function SearchBox({ id, onSubmitted }) {
 
               {items.length > 0 && (
                 <>
+                  {fuzzy && (
+                    <div className="search-status search-fuzzy-note">
+                      <Sparkles size={14} aria-hidden="true" />
+                      <span>Closest matches for “{q}”</span>
+                    </div>
+                  )}
                   <ul>
                     {items.map((p, i) => (
                       <li key={p._id} role="option" aria-selected={i === active}>
@@ -386,6 +413,27 @@ function SearchBox({ id, onSubmitted }) {
                             {discountBadge(p) && <span className="strike">{rupees(listPrice(p))}</span>}
                             {rupees(finalPrice(p))}
                           </span>
+                          {/* add straight from the suggestions — no page hop */}
+                          {p.stock > 0 && (
+                            <button
+                              type="button"
+                              className={`search-add${adding === p._id ? ' is-adding' : ''}`}
+                              disabled={adding === p._id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setAdding(p._id);
+                                // tiny delay so the skeleton state is perceivable
+                                setTimeout(() => {
+                                  add(p, 1);
+                                  setAdding(null);
+                                  toast.success(`Added ${p.name} to cart`);
+                                }, 250);
+                              }}
+                              aria-label={`Add ${p.name} to cart`}
+                            >
+                              {adding === p._id ? <Loader2 size={14} className="search-spinner" aria-hidden="true" /> : <ShoppingCart size={14} aria-hidden="true" />}
+                            </button>
+                          )}
                         </button>
                       </li>
                     ))}
@@ -409,7 +457,10 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dark, setDark] = useState(initialTheme);
   const menuRef = useRef(null);
+
+  useEffect(() => { applyTheme(dark); }, [dark]);
 
   useEffect(() => {
     if (!drawerOpen) return undefined;
@@ -431,7 +482,19 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const links = NAV_LINKS.filter((l) => !l.auth || user);
+  const links = NAV_LINKS.filter((l) => (!l.auth || user) && (!l.guestOnly || !user));
+  // Full hamburger menu (drawer): every destination — shop, cart, wishlist,
+  // orders, profile — plus FAQ for guests.
+  const drawerLinks = [
+    { to: '/', label: 'Shop', icon: LayoutGrid, end: true },
+    { to: '/cart', label: 'Cart', icon: ShoppingCart },
+    ...(user ? [
+      { to: '/wishlist', label: 'Wishlist', icon: Heart },
+      { to: '/orders', label: 'My orders', icon: Package },
+      { to: '/profile', label: 'My profile', icon: UserCircle2 },
+    ] : []),
+    { to: '/faq', label: 'FAQ', icon: HelpCircle },
+  ];
   const closeAll = useCallback(() => { setMenuOpen(false); setDrawerOpen(false); }, []);
 
   const go = (path) => { closeAll(); navigate(path); };
@@ -445,7 +508,7 @@ export default function Navbar() {
           <img src="/logo.png" alt="OnlineKirana" className="brand-mark" />
           <span className="brand-text">
             <span className="brand-name">online<span>kirana</span></span>
-            <span className="brand-tag"><MapPin size={11} aria-hidden="true" /> Fast delivery · Birgunj</span>
+            <span className="brand-tag">Fast delivery · Birgunj</span>
           </span>
         </NavLink>
 
@@ -466,6 +529,16 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setDark((d) => !d)}
+            aria-pressed={dark}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={dark ? 'Light mode' : 'Dark mode'}
+          >
+            {dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
           <NotificationCenter />
           {user && (
             <div className="account-menu" ref={menuRef}>
@@ -484,12 +557,6 @@ export default function Navbar() {
                       <div className="account-drop-email">{user.email}</div>
                     </div>
                   </div>
-                  <button role="menuitem" onClick={() => go('/profile')} className="account-drop-item">
-                    <UserCircle2 size={16} aria-hidden="true" /> My profile
-                  </button>
-                  <button role="menuitem" onClick={() => go('/orders')} className="account-drop-item">
-                    <ShoppingCart size={16} aria-hidden="true" /> My orders
-                  </button>
                   <button role="menuitem" onClick={doLogout} className="account-drop-item is-danger">
                     <LogOut size={16} aria-hidden="true" /> Logout
                   </button>
@@ -514,7 +581,7 @@ export default function Navbar() {
             <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="portal-link">Portal ↗</a>
           )}
 
-          {/* mobile hamburger */}
+          {/* hamburger — desktop only; mobile uses the bottom tab bar */}
           <button type="button" className="burger" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
             <Menu size={22} aria-hidden="true" />
           </button>
@@ -538,9 +605,9 @@ export default function Navbar() {
             </div>
 
             {user ? (
-              /* Signed-in profile block: identity up top, then the account
-                 actions a phone user actually wants (orders, profile, logout)
-                 as a labelled group, rather than a flat list of link rows. */
+              /* Signed-in identity block. The drawer links below already cover
+                 orders/profile/cart — repeating them as big "quick" buttons
+                 tripled every destination on a phone, so this is identity only. */
               <section className="drawer-profile" aria-label="Your account">
                 <div className="drawer-profile-head">
                   <Avatar user={user} cls="nav-avatar nav-avatar-xl" />
@@ -549,23 +616,6 @@ export default function Navbar() {
                     <p className="drawer-profile-email">{user.email}</p>
                     <span className="drawer-profile-role">{user.role}</span>
                   </div>
-                </div>
-                <div className="drawer-profile-actions">
-                  <button onClick={() => go('/orders')} className="drawer-quick">
-                    <Package size={18} aria-hidden="true" />
-                    <span><strong>My orders</strong><small>Track deliveries</small></span>
-                    <ArrowUpRight size={15} className="drawer-quick-go" aria-hidden="true" />
-                  </button>
-                  <button onClick={() => go('/profile')} className="drawer-quick">
-                    <UserCircle2 size={18} aria-hidden="true" />
-                    <span><strong>My profile</strong><small>Address &amp; password</small></span>
-                    <ArrowUpRight size={15} className="drawer-quick-go" aria-hidden="true" />
-                  </button>
-                  <button onClick={() => go('/cart')} className="drawer-quick">
-                    <ShoppingCart size={18} aria-hidden="true" />
-                    <span><strong>My cart</strong><small>{count > 0 ? `${count} item${count > 1 ? 's' : ''}` : 'Nothing yet'}</small></span>
-                    <ArrowUpRight size={15} className="drawer-quick-go" aria-hidden="true" />
-                  </button>
                 </div>
               </section>
             ) : (
@@ -587,26 +637,27 @@ export default function Navbar() {
               <SearchBox id="drawer-search" onSubmitted={closeAll} />
             </div>
 
-            <nav className="drawer-links" aria-label="Mobile">
-              {links.map(({ to, label, icon: Icon, end }) => (
-                <NavLink key={to} to={to} end={end} onClick={closeAll}
+            {/* Full menu — every destination in one list. The drawer is now the
+                desktop hamburger menu, and mobile keeps its destinations in
+                the bottom tab bar instead. */}
+            <nav className="drawer-links" aria-label="Menu">
+              {drawerLinks.map(({ to, label, icon: Icon }) => (
+                <NavLink key={to} to={to} onClick={closeAll}
                   className={({ isActive }) => `drawer-link${isActive ? ' is-active' : ''}`}>
                   <Icon size={17} aria-hidden="true" />
                   <span>{label}</span>
                 </NavLink>
               ))}
-            </nav>
-
-            <div className="drawer-foot">
-              {user ? (
+              {user && (
                 <button onClick={doLogout} className="drawer-link drawer-btn is-danger">
                   <LogOut size={17} aria-hidden="true" /> <span>Log out</span>
                 </button>
-              ) : null}
-              {!user && (
-                <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>
               )}
-            </div>
+            </nav>
+
+            {!user && (
+              <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>
+            )}
           </div>
         </div>,
         document.body
