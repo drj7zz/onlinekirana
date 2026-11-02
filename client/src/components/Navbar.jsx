@@ -89,6 +89,15 @@ function Highlight({ text, query }) {
 
 const RECENT_KEY = 'ok_recent_searches';
 const MAX_RECENT = 6;
+const INSTALL_DISMISSED_KEY = 'ok_install_banner_dismissed';
+
+const readInstallBannerDismissed = () => {
+  try {
+    return localStorage.getItem(INSTALL_DISMISSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+};
 
 /** Recent searches, most recent first, stored locally and de-duplicated. */
 const readRecent = () => {
@@ -478,6 +487,7 @@ export default function Navbar() {
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appInstalled, setAppInstalled] = useState(false);
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(readInstallBannerDismissed);
   const menuRef = useRef(null);
 
   useEffect(() => { applyTheme(dark); }, [dark]);
@@ -595,11 +605,14 @@ export default function Navbar() {
     }
     return ['In Chrome or Edge, select the install icon in the address bar, or open the browser menu.', 'Choose Install OnlineKirana, then confirm.', 'The app will open in its own window from your apps list.'];
   })();
-  const installButton = !appInstalled && (
-    <button type="button" className="pwa-install-btn" onClick={installApp} aria-label="Install OnlineKirana app">
-      <Download size={17} aria-hidden="true" /> <span>Install app</span>
-    </button>
-  );
+  const dismissInstallBanner = () => {
+    setInstallBannerDismissed(true);
+    try {
+      localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+    } catch {
+      // Dismiss for this session even if browser storage is unavailable.
+    }
+  };
 
   return (
     <header className="site-header">
@@ -630,7 +643,6 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
-          {installButton}
           <button
             type="button"
             className="theme-toggle"
@@ -689,6 +701,24 @@ export default function Navbar() {
           </button>
         </div>
       </div>
+
+      {!appInstalled && !installBannerDismissed && (
+        <div className="pwa-install-banner" role="region" aria-label="Install OnlineKirana app">
+          <div className="pwa-install-banner-copy">
+            <span className="pwa-install-banner-icon"><Download size={19} aria-hidden="true" /></span>
+            <span>
+              <strong>Get the OnlineKirana app</strong>
+              <small>Quick access from your home screen or desktop.</small>
+            </span>
+          </div>
+          <div className="pwa-install-banner-actions">
+            <button type="button" className="pwa-install-banner-cta" onClick={installApp}>Install app</button>
+            <button type="button" className="pwa-install-banner-close" onClick={dismissInstallBanner} aria-label="Dismiss app install offer">
+              <X size={18} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* mobile drawer — portalled to <body> so its `fixed` positioning is
           resolved against the viewport and no ancestor transform/filter can
@@ -756,12 +786,6 @@ export default function Navbar() {
                 </button>
               )}
             </nav>
-
-            {!appInstalled && (
-              <button type="button" className="drawer-link drawer-btn pwa-install-drawer" onClick={installApp}>
-                <Download size={17} aria-hidden="true" /> <span>Install app</span>
-              </button>
-            )}
 
             {!user && (
               <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>

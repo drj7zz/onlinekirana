@@ -152,8 +152,9 @@ on each project:
 | `onlinekirana-partners` | `VITE_STOREFRONT_URL` | `https://onlinekiranabirgunj.vercel.app` |
 
 The storefront can be installed as a standalone web app over HTTPS. On Android,
-use **Install app** and confirm the browser prompt (or choose **Add to Home
-screen** in Chrome). On iPhone or iPad, open the storefront in Safari, tap
+use the **Install app** action in the dismissible bar below the navigation and
+confirm the browser prompt (or choose **Add to Home screen** in Chrome). On
+iPhone or iPad, open the storefront in Safari, tap
 **Share → Add to Home Screen**, then confirm. On desktop, install from the
 address-bar install icon or the browser menu in Chrome/Edge; Safari on macOS
 Sonoma or newer supports **File → Add to Dock**.
