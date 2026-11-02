@@ -99,6 +99,13 @@ npm run dev            # app on http://localhost:5173
 Each app has one env file: `.env`, used for dev, build and preview.
 Set `VITE_API_URL` if the API is not on `localhost:5000`.
 `VITE_PARTNERS_URL` points at the partner portal (defaults to `http://localhost:5174`).
+To enable customer Google sign-in, set `VITE_GOOGLE_CLIENT_ID` in `client/.env`
+and the same `GOOGLE_CLIENT_ID` in `server/.env`. Use a Google OAuth Web client
+ID and add each storefront origin (for example `http://localhost:5173` and the
+production storefront URL) under its authorized JavaScript origins. Google sign-in
+links a verified Google email to an existing customer account with that email;
+new Google customers complete the remaining delivery details before an account
+is created.
 
 ### 3. Partner portal (`/partners`)
 
@@ -140,11 +147,12 @@ on each project:
 | --- | --- | --- |
 | `onlinekiranabirgunj` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
 | `onlinekiranabirgunj` | `VITE_PARTNERS_URL` | `https://onlinekirana-partners.vercel.app` |
+| `onlinekiranabirgunj` | `VITE_GOOGLE_CLIENT_ID` | Google OAuth Web client ID |
 | `onlinekirana-partners` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
 | `onlinekirana-partners` | `VITE_STOREFRONT_URL` | `https://onlinekiranabirgunj.vercel.app` |
 
 Set `NODE_ENV=production`, `MONGO_URI`, a random `JWT_SECRET` of at least 32
-characters, and `CLIENT_URL` to the exact comma-separated HTTPS storefront and
+characters, `GOOGLE_CLIENT_ID` to the same OAuth Web client ID, and `CLIENT_URL` to the exact comma-separated HTTPS storefront and
 partner origins. For a pitch demo, set `PILOT_DELIVERY_ENABLED=true`; enable
 `PILOT_CANCELLATION_ENABLED=true` only if demonstrating that policy. These flags
 belong to the API environment, and changing them requires an API restart or

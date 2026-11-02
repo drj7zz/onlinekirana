@@ -11,6 +11,7 @@ const myView = (u) => ({
   name: u.name,
   email: u.email,
   role: u.role,
+  hasPassword: Boolean(u.password),
   avatarUrl: u.avatarUrl || '',
   phone: decryptPII(u.phone) || '',
   address: {
@@ -84,13 +85,16 @@ exports.changePassword = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const ok = await user.comparePassword(String(currentPassword || ''));
-    if (!ok) return res.status(401).json({ message: 'Current password is incorrect' });
+    if (user.password) {
+      const ok = await user.comparePassword(String(currentPassword || ''));
+      if (!ok) return res.status(401).json({ message: 'Current password is incorrect' });
+    }
 
     const pwErrors = validatePassword(String(newPassword || ''), { name: user.name, email: user.email });
     if (pwErrors.length) return res.status(400).json({ message: 'Validation failed', errors: { newPassword: pwErrors.join(', ') } });
 
     user.password = String(newPassword); // hashed by the pre('save') hook
+    user.passwordless = false;
     await user.save();
     // Security: a password change kills every existing session for this user.
     await revokeAllSessions(String(user._id)).catch(() => {});

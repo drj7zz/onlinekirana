@@ -370,9 +370,17 @@ origins, and verify that late-night test orders quote the same fee as checkout.
 | `MONGO_URI` | server | MongoDB/Atlas connection string |
 | `JWT_SECRET` | server | signs/verifies JWTs |
 | `CLIENT_URL` | server | allowed CORS origin |
+| `GOOGLE_CLIENT_ID` | server | validates customer Google ID tokens |
 | `ADMIN_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | server | consumed by `npm run seed-admin` |
 | `DB_USER` / `DB_PASS` | server | Atlas credentials (informational; the full URI is in `MONGO_URI`) |
 | `VITE_API_URL` | client | API base URL for the SPA |
+| `VITE_GOOGLE_CLIENT_ID` | client | enables the Google Identity Services button; use the same OAuth Web client ID as the API |
+
+Google sign-in is customer-only. The API verifies Google ID tokens, requires a
+verified email, links an existing customer account with the same email, and asks
+new users to complete their shopper details. Add each storefront's exact origin
+to the Google OAuth client's authorized JavaScript origins. Google-only users
+can add a password later from their profile.
 
 > `server/.env` holds live database credentials and the JWT secret — keep it out of
 > version control and rotate both if they are ever exposed.

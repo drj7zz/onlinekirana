@@ -6,6 +6,7 @@ const { validateRegister, validateLogin, validatePassword } = require('../middle
 const { loginIp } = require('../middleware/rateLimit');
 const { notifyUsers } = require('../utils/notifications');
 const { revokeAllSessions } = require('../lib/platform');
+const { verifyGoogleCredential } = require('../lib/googleIdentity');
 const {
   hashVerificationCode,
   issueVerificationCode,
@@ -21,9 +22,64 @@ const { signToken } = require('../lib/tokens');
 const publicUser = (u) => ({
   id: u._id, name: u.name, email: u.email, role: u.role,
   avatarUrl: u.avatarUrl || undefined,
+  hasPassword: Boolean(u.password),
   shopName: u.shopName || undefined, merchantStatus: u.merchantStatus || undefined,
   riderStatus: u.riderStatus || undefined, riderArea: u.riderArea || undefined, riderVehicle: u.riderVehicle || undefined,
 });
+
+async function findOrLinkGoogleAccount(identity) {
+  let user = await User.findOne({ googleSub: identity.sub }).select('+googleSub');
+  if (user) {
+    if (user.role !== 'customer') {
+      const error = new Error('Use the partner portal to sign in to this account.');
+      error.status = 403;
+      throw error;
+    }
+    if (user.email !== identity.email) {
+      const error = new Error('Your Google email changed. Sign in with your password and contact support to update the account.');
+      error.status = 409;
+      throw error;
+    }
+    return user;
+  }
+
+  user = await User.findOne({ email: identity.email }).select('+googleSub');
+  if (!user) return null;
+  if (user.role !== 'customer') {
+    const error = new Error('This email belongs to a partner account. Sign in on the partner portal.');
+    error.status = 409;
+    throw error;
+  }
+  if (user.googleSub && user.googleSub !== identity.sub) {
+    const error = new Error('This email is already linked to a different Google account.');
+    error.status = 409;
+    throw error;
+  }
+
+  user.googleSub = identity.sub;
+  if (!user.avatarUrl && identity.picture) user.avatarUrl = identity.picture;
+  await user.save();
+  return user;
+}
+
+exports.googleLogin = async (req, res) => {
+  try {
+    const identity = await verifyGoogleCredential(req.body?.credential);
+    const user = await findOrLinkGoogleAccount(identity);
+    if (!user) {
+      return res.json({
+        registrationRequired: true,
+        profile: { name: identity.name, email: identity.email },
+      });
+    }
+    res.json({ token: signToken(user), user: publicUser(user) });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ code: error.code, message: error.message });
+    if (error.code === 11000) return res.status(409).json({ message: 'This Google account is already linked to another account.' });
+    console.error('[auth] Google sign-in failed:', error.message);
+    res.status(500).json({ message: 'Google sign-in could not be completed. Please try again.' });
+  }
+};
 
 // ---- LOGIN: rate-limited per IP + per account; identical failure response (no user enumeration) ----
 const DUMMY_HASH = bcrypt.hashSync('timing-safe-dummy', 12);
@@ -98,9 +154,25 @@ exports.login = [
 exports.register = [
   validateRegister,
   async (req, res) => {
+    let googleIdentity = null;
     try {
       const { name, email, password, phone, address, role, shopName, riderArea, riderVehicle } = req.body;
-      if (await User.findOne({ email })) return res.status(409).json({ message: 'Email already registered' });
+      const googleCredential = req.body.googleCredential || '';
+      if (googleCredential) {
+        googleIdentity = await verifyGoogleCredential(googleCredential);
+        if (googleIdentity.email !== email) {
+          return res.status(400).json({ message: 'Use the same email address you selected with Google.' });
+        }
+        if (role === 'merchant' || role === 'delivery') {
+          return res.status(400).json({ message: 'Google signup is only available for customer accounts.' });
+        }
+        const existing = await findOrLinkGoogleAccount(googleIdentity);
+        if (existing) {
+          return res.status(200).json({ token: signToken(existing), user: publicUser(existing) });
+        }
+      } else if (await User.findOne({ email })) {
+        return res.status(409).json({ message: 'Email already registered' });
+      }
 
       // validateRegister already reduced an unknown role to undefined, so this
       // can only be customer, merchant or delivery. Both partner roles start
@@ -109,7 +181,9 @@ exports.register = [
       const isMerchant = role === 'merchant';
       const isRider = role === 'delivery';
       const user = await User.create({
-        name, email, password,
+        name, email, password: password || undefined,
+        passwordless: Boolean(googleIdentity && !password),
+        ...(googleIdentity && { googleSub: googleIdentity.sub, avatarUrl: googleIdentity.picture }),
         phone: phone || undefined,
         address: address?.line ? { line: address.line, city: 'Birgunj', ward: address.ward } : undefined,
         role: isMerchant ? 'merchant' : isRider ? 'delivery' : 'customer',
@@ -134,6 +208,15 @@ exports.register = [
 
       res.status(201).json({ token: signToken(user), user: publicUser(user) });
     } catch (e) {
+      if (e.status) return res.status(e.status).json({ code: e.code, message: e.message });
+      if (e.code === 11000 && googleIdentity) {
+        try {
+          const existing = await findOrLinkGoogleAccount(googleIdentity);
+          if (existing) return res.status(200).json({ token: signToken(existing), user: publicUser(existing) });
+        } catch (linkError) {
+          if (linkError.status) return res.status(linkError.status).json({ code: linkError.code, message: linkError.message });
+        }
+      }
       if (e.code === 11000) return res.status(409).json({ message: 'Email already registered' });
       res.status(500).json({ message: 'Registration failed. Please try again.' });
     }
