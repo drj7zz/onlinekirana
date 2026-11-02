@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { PackageOpen, LayoutGrid, ArrowUpDown } from 'lucide-react';
-import API from '../api';
 import Dropdown from '../components/Dropdown';
 import { useSeo } from '../hooks/useSeo';
 import ProductCard from '../components/ProductCard';
 import { SkeletonGrid } from '../components/Skeletons';
 import RecentStrip from '../components/RecentStrip';
+import { getCachedProducts, getCategories, getProducts } from '../lib/catalog';
 
 /** Blinkit-style emoji per category. Anything unmapped falls back to 🛍️. */
 const CATEGORY_EMOJI = {
@@ -20,14 +20,27 @@ const catEmoji = (c) => CATEGORY_EMOJI[String(c).toLowerCase().replace(/\s+/g, '
 
 export default function Home() {
   const [params, setParams] = useSearchParams();
-  const [products, setProducts] = useState([]);
+  const [initialCache] = useState(() => {
+    const initialParams = new URLSearchParams(window.location.search);
+    const query = {};
+    if (initialParams.get('search')) query.search = initialParams.get('search');
+    if (initialParams.get('category')) query.category = initialParams.get('category');
+    if (initialParams.get('sort')) query.sort = initialParams.get('sort');
+    return getCachedProducts(query);
+  });
+  const initialPayload = Array.isArray(initialCache)
+    ? { fuzzy: false, items: initialCache }
+    : initialCache;
+  const [products, setProducts] = useState(() => (
+    Array.isArray(initialPayload?.items) ? initialPayload.items : []
+  ));
   const [categories, setCategories] = useState(['all']);
   const [search, setSearch] = useState(params.get('search') || '');
   const [category, setCategory] = useState(params.get('category') || 'all');
   const [sort, setSort] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialPayload);
   const [loadError, setLoadError] = useState('');
-  const [fuzzy, setFuzzy] = useState(false);
+  const [fuzzy, setFuzzy] = useState(initialPayload?.fuzzy === true);
   const [reloadKey, setReloadKey] = useState(0);
 
   /** Reset the category picker and the navbar's search term back to everything. */
@@ -35,8 +48,8 @@ export default function Home() {
 
   useEffect(() => {
     let current = true;
-    API.get('/products/categories')
-      .then((r) => { if (current && Array.isArray(r.data)) setCategories(['all', ...r.data]); })
+    getCategories()
+      .then((data) => { if (current) setCategories(['all', ...data]); })
       .catch(() => {});
     return () => { current = false; };
   }, []);
@@ -81,18 +94,17 @@ export default function Home() {
   useEffect(() => {
     let current = true;
     const begin = setTimeout(() => {
-      setLoading(true);
       setLoadError('');
     }, 0);
-    const params = {};
-    if (search) params.search = search;
-    if (category !== 'all') params.category = category;
-    if (sort) params.sort = sort;
-    API.get('/products', { params })
-      .then((r) => {
+    const query = {};
+    if (search) query.search = search;
+    if (category !== 'all') query.category = category;
+    if (sort) query.sort = sort;
+    getProducts(query)
+      .then((data) => {
        if (current) {
          // the API returns { fuzzy, items } for searches, a bare array otherwise
-         const payload = Array.isArray(r.data) ? { fuzzy: false, items: r.data } : r.data;
+         const payload = Array.isArray(data) ? { fuzzy: false, items: data } : data;
          setProducts(Array.isArray(payload.items) ? payload.items : []);
          setFuzzy(payload.fuzzy === true);
        }

@@ -1,0 +1,29 @@
+{
+  "id": "/",
+  "name": "OnlineKirana — Online Grocery Delivery",
+  "short_name": "OnlineKirana",
+  "description": "Order groceries from local shops in Birgunj, Nepal.",
+  "lang": "en",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#f8faf8",
+  "theme_color": "#0c831f",
+  "categories": ["shopping", "food"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

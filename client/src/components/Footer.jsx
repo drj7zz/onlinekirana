@@ -1,8 +1,8 @@
 ﻿import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, Truck, ShieldCheck, Store, MapPin } from 'lucide-react';
-import API from '../api';
 import { PORTAL_URL } from '../lib/apps';
+import { getCategories } from '../lib/catalog';
 
 /**
  * Site footer, in the same format as the partner portal's: a dark
@@ -38,8 +38,8 @@ export default function Footer() {
 
   useEffect(() => {
     let live = true;
-    API.get('/products/categories')
-      .then((res) => { if (live) setCats(Array.isArray(res.data) ? res.data : []); })
+    getCategories()
+      .then((categories) => { if (live) setCats(categories); })
       .catch(() => { /* footer survives without categories */ });
     return () => { live = false; };
   }, []);
@@ -95,9 +95,7 @@ export default function Footer() {
 
         <div className="footer-col">
           <h3>Categories</h3>
-          {cats.length === 0 ? (
-            <p className="footer-about">Loading…</p>
-          ) : (
+          {cats.length > 0 && (
             <>
               <ul className="footer-links">
                 {visible.map((c) => (
@@ -145,4 +143,3 @@ export default function Footer() {
     </footer>
   );
 }
-

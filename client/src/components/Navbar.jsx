@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  ShoppingCart, Search, LogOut, ChevronDown, Menu, X,
-  Store, HelpCircle, XCircle, Loader2, LayoutGrid, Heart, Package, UserCircle2,
+  ShoppingCart, Search, LogOut, ChevronDown, Menu, X, Download,
+  Store, HelpCircle, Loader2, LayoutGrid, Heart, Package, UserCircle2,
   Clock, TrendingUp, SearchX, ArrowUpRight, Tag, Sparkles, Moon, Sun,
 } from 'lucide-react';
-import API, { imageUrl } from '../api';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { imageUrl } from '../api';
+import { NavLink, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
@@ -15,6 +15,7 @@ import { discountBadge, finalPrice, listPrice, rupees } from '../lib/pricing';
 import { productPath } from '../lib/productUrl';
 import NotificationCenter from './NotificationCenter';
 import { applyTheme, initialTheme } from '../lib/theme';
+import { getCategories, getProducts } from '../lib/catalog';
 
 /**
  * Storefront navigation.
@@ -116,10 +117,13 @@ const POPULAR = ['rice', 'dal', 'oil', 'chicken', 'soap', 'sabzi'];
  */
 function SearchBox({ id, onSubmitted }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const navigationType = useNavigationType();
   const { add } = useCart();
   const toast = useToast();
   const [adding, setAdding] = useState(null); // product id being added
-  const [term, setTerm] = useState('');
+  const routeTerm = new URLSearchParams(location.search).get('search') || '';
+  const [term, setTerm] = useState(routeTerm);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('idle'); // idle | loading | ready
@@ -135,11 +139,17 @@ function SearchBox({ id, onSubmitted }) {
   // search boxes so the second one renders instantly
   useEffect(() => {
     let live = true;
-    API.get('/products/categories')
-      .then((r) => { if (live) setCats(Array.isArray(r.data) ? r.data.slice(0, 8) : []); })
+    getCategories()
+      .then((categories) => { if (live) setCats(categories.slice(0, 8)); })
       .catch(() => {});
     return () => { live = false; };
   }, []);
+
+  useEffect(() => {
+    if (navigationType !== 'POP' || routeTerm === term) return undefined;
+    const sync = setTimeout(() => setTerm(routeTerm), 0);
+    return () => clearTimeout(sync);
+  }, [navigationType, routeTerm, term]);
 
   useEffect(() => {
     const q = term.trim();
@@ -161,10 +171,10 @@ function SearchBox({ id, onSubmitted }) {
     }, 0);
     // 220ms skips most keystrokes while still feeling live
     const timer = setTimeout(() => {
-      API.get('/products', { params: { search: q } })
-        .then((r) => {
+      getProducts({ search: q })
+        .then((data) => {
           if (mine !== seq.current) return; // a newer query already won
-          const payload = Array.isArray(r.data) ? { fuzzy: false, items: r.data } : r.data;
+          const payload = Array.isArray(data) ? { fuzzy: false, items: data } : data;
           setItems(Array.isArray(payload.items) ? payload.items.slice(0, 6) : []);
           setFuzzy(payload.fuzzy === true);
           setStatus('ready');
@@ -203,11 +213,18 @@ function SearchBox({ id, onSubmitted }) {
     const clean = q.trim();
     if (!clean) return;
     remember(clean);
-    setTerm('');
-    // keep the suggestions visible after navigating — the parent Home page
-    // renders the same term's full result grid; the panel is closed only when
-    // the input loses focus (outside-click) or Escape is pressed
     go(`/?search=${encodeURIComponent(clean)}`);
+  };
+
+  const clearSearch = () => {
+    setTerm('');
+    setOpen(false);
+    setActive(-1);
+    const params = new URLSearchParams(location.search);
+    if (params.has('search')) {
+      params.delete('search');
+      navigate({ pathname: location.pathname, search: params.toString() ? `?${params}` : '' }, { replace: true });
+    }
   };
 
   const submit = (e) => {
@@ -268,15 +285,14 @@ function SearchBox({ id, onSubmitted }) {
           onKeyDown={onKeyDown}
           className="search-input"
         />
-        {status === 'loading' && term.trim().length >= 2
-          ? <Loader2 size={16} className="search-spinner" aria-hidden="true" />
-          : term
-            ? (
-              <button type="button" className="search-clear" onClick={() => { setTerm(''); setOpen(false); inputRef.current?.focus(); }} aria-label="Clear search">
-                <XCircle size={16} aria-hidden="true" />
-              </button>
-            )
-            : null}
+        {status === 'loading' && term.trim().length >= 2 && (
+          <Loader2 size={16} className="search-spinner" aria-hidden="true" />
+        )}
+        {term && (
+          <button type="button" className="search-clear" onClick={clearSearch} aria-label="Clear search">
+            <X size={16} aria-hidden="true" />
+          </button>
+        )}
       </div>
 
       {/* clicking elsewhere / Escape closes it; navigating keeps it open so the
@@ -458,9 +474,24 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dark, setDark] = useState(initialTheme);
+  const [installPrompt, setInstallPrompt] = useState(null);
   const menuRef = useRef(null);
 
   useEffect(() => { applyTheme(dark); }, [dark]);
+
+  useEffect(() => {
+    const showInstallPrompt = (event) => {
+      event.preventDefault();
+      setInstallPrompt(event);
+    };
+    const installed = () => setInstallPrompt(null);
+    window.addEventListener('beforeinstallprompt', showInstallPrompt);
+    window.addEventListener('appinstalled', installed);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', showInstallPrompt);
+      window.removeEventListener('appinstalled', installed);
+    };
+  }, []);
 
   useEffect(() => {
     if (!drawerOpen) return undefined;
@@ -499,6 +530,12 @@ export default function Navbar() {
 
   const go = (path) => { closeAll(); navigate(path); };
   const doLogout = () => { closeAll(); logout(); navigate('/'); };
+  const installApp = async () => {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === 'accepted') setInstallPrompt(null);
+  };
 
   return (
     <header className="site-header">
@@ -529,6 +566,11 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
+          {installPrompt && (
+            <button type="button" className="pwa-install-btn" onClick={installApp} aria-label="Install OnlineKirana app">
+              <Download size={16} aria-hidden="true" /> <span>Install app</span>
+            </button>
+          )}
           <button
             type="button"
             className="theme-toggle"
@@ -654,6 +696,12 @@ export default function Navbar() {
                 </button>
               )}
             </nav>
+
+            {installPrompt && (
+              <button type="button" className="drawer-link drawer-btn pwa-install-drawer" onClick={installApp}>
+                <Download size={17} aria-hidden="true" /> <span>Install app</span>
+              </button>
+            )}
 
             {!user && (
               <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>

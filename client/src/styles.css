@@ -176,6 +176,9 @@ a { color: inherit; text-decoration: none; }
    scrim then covers only the nav and the panel looks transparent/collapsed. The
    drawer is also portalled to <body> so nothing above it can constrain it. */
 .site-header { position: sticky; top: 0; z-index: 50; background: var(--surface); color: var(--grey-900); border-bottom: 1px solid var(--grey-200); }
+.pwa-install-btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 36px; padding: 0 .7rem; border: 1px solid var(--grey-300); border-radius: 9px; background: var(--surface); color: var(--brand); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.pwa-install-btn:hover { background: var(--brand-tint); border-color: var(--brand); }
+.pwa-install-drawer { width: 100%; margin-top: .5rem; }
 /* dark mode: the bar follows the theme instead of staying a white strip on a
    dark page (it also sits above the canvas on scroll, so it needs its own fill) */
 :root[data-theme='dark'] .site-header { background: var(--surface); color: var(--grey-900); border-bottom-color: var(--grey-200); }
@@ -1158,8 +1161,19 @@ td svg { margin-right: 4px; }
 
 /* main columns */
 .footer-main { max-width: 1180px; margin: 0 auto; padding: 2.6rem 1.25rem 2.2rem; display: grid; grid-template-columns: 1.6fr 1fr 1fr 1fr 1.3fr; gap: 1.6rem; }
-@media (max-width: 900px) { .footer-main { grid-template-columns: 1fr 1fr; gap: 1.6rem 1.2rem; } }
-@media (max-width: 520px) { .footer-main { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  .footer-main { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.6rem 1.2rem; }
+  .footer-brand { grid-column: 1 / -1; }
+}
+@media (max-width: 520px) {
+  .footer-main { padding: 2rem 1rem 1.8rem; gap: 1.4rem 1rem; }
+  .footer-col { min-width: 0; }
+  .footer-links a { overflow-wrap: anywhere; }
+}
+@media (max-width: 319px) {
+  .footer-main { grid-template-columns: minmax(0, 1fr); }
+  .footer-brand { grid-column: auto; }
+}
 
 .footer-col h3 { color: var(--on-accent); font-size: .95rem; font-weight: 700; margin-bottom: .8rem; letter-spacing: .01em; }
 /* the brand mark in the footer uses the same logo file as the navbar.
@@ -1643,8 +1657,15 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
 .toast-x { background: none; border: none; color: var(--on-accent); opacity: .6; cursor: pointer; padding: 2px; display: inline-flex; }
 .toast-x:hover { opacity: 1; }
 @media (max-width: 720px) {
+  .site-header { padding-top: env(safe-area-inset-top, 0px); }
+  .pwa-install-btn { width: 40px; min-height: 40px; padding: 0; }
+  .pwa-install-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   .toast-stack { top: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 10px); right: 12px; left: 12px; align-items: stretch; }
   .toast { max-width: none; }
+}
+
+@media (max-width: 720px) {
+  .storefront-shell > .site-footer { display: none; }
 }
 
 /* ===== mobile bottom tab bar (storefront only) ===== */
