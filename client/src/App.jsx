@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Profile from './pages/Profile';
 import Shop from './pages/Shop';
+import Wishlist from './pages/Wishlist';
 import Dashboard from './pages/Dashboard';
 import Info from './pages/Info';
 import NotFound from './pages/NotFound';
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="/register" element={<Register />} />
             <Route path="/profile" element={<RoleGuard><Profile /></RoleGuard>} />
             <Route path="/shop/:id" element={<Shop />} />
+            <Route path="/wishlist" element={<Wishlist />} />
             <Route path="/about" element={<Info page="about" />} />
             <Route path="/faq" element={<Info page="faq" />} />
             <Route path="/contact" element={<Info page="contact" />} />

@@ -17,6 +17,7 @@ delivery — all priced in **Nepali Rupees (रू)**, with delivery coverage ba
 | **Multi-vendor** | Merchants register, get approved, set up a public shop page, and manage their own products and orders. |
 | **Admin moderation** | Admin approves partner applications and new/edited products before they appear in the shop. |
 | **Split apps** | The storefront (`:5173`) is shoppers-only. Merchants, riders and operations get their own portal (`:5174`) with a separate sign-in, enforced server-side via the login `scope`. |
+| **Appearance** | Storefront and partner portal support saved light and dark themes. |
 | **No paperwork** | No shop licence, PAN/VAT, citizenship or driving licence is required to join. A partner account is just a name, email, phone and password. |
 | **Self-service sign-up** | Shopkeepers *and* riders both apply from the same form, picking their role. Both land `pending`; an admin reviews every application in the Approvals section. |
 | **Notifications** | In-app notifications are available across the storefront and partner portal, with optional browser push for order and approval updates. |

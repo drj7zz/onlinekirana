@@ -1,9 +1,11 @@
 const mongoose = require('mongoose');
 const Product = require('../models/Product');
 const User = require('../models/User');
+const Order = require('../models/Order');
 const Review = require('../models/Review');
 const { serverError } = require('../utils/errors');
 const { cached, cacheInvalidate } = require('../lib/platform');
+const { fuzzyPattern, relevanceScore, isFuzzyOnly } = require('../lib/productSearch');
 
 // Attach { ratingAverage, ratingCount } to a list of plain product objects in one query
 const attachRatings = async (products) => {
@@ -38,13 +40,6 @@ exports.list = async (req, res) => {
         isActive: true, status: 'approved',
         $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
       };
-      if (search) {
-        const safeSearch = String(search).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        q.$and = [{ $or: [
-          { name: { $regex: safeSearch, $options: 'i' } },
-          { category: { $regex: safeSearch, $options: 'i' } },
-        ] }];
-      }
       if (category && category !== 'all') q.category = String(category).slice(0, 80);
       const minValue = min === undefined ? null : Number(min);
       const maxValue = max === undefined ? null : Number(max);
@@ -54,7 +49,34 @@ exports.list = async (req, res) => {
           ...(maxValue !== null && Number.isFinite(maxValue) ? { $lte: Math.max(0, maxValue) } : {}),
         };
       }
-
+      if (search) {
+        const safeSearch = String(search).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        // Literal match first; if a search returns nothing literal we widen the
+        // net so the fuzzy scoring below still has candidates to rank. This is
+        // what turns "milk2" into "Milk" — one broadened pass, still cached.
+        const literal = await Product.countDocuments({
+          ...q,
+          $and: [{ $or: [{ name: { $regex: safeSearch, $options: 'i' } }, { category: { $regex: safeSearch, $options: 'i' } }] }],
+        });
+        if (literal === 0) {
+          const words = String(search).toLowerCase().split(/\s+/).filter((w) => w.length > 1 && w.length <= 24).slice(0, 4);
+          if (words.length) {
+            const fuzzyParts = words
+              .map((word) => fuzzyPattern(word))
+              .filter(Boolean)
+              .map((pattern) => ({ name: { $regex: pattern, $options: 'i' } }));
+            if (fuzzyParts.length) q.$and = [{ $or: fuzzyParts }];
+            else q._id = { $in: [] };
+          } else {
+            q._id = { $in: [] };
+          }
+        } else {
+          q.$and = [{ $or: [
+            { name: { $regex: safeSearch, $options: 'i' } },
+            { category: { $regex: safeSearch, $options: 'i' } },
+          ] }];
+        }
+      }
       let sortOpt = { createdAt: -1 };
       if (sort === 'price_asc') sortOpt = { price: 1 };
       if (sort === 'price_desc') sortOpt = { price: -1 };
@@ -64,7 +86,42 @@ exports.list = async (req, res) => {
         .populate('merchant', 'shopName merchantStatus')
         .lean();
     });
-    res.json(await attachRatings(products));
+    let list = await attachRatings(products);
+
+    // badge flags: bestseller = top 5 by units sold; new = created last 7 days.
+    // Two cheap aggregate queries, cached along with the list itself.
+    const soldAgg = await cached('bestseller-ids', 120, async () => {
+      const rows = await Order.aggregate([
+        { $match: { status: { $ne: 'cancelled' } } },
+        { $unwind: '$items' },
+        { $group: { _id: '$items.product', qty: { $sum: '$items.qty' } } },
+        { $sort: { qty: -1 } },
+        { $limit: 5 },
+      ]);
+      return rows.map((r) => String(r._id));
+    });
+    const bestsellers = new Set(soldAgg);
+    const NEW_MS = 7 * 24 * 60 * 60 * 1000;
+    list = list.map((p) => ({
+      ...p,
+      bestseller: bestsellers.has(String(p._id)),
+      isNew: (Date.now() - new Date(p.createdAt).getTime()) < NEW_MS,
+    }));
+    // Relevance ranking only applies to keyword searches with no explicit
+    // user-chosen sort — picking "price low to high" must keep price order.
+    let fuzzyOnly = false;
+    if (search && !sort) {
+      const terms = String(search).toLowerCase().split(/\s+/).filter(Boolean).slice(0, 5);
+      list = list
+        .map((p) => ({ p, s: relevanceScore(p, terms) }))
+        .filter((x) => x.s > 0)
+        .sort((a, b) => b.s - a.s)
+        .map((x) => x.p);
+      // every result came only from the typo-fuzzy tier → tell the UI so it can
+      // show "showing closest matches for …" instead of pretending a literal hit
+      fuzzyOnly = list.length > 0 && list.every((p) => isFuzzyOnly(p, terms));
+    }
+    res.json({ fuzzy: fuzzyOnly, items: list });
   } catch (e) {
     serverError(res, e);
   }

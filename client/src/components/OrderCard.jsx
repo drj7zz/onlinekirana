@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   Package, XCircle, MapPin, Phone, CalendarClock,
-  KeyRound, Bike, Eye, EyeOff, Store, Wallet, ChevronDown,
+  KeyRound, Bike, Eye, EyeOff, Store, Wallet, ChevronDown, RotateCcw,
 } from 'lucide-react';
 import API from '../api';
 import { ORDER_STEPS, STATUS_LABEL, DELIVERY_LABEL, DELIVERY_WINDOW_LABEL, money } from '../lib/delivery';
@@ -95,7 +95,7 @@ function DeliveryCode({ orderId }) {
  *   rider           – populated rider object, when the caller already has it
  */
 export default function OrderCard({
-  order, viewer = 'customer', onStatus, onCancel, allowedStatuses, compact = false, showOtp = false, rider = null,
+  order, viewer = 'customer', onStatus, onCancel, allowedStatuses, compact = false, showOtp = false, rider = null, onReorder,
 }) {
   // Compact cards start collapsed and open on tap; every other layout renders
   // fully open (expanded defaults to true so full-page order lists are unchanged).
@@ -112,50 +112,76 @@ export default function OrderCard({
   const addr = o.deliveryAddress || {};
 
   return (
-    <article className={`order-card${compact ? ' compact' : ''}${compact && !open ? ' collapsed' : ''}`}
-      {...(compact ? {
-        role: 'button', tabIndex: 0, 'aria-expanded': open,
-        onClick: () => setOpen((v) => !v),
-        onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen((v) => !v); } },
-      } : {})}>
+    <article className={`order-card${compact ? ' compact' : ''}${compact && !open ? ' collapsed' : ''}`}>
       {/* header */}
       <header className="order-head">
-        <div className="order-head-main">
-          <span className="order-ref">Order {orderRef(o._id)}</span>
-          <span className={`status s-${o.status}`}>{STATUS_LABEL[o.status] || 'Processing'}</span>
-          {o.paymentStatus === 'paid' && <span className="paid-chip">Paid</span>}
-          {o.paymentStatus === 'refunded' && <span className="refund-chip">Refunded</span>}
-        </div>
-        <div className="order-head-side">
-          <strong className="order-total">{total}</strong>
-          {viewer !== 'customer' && o.user && (
-            <span className="order-customer">
-              {o.user.name || 'Customer'}
-              {o.user.phone ? ` · ${o.user.phone}` : o.user.email ? ` · ${o.user.email}` : ''}
-            </span>
-          )}
-          {onStatus && (
-            <select
-              className="status-select"
-              aria-label={viewer === 'admin' ? 'Order action' : 'Update order status'}
-              value={o.status}
-              onChange={(e) => onStatus(o._id, e.target.value)}
+        {compact ? (
+          <>
+            <button
+              type="button"
+              className="order-head-toggle"
+              aria-expanded={open}
+              onClick={() => setOpen((value) => !value)}
             >
-              {allowedStatuses && !allowedStatuses.includes(o.status) && <option value={o.status}>Current: {STATUS_LABEL[o.status] || o.status}</option>}
-              {(allowedStatuses || Object.keys(STATUS_LABEL)).map((s) => (
-                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-              ))}
-            </select>
-          )}
-          {compact && (
-            <span className="compact-chevron" aria-hidden="true">
-              <ChevronDown size={16} className={open ? 'is-open' : ''} />
-            </span>
-          )}
-          {viewer === 'customer' && onCancel && ['pending', 'packed', 'assigned'].includes(o.status) && (
-            <button type="button" className="danger" onClick={() => onCancel(o._id)}>Cancel order</button>
-          )}
-        </div>
+              <span className="order-head-main">
+                <span className="order-ref" title={orderRef(o._id)}>
+                  {o.items[0]?.name || `Order ${orderRef(o._id)}`}
+                  {o.items.length > 1 && <span className="order-ref-more"> +{o.items.length - 1}</span>}
+                </span>
+                <span className={`status s-${o.status}`}>{STATUS_LABEL[o.status] || 'Processing'}</span>
+              </span>
+              <span className="order-head-side">
+                <strong className="order-total">{total}</strong>
+                {viewer !== 'customer' && o.user && (
+                  <span className="order-customer">
+                    {o.user.name || 'Customer'}
+                    {o.user.phone ? ` · ${o.user.phone}` : o.user.email ? ` · ${o.user.email}` : ''}
+                  </span>
+                )}
+                <span className="compact-chevron" aria-hidden="true">
+                  <ChevronDown size={16} className={open ? 'is-open' : ''} />
+                </span>
+              </span>
+            </button>
+            {viewer === 'customer' && onCancel && ['pending', 'packed', 'assigned'].includes(o.status) && (
+              <button type="button" className="danger" onClick={() => onCancel(o._id)}>Cancel order</button>
+            )}
+          </>
+        ) : (
+          <>
+            <div className="order-head-main">
+              <span className="order-ref">Order {orderRef(o._id)}</span>
+              <span className={`status s-${o.status}`}>{STATUS_LABEL[o.status] || 'Processing'}</span>
+              {o.paymentStatus === 'paid' && <span className="paid-chip">Paid</span>}
+              {o.paymentStatus === 'refunded' && <span className="refund-chip">Refunded</span>}
+            </div>
+            <div className="order-head-side">
+              <strong className="order-total">{total}</strong>
+              {viewer !== 'customer' && o.user && (
+                <span className="order-customer">
+                  {o.user.name || 'Customer'}
+                  {o.user.phone ? ` · ${o.user.phone}` : o.user.email ? ` · ${o.user.email}` : ''}
+                </span>
+              )}
+              {onStatus && (
+                <select
+                  className="status-select"
+                  aria-label={viewer === 'admin' ? 'Order action' : 'Update order status'}
+                  value={o.status}
+                  onChange={(e) => onStatus(o._id, e.target.value)}
+                >
+                  {allowedStatuses && !allowedStatuses.includes(o.status) && <option value={o.status}>Current: {STATUS_LABEL[o.status] || o.status}</option>}
+                  {(allowedStatuses || Object.keys(STATUS_LABEL)).map((s) => (
+                    <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                  ))}
+                </select>
+              )}
+              {viewer === 'customer' && onCancel && ['pending', 'packed', 'assigned'].includes(o.status) && (
+                <button type="button" className="danger" onClick={() => onCancel(o._id)}>Cancel order</button>
+              )}
+            </div>
+          </>
+        )}
       </header>
 
       {/* delivery timeline */}
@@ -183,8 +209,24 @@ export default function OrderCard({
 
       {showOtp && o.delivery?.status === 'picked' && <DeliveryCode orderId={o._id} />}
 
-      {/* items — hidden until the compact card is tapped open */}
-      {!expanded && <p className="compact-hint muted"><Package size={13} aria-hidden="true" /> {o.items.length} item{o.items.length === 1 ? '' : 's'} · {money(goods)} · tap to view</p>}
+      {/* compact collapsed row: qty + reorder only — the name, price and status
+          already live in the header, so repeating the name here collided on
+          narrow cards */}
+      {!expanded && (
+        <div className="compact-hint muted">
+          <span className="compact-qty">× {itemCount} unit{itemCount === 1 ? '' : 's'}</span>
+          {onReorder && (
+            <button
+              type="button"
+              className="reorder-btn"
+              onClick={(e) => { e.stopPropagation(); onReorder(o._id); }}
+              aria-label="Reorder these items"
+            >
+              <RotateCcw size={13} aria-hidden="true" /> Reorder
+            </button>
+          )}
+        </div>
+      )}
       {expanded && <div className="order-items">
         <div className="order-items-head">
           <span><Package size={14} aria-hidden="true" /> {o.items.length} item{o.items.length === 1 ? '' : 's'} · {itemCount} unit{itemCount === 1 ? '' : 's'}</span>

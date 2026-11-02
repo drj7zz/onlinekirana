@@ -6,7 +6,34 @@ import { useAuth } from '../context/AuthContext';
 import { useLive } from '../hooks/useLive';
 import { useCart } from '../context/CartContext';
 import OrderCard from '../components/OrderCard';
+import { ORDER_STEPS, STATUS_LABEL } from '../lib/delivery';
 import { PORTAL_URL } from '../lib/apps';
+
+/**
+ * Live status ticker — a slim strip pinned above the dashboard grid showing
+ * exactly how far the shopper's in-flight order has got, with a mini step
+ * tracker. Disappears the moment the order is delivered or cancelled.
+ */
+function OrderTicker({ order }) {
+  const idx = ORDER_STEPS.findIndex((s) => s.key === order.status);
+  const step = ORDER_STEPS[idx];
+  if (!step) return null;
+  return (
+    <div className="order-ticker" role="status">
+      <span className="ticker-pulse" aria-hidden="true" />
+      <span className="ticker-text">
+        <strong>{STATUS_LABEL[order.status]}</strong> — {step.blurb}
+        <span className="muted"> · #{String(order._id).slice(-6).toUpperCase()}</span>
+      <span className="ticker-steps" aria-hidden="true">
+        {ORDER_STEPS.map((s, i) => (
+          <span key={s.key} className={`ticker-dot${i < idx ? ' done' : i === idx ? ' now' : ''}`} />
+        ))}
+      </span>
+      </span>
+      <Link to="/orders" className="ticker-link">Track <ChevronRight size={13} aria-hidden="true" /></Link>
+    </div>
+  );
+}
 
 
 const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('en-IN') : n);
@@ -51,9 +78,16 @@ export default function Dashboard() {
   const live = <span className="live-dot" title="Updates automatically" />;
   const isShopper = user.role === 'customer';
 
+  // live ticker: the shopper's in-flight order, top of the page
+  const inFlight = isShopper && data.recentOrders
+    ? data.recentOrders.find((o) => !['delivered', 'cancelled'].includes(o.status))
+    : null;
+
   return (
     <div>
       <h1>{isShopper ? 'My Dashboard' : 'OnlineKirana'} {live}</h1>
+
+      {inFlight && <OrderTicker order={inFlight} />}
       <p className="muted">
         Namaste, {user.name}! {isShopper ? ` Cart: ${count} item(s).` : 'Your workspace lives in the partner portal.'}
         {user.role === 'merchant' && user.shopName && ` Shop: ${user.shopName}.`}
@@ -88,8 +122,8 @@ export default function Dashboard() {
         <div>
           <h2>Recent orders</h2>
           {data.recentOrders.length === 0 && <p className="empty">Nothing yet.</p>}
-          {/* Compact minimal purchase history — collapsed cards; tap one to
-              open its items, bill and delivery details in place. */}
+          {/* Compact expandable history rows — collapsed by default; tap one
+              to open its timeline, items, bill and address in place. */}
           <div className="order-list">
             {data.recentOrders.map((o) => (
               <OrderCard key={o._id} order={o} viewer={user.role} compact showOtp={isShopper} />

@@ -34,6 +34,8 @@ const userSchema = new mongoose.Schema({
     location: { lat: Number, lng: Number },
   },
   orderRestrictedUntil: { type: Date, default: null },
+  // saved-for-later product ids (customer wishlist)
+  wishlist: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Product' }],
   pushSubscriptions: {
     type: [{
       endpoint: { type: String, trim: true },

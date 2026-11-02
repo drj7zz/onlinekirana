@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutGrid, ShoppingCart, Package, UserCircle2 } from 'lucide-react';
+import { LayoutGrid, ShoppingCart, Package, UserCircle2, Heart } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
@@ -19,6 +19,7 @@ import { useCart } from '../context/CartContext';
  */
 const TABS = [
   { to: '/', label: 'Shop', icon: LayoutGrid, end: true },
+  { to: '/wishlist', label: 'Wishlist', icon: Heart },
   { to: '/cart', label: 'Cart', icon: ShoppingCart, badge: true },
   { to: '/orders', label: 'Orders', icon: Package, auth: true },
   { to: '/profile', label: 'Profile', icon: UserCircle2, auth: true },

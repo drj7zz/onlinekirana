@@ -1,14 +1,14 @@
 /* Partners portal — the business side of the marketplace (merchants, riders,
-   operations).
+   operations) with the same persisted light/dark palette as the storefront.
 
-   The portal is deliberately the same light green UI as the storefront — a
+   The portal is deliberately the same UI as the storefront — a
    shopkeeper switching between "my store page" and "my product list" should feel
    one product, not two. So it reuses the storefront's stylesheet wholesale, plus
    Tailwind itself for the utility classes in the shared Navbar (`.min-w-0`).
 
    The Navbar renders the same `.site-header` / `.brand` / `.nav-link` /
    `.account-*` / `.drawer-*` markup as the storefront, and the app renders inside
-   `.app-shell`, so the shared header and light footer themes apply here unchanged.
+   `.app-shell`, so the shared header and footer themes apply here unchanged.
 
    Note: `@import "tailwindcss"` cannot live only inside the shared file — Vite
    does not resolve it through the `@shared` alias, so it is imported here too
@@ -22,7 +22,7 @@
 
 /* Numbered step lists on /join — tighter than the shared `.info-block p` rhythm. */
 .info-steps li { margin-bottom: .4rem; }
-.info-steps li::marker { color: #1b5e20; font-weight: 700; }
+.info-steps li::marker { color: var(--brand); font-weight: 700; }
 
 .partner-order-product summary { cursor: pointer; width: fit-content; }
 .partner-order-product-info {
@@ -34,7 +34,7 @@
 .partner-order-product-info a { font-size: .82rem; font-weight: 700; }
 
 /* The delivery explainer on /join is a list, not paragraphs. */
-.info-block ol { color: #444; }
+.info-block ol { color: var(--grey-700); }
 
 /* ===== amber accent, used only by the portal's own affordances ===== */
 /* The shared `.cta-btn` is green, matching the storefront's "add to cart" etc.
@@ -43,24 +43,24 @@
    uses these (it now borrows the storefront's `.portal-link` pill), but the
    /join and /faq copy still does. */
 .portal-external {
-  color: #1b5e20;
+  color: var(--brand);
   font-weight: 600;
-  border-bottom: 1px dashed #1b5e2088;
+  border-bottom: 1px dashed color-mix(in srgb, var(--brand) 53%, transparent);
 }
-.portal-external:hover { color: #2e7d32; }
+.portal-external:hover { color: var(--brand-strong); }
 
 /* The "no documents needed" reassurance block wants a positive green tint so it
    reads as good news rather than another rule. */
 .join-reassure {
-  background: #e8f5e9;
-  border: 1px solid #a5d6a7;
+  background: var(--brand-tint);
+  border: 1px solid var(--brand-border);
   border-radius: 12px;
   padding: 1.2rem;
   margin-bottom: 1rem;
-  box-shadow: 0 1px 4px #0001;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--grey-900) 6%, transparent);
 }
-.join-reassure h2 { display: flex; align-items: center; gap: .45rem; font-size: 1.05rem; color: #1b5e20; margin-bottom: .5rem; }
-.join-reassure p { color: #1b3a20; line-height: 1.65; }
+.join-reassure h2 { display: flex; align-items: center; gap: .45rem; font-size: 1.05rem; color: var(--brand); margin-bottom: .5rem; }
+.join-reassure p { color: var(--brand-text); line-height: 1.65; }
 
 /* ==================================================================
    Portal landing redesign.
@@ -92,8 +92,8 @@
   padding: 3.4rem 1.25rem 3.2rem;
   text-align: center;
   background:
-    radial-gradient(900px 380px at 50% -12%, #e8f5e9 0%, transparent 62%),
-    linear-gradient(180deg, #fafafa 0%, #fff 100%);
+    radial-gradient(900px 380px at 50% -12%, var(--brand-tint) 0%, transparent 62%),
+    linear-gradient(180deg, var(--grey-50) 0%, var(--surface) 100%);
   border-bottom: 1px solid var(--grey-200);
 }
 @media (max-width: 640px) {
@@ -107,7 +107,7 @@
 .p-hero::after {
   content: '';
   position: absolute; inset: auto 0 -40% 0; height: 100%;
-  background: radial-gradient(closest-side, rgba(27,94,32,.06), transparent 70%);
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--brand) 6%, transparent), transparent 70%);
   pointer-events: none;
 }
 .p-hero > * { position: relative; z-index: 1; }
@@ -115,8 +115,8 @@
 .p-pill {
   display: inline-flex; align-items: center; gap: .35rem;
   padding: .28rem .7rem; border-radius: 999px;
-  background: #fff; border: 1px solid #a5d6a7;
-  color: #1b5e20; font-size: .78rem; font-weight: 600;
+  background: var(--surface); border: 1px solid var(--brand-border);
+  color: var(--brand); font-size: .78rem; font-weight: 600;
   box-shadow: var(--shadow-sm);
 }
 
@@ -143,11 +143,11 @@
 .p-btn-ghost {
   display: inline-flex; align-items: center; gap: .4rem;
   padding: .6rem 1.2rem; border-radius: 8px;
-  border: 1px solid var(--grey-300); background: #fff;
+  border: 1px solid var(--grey-300); background: var(--surface);
   color: var(--grey-700); font-size: .95rem; font-weight: 600;
   cursor: pointer; transition: border-color .15s, background .15s, color .15s;
 }
-.p-btn-ghost:hover { border-color: var(--brand); color: var(--brand); background: #f0fdf4; }
+.p-btn-ghost:hover { border-color: var(--brand); color: var(--brand); background: var(--brand-tint); }
 
 /* ===== proof strip ===== */
 .p-proof {
@@ -190,8 +190,8 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 46px; height: 46px; border-radius: 13px; margin-bottom: .9rem;
 }
-.p-role-green  .p-role-icon { background: #e8f5e9; color: #1b5e20; }
-.p-role-amber  .p-role-icon { background: #fff3e0; color: #e65100; }
+.p-role-green  .p-role-icon { background: var(--brand-tint); color: var(--brand); }
+.p-role-amber  .p-role-icon { background: var(--warning-soft); color: var(--orange); }
 .p-role-slate  .p-role-icon { background: var(--grey-100); color: var(--grey-700); }
 
 .p-role h3 { font-size: 1.12rem; letter-spacing: -.01em; }
@@ -204,7 +204,7 @@
 .p-role-cta {
   display: inline-flex; align-items: center; justify-content: center; gap: .4rem;
   padding: .6rem 1rem; border-radius: 9px;
-  background: var(--brand); color: #fff;
+  background: var(--brand); color: var(--on-accent);
   font-size: .9rem; font-weight: 700;
   transition: background .15s, transform .12s;
 }
@@ -227,7 +227,7 @@
 .p-step-num {
   flex: 0 0 auto; width: 32px; height: 32px; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #dcfce7; color: #14532d; font-weight: 800; font-size: .9rem;
+  background: var(--success-soft); color: var(--brand-text); font-weight: 800; font-size: .9rem;
 }
 .p-step h3 { font-size: .98rem; }
 .p-step p { margin-top: .2rem; font-size: .85rem; line-height: 1.55; }
@@ -236,19 +236,19 @@
 .p-band {
   display: flex; align-items: center; justify-content: space-between;
   gap: 1.5rem; flex-wrap: wrap;
-  background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 100%);
-  border-radius: 18px; padding: 2rem 1.8rem; color: #fff;
-  box-shadow: 0 10px 30px rgba(27, 94, 32, .22);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+  border-radius: 18px; padding: 2rem 1.8rem; color: var(--on-accent);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--brand) 22%, transparent);
 }
-.p-band h2 { color: #fff; font-size: 1.35rem; }
-.p-band p { margin-top: .25rem; color: #d7e8d8; font-size: .92rem; }
+.p-band h2 { color: var(--on-accent); font-size: 1.35rem; }
+.p-band p { margin-top: .25rem; color: var(--on-accent); font-size: .92rem; }
 .p-band-actions { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
 /* the primary CTA has to invert on the green band — the shared green
    button would disappear into the background */
-.p-band .cta-btn { background: #fff; color: var(--brand); box-shadow: none; }
-.p-band .cta-btn:hover { background: #f0fdf4; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(0,0,0,.18); }
-.p-band .p-btn-ghost { background: transparent; border-color: #ffffff66; color: #fff; }
-.p-band .p-btn-ghost:hover { background: #ffffff1f; border-color: #fff; color: #fff; }
+.p-band .cta-btn { background: var(--surface); color: var(--brand); box-shadow: none; }
+.p-band .cta-btn:hover { background: var(--brand-tint); transform: translateY(-2px); box-shadow: 0 6px 14px color-mix(in srgb, var(--grey-900) 18%, transparent); }
+.p-band .p-btn-ghost { background: transparent; border-color: color-mix(in srgb, var(--surface) 40%, transparent); color: var(--on-accent); }
+.p-band .p-btn-ghost:hover { background: color-mix(in srgb, var(--surface) 12%, transparent); border-color: var(--surface); color: var(--on-accent); }
 
 /* ===== responsive ===== */
 @media (max-width: 860px) {

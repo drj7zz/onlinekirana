@@ -13,9 +13,9 @@ import { Leaf } from 'lucide-react';
 const empty = { name: '', category: '', price: '', unit: 'kg', stock: '', imageUrl: '', discountPercent: 0, description: '' };
 
 const STATUS = {
-  pending: { label: 'Pending', icon: <Clock size={14} color="#f9a825" /> },
-  approved: { label: 'Live', icon: <CircleCheck size={14} color="#2e7d32" /> },
-  rejected: { label: 'Rejected', icon: <CircleX size={14} color="#c62828" /> },
+  pending: { label: 'Pending', icon: <Clock size={14} color="var(--warning-accent)" /> },
+  approved: { label: 'Live', icon: <CircleCheck size={14} color="var(--success)" /> },
+  rejected: { label: 'Rejected', icon: <CircleX size={14} color="var(--danger-strong)" /> },
 };
 
 export default function AdminProducts() {

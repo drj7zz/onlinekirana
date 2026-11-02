@@ -133,7 +133,6 @@ export default function Cart() {
     <div>
       <div className="page-head">
         <h1>Your cart</h1>
-        <p>{count} item{count === 1 ? '' : 's'} from {items[0].product.merchant?.shopName || (items[0].product.merchant ? 'one seller' : 'OnlineKirana')}.</p>
       </div>
 
       {blocked && (

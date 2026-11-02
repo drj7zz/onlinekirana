@@ -2,7 +2,7 @@ const router = require('express').Router();
 const mongoose = require('mongoose');
 const auth = require('../middleware/auth');
 const requireAdmin = (req, res, next) => (req.user?.role === 'admin' ? next() : res.status(403).json({ message: 'Admin access only' }));
-const { place, myOrders, allOrders, cancellationStatus, cancelMine } = require('../controllers/orderController');
+const { place, myOrders, reorder, getWishlist, toggleWishlist, allOrders, cancellationStatus, cancelMine } = require('../controllers/orderController');
 const { cancelOrder } = require('../controllers/deliveryController');
 const auditAdmin = require('../middleware/auditAdmin');
 const { rateLimit } = require('../middleware/rateLimit');
@@ -15,6 +15,9 @@ router.param('id', (req, res, next, id) => {
 });
 router.post('/', place);
 router.get('/mine', myOrders);
+router.get('/:id/reorder', reorder);
+router.get('/wishlist', getWishlist);
+router.post('/wishlist/toggle', toggleWishlist);
 router.get('/cancellation-status', cancellationStatus);
 router.post('/:id/cancel', customerCancelLimit, cancelMine);
 router.get('/', requireAdmin, allOrders);

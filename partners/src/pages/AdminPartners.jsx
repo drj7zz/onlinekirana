@@ -6,7 +6,7 @@ import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import { useToast } from '@shared/context/ToastContext';
 
-const statusIcon = { pending: <Clock size={14} color="#f9a825" />, approved: <CircleCheck size={14} color="#2e7d32" />, suspended: <Ban size={14} color="#c62828" /> };
+const statusIcon = { pending: <Clock size={14} color="var(--warning-accent)" />, approved: <CircleCheck size={14} color="var(--success)" />, suspended: <Ban size={14} color="var(--danger-strong)" /> };
 const partnerLabel = { pending: 'Pending', approved: 'Approved', suspended: 'Suspended' };
 
 /** Every field the admin's filled profile panel can show for a merchant. */

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js --prod",
+    "test": "node --test",
     "seed-admin": "node scripts/createAdmin.js",
     "db-stats": "node scripts/dbStats.js",
     "seed-catalog": "node scripts/seedCatalog.js",

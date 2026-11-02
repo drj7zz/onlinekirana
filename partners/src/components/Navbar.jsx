@@ -3,13 +3,14 @@ import { createPortal } from 'react-dom';
 import {
   Store, Bike, LogOut, ChevronDown, Menu, X, UserCircle2,
   LayoutGrid, Package, HelpCircle, ArrowUpRight, LayoutDashboard,
-  Boxes, ShoppingBag, Settings2, ClipboardList, Truck, Users, ScrollText,
+  Boxes, ShoppingBag, Settings2, ClipboardList, Truck, Users, ScrollText, Moon, Sun,
 } from 'lucide-react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '@shared/context/AuthContext.jsx';
 import { imageUrl } from '@shared/api';
 import { STOREFRONT_URL } from '@shared/lib/apps';
 import NotificationCenter from '@shared/components/NotificationCenter';
+import { applyTheme, initialTheme } from '@shared/lib/theme';
 
 /**
  * Partner portal navigation.
@@ -105,7 +106,10 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dark, setDark] = useState(initialTheme);
   const menuRef = useRef(null);
+
+  useEffect(() => { applyTheme(dark); }, [dark]);
 
   useEffect(() => {
     if (!drawerOpen) return undefined;
@@ -176,6 +180,16 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setDark((current) => !current)}
+            aria-pressed={dark}
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={dark ? 'Light mode' : 'Dark mode'}
+          >
+            {dark ? <Sun size={18} aria-hidden="true" /> : <Moon size={18} aria-hidden="true" />}
+          </button>
           <NotificationCenter />
           {user && (
             <div className="account-menu" ref={menuRef}>

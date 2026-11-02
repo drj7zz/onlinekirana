@@ -72,7 +72,7 @@ export default function Join() {
             <c. icon size={24} aria-hidden="true" />
             <strong>{c. title}</strong>
             <p className="muted" style={{ margin: '.15rem 0 .5rem' }}>{c. note}</p>
-            <ol className="info-steps" style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '.85rem', color: '#555' }}>
+            <ol className="info-steps" style={{ margin: 0, paddingLeft: '1.1rem', fontSize: '.85rem', color: 'var(--grey-700)' }}>
               {c. steps. map((s) => <li key={s}>{s}</li>)}
             </ol>
             <Link to={c. to} className="portal-external" style={{ marginTop: '.7rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
@@ -89,7 +89,7 @@ export default function Join() {
           Nobody has to phone anybody. Once a shopkeeper marks an order packed, the system
           makes the job available for riders to review and accept.
         </p>
-        <ol className="info-steps" style={{ margin: '.8rem 0 0', paddingLeft: '1.2rem', color: '#444' }}>
+        <ol className="info-steps" style={{ margin: '.8rem 0 0', paddingLeft: '1.2rem', color: 'var(--grey-700)' }}>
           <li>The customer places an order and picks a delivery slot.</li>
           <li>The shop packs the goods and taps <strong>Mark packed</strong>. That is the shopkeeper&apos; s only job.</li>
           <li>Riders see open orders and choose which ones to accept. An area match never assigns a job by itself; the shop sees rider details after acceptance.</li>

@@ -29,11 +29,11 @@ export default function Pending() {
           : `Thanks ${user.name} — your ${isRider ? 'rider' : 'shop'} account is waiting for review. The team usually reviews applications the same day.`}
       </p>
 
-      {!isSuspended && <div className="card-panel" style={{ textAlign: 'left', margin: '1.4rem 0', background: '#f7f9f7' }}>
+      {!isSuspended && <div className="card-panel" style={{ textAlign: 'left', margin: '1.4rem 0', background: 'var(--brand-tint)' }}>
         <h2 style={{ display: 'flex', alignItems: 'center', gap: '.4rem', fontSize: '1rem' }}>
           {icon} What happens next
         </h2>
-        <ol className="info-steps" style={{ margin: '.5rem 0 0', paddingLeft: '1.1rem', color: '#444', fontSize: '.88rem' }}>
+        <ol className="info-steps" style={{ margin: '.5rem 0 0', paddingLeft: '1.1rem', color: 'var(--grey-700)', fontSize: '.88rem' }}>
           <li>An admin reviews your application in the Approvals section.</li>
           {isRider ? (
             <>
