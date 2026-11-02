@@ -9,8 +9,7 @@ import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import Orders from './pages/Orders';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import CustomerAuth from './pages/CustomerAuth';
 import Profile from './pages/Profile';
 import Shop from './pages/Shop';
 import Wishlist from './pages/Wishlist';
@@ -37,8 +36,8 @@ export default function App() {
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<RoleGuard role="customer"><Checkout /></RoleGuard>} />
             <Route path="/orders" element={<RoleGuard role="customer"><Orders /></RoleGuard>} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/login" element={<CustomerAuth />} />
+            <Route path="/register" element={<CustomerAuth />} />
             <Route path="/profile" element={<RoleGuard><Profile /></RoleGuard>} />
             <Route path="/shop/:id" element={<Shop />} />
             <Route path="/wishlist" element={<Wishlist />} />

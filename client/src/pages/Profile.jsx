@@ -106,6 +106,7 @@ export default function Profile() {
     try {
       await API.put('/profile/password', { currentPassword: pw.currentPassword, newPassword: pw.newPassword });
       setPw(emptyPw);
+      updateUser({ hasPassword: true });
       setPwMsg({ ok: true, text: 'Password updated' });
       toast.success('Password updated');
     } catch (err) {
@@ -236,12 +237,15 @@ export default function Profile() {
       {/* Security */}
       <section className="card-panel">
         <details className="pw-accordion pw-accordion--bare">
-          <summary><KeyRound size={18} className="action-icon" aria-hidden="true" />Change password<ChevronDown size={16} className="pw-chev" aria-hidden="true" /></summary>
+          <summary><KeyRound size={18} className="action-icon" aria-hidden="true" />{user.hasPassword ? 'Change password' : 'Set a password'}<ChevronDown size={16} className="pw-chev" aria-hidden="true" /></summary>
           <form className="form" onSubmit={changePw}>
-            <label>Current password
-              <PasswordField value={pw.currentPassword} autoComplete="current-password"
-                onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
-            </label>
+            {!user.hasPassword && <p className="muted">This account uses Google sign-in. You can set a password for email sign-in here.</p>}
+            {user.hasPassword && (
+              <label>Current password
+                <PasswordField value={pw.currentPassword} autoComplete="current-password"
+                  onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
+              </label>
+            )}
             <label>New password
               <PasswordField value={pw.newPassword} autoComplete="new-password"
                 onChange={(e) => setPw({ ...pw, newPassword: e.target.value })} />

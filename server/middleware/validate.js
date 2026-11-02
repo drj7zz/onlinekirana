@@ -36,6 +36,9 @@ function validateRegister(req, res, next) {
   b.email = cleanStr(b.email, 100).toLowerCase();
   if (b.shopName !== undefined) b.shopName = cleanStr(b.shopName, 80);
   if (b.phone !== undefined) b.phone = cleanStr(b.phone, 15);
+  const googleCredential = typeof b.googleCredential === 'string' ? b.googleCredential : '';
+  if (googleCredential.length > 12000) errors.googleCredential = 'Google sign-in expired. Please start again.';
+  b.googleCredential = googleCredential;
   // role can ONLY become 'merchant' here — never 'admin' or 'delivery'.
   // Public sign-up may create a shopkeeper or a rider — never an admin. Both
   // start life `pending` and are approved from the portal, so no one can
@@ -46,8 +49,12 @@ function validateRegister(req, res, next) {
 
   if (!b.name || !NAME_RE.test(b.name)) errors.name = 'Enter a valid name (letters, 2–60 chars)';
   if (!EMAIL_RE.test(b.email)) errors.email = 'Enter a valid email address';
-  const pwErrors = validatePassword(b.password, { name: b.name, email: b.email });
-  if (pwErrors.length) errors.password = pwErrors.join(', ');
+  if (b.password) {
+    const pwErrors = validatePassword(b.password, { name: b.name, email: b.email });
+    if (pwErrors.length) errors.password = pwErrors.join(', ');
+  } else if (!b.googleCredential) {
+    errors.password = 'Password is required';
+  }
   if (b.phone && !PHONE_RE.test(b.phone)) errors.phone = 'Enter a valid Nepali mobile (98XXXXXXXX)';
   if (b.role === 'merchant' && !b.shopName) errors.shopName = 'Shop name is required for partners';
   if (b.role === 'delivery') {

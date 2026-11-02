@@ -38,6 +38,13 @@ export function AuthProvider({ children }) {
     return data.user;
   }, []);
 
+  const completeSession = useCallback(({ token, user: authenticatedUser }) => {
+    if (!token || !authenticatedUser) throw new Error('Authentication response is incomplete');
+    setToken(token);
+    persist(authenticatedUser);
+    return authenticatedUser;
+  }, []);
+
   const logout = useCallback(() => { setToken(null); persist(null); }, []);
 
   // merge fresh profile/shop data (e.g. after Profile or Shop Setup edits) into the stored user
@@ -70,7 +77,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, updateUser, refresh }}>
+    <AuthContext.Provider value={{ user, login, register, completeSession, logout, updateUser, refresh }}>
       {children}
     </AuthContext.Provider>
   );
