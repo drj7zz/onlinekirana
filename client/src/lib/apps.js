@@ -64,8 +64,7 @@ const selfOrigin = () => {
  * loopback — on a real host we must not invent a port, so a same-origin
  * deployment links to itself.
  */
-const otherApp = (key, port) => {
-  const configured = import.meta.env[key];
+const otherApp = (key, configured, port) => {
   if (configured) return clean(configured);
 
   missingConfig(key);
@@ -81,7 +80,7 @@ const otherApp = (key, port) => {
 export const SELF_URL = selfOrigin();
 
 /** The partner portal — merchants, riders, operations. */
-export const PORTAL_URL = otherApp('VITE_PARTNERS_URL', 5174);
+export const PORTAL_URL = otherApp('VITE_PARTNERS_URL', import.meta.env.VITE_PARTNERS_URL, 5174);
 
 /** The shopper storefront. */
-export const STOREFRONT_URL = otherApp('VITE_STOREFRONT_URL', 5173);
+export const STOREFRONT_URL = otherApp('VITE_STOREFRONT_URL', import.meta.env.VITE_STOREFRONT_URL, 5173);
