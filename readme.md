@@ -151,6 +151,13 @@ on each project:
 | `onlinekirana-partners` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
 | `onlinekirana-partners` | `VITE_STOREFRONT_URL` | `https://onlinekiranabirgunj.vercel.app` |
 
+The storefront can be installed as a standalone web app over HTTPS. On Android,
+use **Install app** and confirm the browser prompt (or choose **Add to Home
+screen** in Chrome). On iPhone or iPad, open the storefront in Safari, tap
+**Share → Add to Home Screen**, then confirm. On desktop, install from the
+address-bar install icon or the browser menu in Chrome/Edge; Safari on macOS
+Sonoma or newer supports **File → Add to Dock**.
+
 Set `NODE_ENV=production`, `MONGO_URI`, a random `JWT_SECRET` of at least 32
 characters, `GOOGLE_CLIENT_ID` to the same OAuth Web client ID, and `CLIENT_URL` to the exact comma-separated HTTPS storefront and
 partner origins. For a pitch demo, set `PILOT_DELIVERY_ENABLED=true`; enable

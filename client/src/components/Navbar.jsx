@@ -475,19 +475,34 @@ export default function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dark, setDark] = useState(initialTheme);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [installHelpOpen, setInstallHelpOpen] = useState(false);
+  const [installError, setInstallError] = useState('');
+  const [appInstalled, setAppInstalled] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => { applyTheme(dark); }, [dark]);
 
   useEffect(() => {
+    const standalone = window.matchMedia('(display-mode: standalone)');
+    const updateInstalled = () => {
+      setAppInstalled(standalone.matches || navigator.standalone === true);
+    };
     const showInstallPrompt = (event) => {
       event.preventDefault();
       setInstallPrompt(event);
     };
-    const installed = () => setInstallPrompt(null);
+    const installed = () => {
+      setInstallPrompt(null);
+      setAppInstalled(true);
+    };
+    updateInstalled();
+    if (standalone.addEventListener) standalone.addEventListener('change', updateInstalled);
+    else standalone.addListener(updateInstalled);
     window.addEventListener('beforeinstallprompt', showInstallPrompt);
     window.addEventListener('appinstalled', installed);
     return () => {
+      if (standalone.removeEventListener) standalone.removeEventListener('change', updateInstalled);
+      else standalone.removeListener(updateInstalled);
       window.removeEventListener('beforeinstallprompt', showInstallPrompt);
       window.removeEventListener('appinstalled', installed);
     };
@@ -505,6 +520,20 @@ export default function Navbar() {
       document.body.style.overflow = prev;
     };
   }, [drawerOpen]);
+
+  useEffect(() => {
+    if (!installHelpOpen) return undefined;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setInstallHelpOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [installHelpOpen]);
 
   // close the profile menu when clicking anywhere else
   useEffect(() => {
@@ -531,11 +560,46 @@ export default function Navbar() {
   const go = (path) => { closeAll(); navigate(path); };
   const doLogout = () => { closeAll(); logout(); navigate('/'); };
   const installApp = async () => {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === 'accepted') setInstallPrompt(null);
+    if (!installPrompt) {
+      setInstallHelpOpen(true);
+      return;
+    }
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      setInstallPrompt(null);
+      if (choice.outcome === 'accepted') {
+        setAppInstalled(true);
+        setInstallHelpOpen(false);
+      } else {
+        setInstallError('Installation was cancelled. You can install OnlineKirana later from your browser menu.');
+        setInstallHelpOpen(true);
+      }
+    } catch (error) {
+      console.error('Automatic app installation failed:', error);
+      setInstallPrompt(null);
+      setInstallError('Automatic installation is unavailable in this browser. Use the steps below instead.');
+      setInstallHelpOpen(true);
+    }
   };
+  const installSteps = (() => {
+    const userAgent = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(userAgent) || (/Macintosh/i.test(userAgent) && navigator.maxTouchPoints > 1)) {
+      return ['Open this page in Safari.', 'Tap Share, then choose Add to Home Screen.', 'Tap Add to install OnlineKirana.'];
+    }
+    if (/Android/i.test(userAgent)) {
+      return ['Open this page in Chrome.', 'Tap the menu (⋮), then Install app or Add to Home screen.', 'Confirm to add OnlineKirana to your home screen.'];
+    }
+    if (/Macintosh|Mac OS X/i.test(userAgent)) {
+      return ['In Safari on macOS Sonoma or newer, choose File > Add to Dock.', 'Or open this page in Chrome or Edge and choose Install OnlineKirana from the address bar or browser menu.', 'The app will open in its own window from your apps list.'];
+    }
+    return ['In Chrome or Edge, select the install icon in the address bar, or open the browser menu.', 'Choose Install OnlineKirana, then confirm.', 'The app will open in its own window from your apps list.'];
+  })();
+  const installButton = !appInstalled && (
+    <button type="button" className="pwa-install-btn" onClick={installApp} aria-label="Install OnlineKirana app">
+      <Download size={17} aria-hidden="true" /> <span>Install app</span>
+    </button>
+  );
 
   return (
     <header className="site-header">
@@ -566,11 +630,7 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
-          {installPrompt && (
-            <button type="button" className="pwa-install-btn" onClick={installApp} aria-label="Install OnlineKirana app">
-              <Download size={16} aria-hidden="true" /> <span>Install app</span>
-            </button>
-          )}
+          {installButton}
           <button
             type="button"
             className="theme-toggle"
@@ -697,7 +757,7 @@ export default function Navbar() {
               )}
             </nav>
 
-            {installPrompt && (
+            {!appInstalled && (
               <button type="button" className="drawer-link drawer-btn pwa-install-drawer" onClick={installApp}>
                 <Download size={17} aria-hidden="true" /> <span>Install app</span>
               </button>
@@ -707,6 +767,36 @@ export default function Navbar() {
               <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>
             )}
           </div>
+        </div>,
+        document.body
+      )}
+      {installHelpOpen && createPortal(
+        <div className="pwa-install-overlay" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setInstallHelpOpen(false);
+        }}>
+          <section className="pwa-install-dialog" role="dialog" aria-modal="true" aria-labelledby="pwa-install-title">
+            <header>
+              <div className="pwa-install-heading">
+                <span className="pwa-install-icon"><Download size={20} aria-hidden="true" /></span>
+                <div>
+                  <h2 id="pwa-install-title">Install OnlineKirana</h2>
+                  <p>Add the app to your device for quick, full-screen access.</p>
+                </div>
+              </div>
+              <button type="button" className="pwa-install-close" onClick={() => setInstallHelpOpen(false)} aria-label="Close install instructions">
+                <X size={20} aria-hidden="true" />
+              </button>
+            </header>
+            {installError && <p className="pwa-install-error" role="status">{installError}</p>}
+            <ol>
+              {installSteps.map((step) => <li key={step}>{step}</li>)}
+            </ol>
+            <p className="pwa-install-note">OnlineKirana installs as a web app—no app-store download is required.</p>
+            <button type="button" className="cta-btn pwa-install-done" onClick={() => {
+              setInstallHelpOpen(false);
+              setInstallError('');
+            }}>Got it</button>
+          </section>
         </div>,
         document.body
       )}
