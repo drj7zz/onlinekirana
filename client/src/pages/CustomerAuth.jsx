@@ -26,9 +26,12 @@ function GoogleIdentityButton({ onCredential }) {
     const button = buttonRef.current;
     if (!GOOGLE_CLIENT_ID || !button) return undefined;
     let active = true;
+    let renderedWidth = 0;
     googleCredentialHandler = onCredential;
     const renderButton = () => {
       if (!active || !window.google?.accounts?.id) return;
+      const width = Math.min(400, Math.floor(button.clientWidth || 340));
+      if (width < 180 || width === renderedWidth) return;
       if (initializedGoogleClientId !== GOOGLE_CLIENT_ID) {
         window.google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
@@ -39,18 +42,25 @@ function GoogleIdentityButton({ onCredential }) {
         });
         initializedGoogleClientId = GOOGLE_CLIENT_ID;
       }
+      button.replaceChildren();
+      renderedWidth = width;
       window.google.accounts.id.renderButton(button, {
         type: 'standard',
         theme: document.documentElement.dataset.theme === 'dark' ? 'filled_black' : 'outline',
         size: 'large',
         text: 'continue_with',
         shape: 'rectangular',
-        width: Math.min(340, Math.floor(button.clientWidth || 340)),
+        width,
         logo_alignment: 'left',
       });
       setStatus('ready');
     };
 
+    const resizeObserver = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(renderButton);
+    if (resizeObserver) resizeObserver.observe(button);
+    else window.addEventListener('resize', renderButton);
     let script = document.querySelector('script[data-google-identity]');
     if (window.google?.accounts?.id) {
       renderButton();
@@ -70,6 +80,8 @@ function GoogleIdentityButton({ onCredential }) {
       if (window.google?.accounts?.id) renderButton();
       return () => {
         active = false;
+        resizeObserver?.disconnect();
+        window.removeEventListener('resize', renderButton);
         if (googleCredentialHandler === onCredential) googleCredentialHandler = null;
         script.removeEventListener('load', handleLoad);
         script.removeEventListener('error', handleError);
@@ -79,6 +91,8 @@ function GoogleIdentityButton({ onCredential }) {
 
     return () => {
       active = false;
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', renderButton);
       if (googleCredentialHandler === onCredential) googleCredentialHandler = null;
       button.replaceChildren();
     };

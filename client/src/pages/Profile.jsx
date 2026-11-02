@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Save, KeyRound, CircleCheck, TriangleAlert, Package, Heart, Camera, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Save, KeyRound, CircleCheck, TriangleAlert, Package, Heart, Camera, Pencil, Trash2, ChevronDown, LogOut } from 'lucide-react';
 import API from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -35,7 +35,8 @@ function AvatarPicker({ endpoint, onUploaded }, ref) {
 const ForwardAvatarPicker = forwardRef(AvatarPicker);
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const toast = useToast();
   const [form, setForm] = useState(emptyForm);
   const [pw, setPw] = useState(emptyPw);
@@ -115,6 +116,11 @@ export default function Profile() {
     } finally {
       setPwSaving(false);
     }
+  };
+
+  const signOut = () => {
+    logout();
+    navigate('/');
   };
 
   if (!user) return <p className="empty">Please <Link to="/login">login</Link>.</p>;
@@ -261,6 +267,10 @@ export default function Profile() {
         </details>
       </section>
 
+      <button type="button" className="profile-logout-btn" onClick={signOut}>
+        <LogOut size={18} aria-hidden="true" />
+        <span>Log out</span>
+      </button>
     </div>
   );
 }
