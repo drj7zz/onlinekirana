@@ -144,11 +144,15 @@ app.use('/api/uploads', require('./routes/uploadRoutes'));
 // uploaded images (avatars, shop logos, product photos)
 // - immutable caching: filenames are random hex, so content never changes
 // - index:false stops directory listing; dotfiles stay private
+// Set CORP before static middleware so missing files carry it too.
+app.use('/uploads', (req, res, next) => {
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  next();
+});
 app.use('/uploads', express.static(require('path').join(__dirname, 'uploads'), {
   index: false,
   dotfiles: 'ignore',
   immutableMaxAge: '30d',
-  setHeaders(res) { res.set('Cross-Origin-Resource-Policy', 'cross-origin'); },
 }));
 
 app.get('/api/health', (req, res) => {

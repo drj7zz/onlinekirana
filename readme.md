@@ -133,6 +133,15 @@ variables in the server host's secret settings, and set `VITE_API_URL` in each
 frontend's build settings to the public API origin (for example,
 `https://api.example.com`, without `/api`). `VITE_API_URL` is baked into the
 frontend bundle; changing it requires rebuilding and redeploying both frontends.
+In Vercel, configure these public URLs for both **Production** and **Preview**
+on each project:
+
+| Vercel project | Variable | Value |
+| --- | --- | --- |
+| `onlinekiranabirgunj` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
+| `onlinekiranabirgunj` | `VITE_PARTNERS_URL` | `https://onlinekirana-partners.vercel.app` |
+| `onlinekirana-partners` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
+| `onlinekirana-partners` | `VITE_STOREFRONT_URL` | `https://onlinekiranabirgunj.vercel.app` |
 
 Set `NODE_ENV=production`, `MONGO_URI`, a random `JWT_SECRET` of at least 32
 characters, and `CLIENT_URL` to the exact comma-separated HTTPS storefront and
