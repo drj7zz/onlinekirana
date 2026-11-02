@@ -16,6 +16,7 @@ function MerchantDetails({ m }) {
       <div><dt>Shop name</dt><dd>{m.shopName || 'Not set yet'}</dd></div>
       <div><dt>Owner</dt><dd>{m.name || '—'}</dd></div>
       <div><dt>Email</dt><dd>{m.email}</dd></div>
+      <div><dt>Email verification</dt><dd>{m.emailVerified ? 'Verified' : 'Not verified'}</dd></div>
       <div><dt>Phone</dt><dd>{m.phone || 'Not set'}</dd></div>
       <div><dt>Shop contact</dt><dd>{m.shopPhone || 'Not set'}</dd></div>
       <div><dt>Status</dt><dd>{partnerLabel[m.merchantStatus] || m.merchantStatus}</dd></div>
@@ -34,6 +35,7 @@ function RiderDetails({ r }) {
     <dl className="detail-grid">
       <div><dt>Name</dt><dd>{r.name}</dd></div>
       <div><dt>Email</dt><dd>{r.email}</dd></div>
+      <div><dt>Email verification</dt><dd>{r.emailVerified ? 'Verified' : 'Not verified'}</dd></div>
       <div><dt>Phone</dt><dd>{r.phone || 'Not set'}</dd></div>
       <div><dt>Vehicle</dt><dd>{r.riderVehicle || 'Not set'}</dd></div>
       <div><dt>Area</dt><dd>{r.riderArea || 'Not set'}</dd></div>

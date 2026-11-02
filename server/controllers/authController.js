@@ -5,6 +5,12 @@ const { validateRegister, validateLogin, validatePassword } = require('../middle
 const { loginIp } = require('../middleware/rateLimit');
 const { notifyUsers } = require('../utils/notifications');
 const { revokeAllSessions } = require('../lib/platform');
+const { hashVerificationToken, issueVerificationToken } = require('../lib/emailVerification');
+const {
+  sendVerificationEmail,
+  sendApplicationReceivedEmail,
+  sendBestEffort,
+} = require('../lib/email');
 
 const { signToken } = require('../lib/tokens');
 
@@ -17,7 +23,6 @@ const publicUser = (u) => ({
 
 // ---- LOGIN: rate-limited per IP + per account; identical failure response (no user enumeration) ----
 const DUMMY_HASH = bcrypt.hashSync('timing-safe-dummy', 12);
-
 // POST /api/auth/logout — revoke the caller's token in Redis (instant, server-side)
 exports.logout = async (req, res) => {
   try { await revokeSession(String(req.user.id), req.user.jti); } catch { /* best-effort */ }
@@ -46,6 +51,13 @@ exports.login = [
 
       if (!user || !ok) {
         return res.status(401).json({ message: 'Invalid email or password' });
+      }
+
+      if (['merchant', 'delivery'].includes(user.role) && !user.emailVerified) {
+        return res.status(403).json({
+          code: 'EMAIL_NOT_VERIFIED',
+          message: 'Verify your email before signing in to the partner portal.',
+        });
       }
 
       // Migrate older bcrypt hashes to the current work factor after a valid
@@ -97,6 +109,7 @@ exports.register = [
         phone: phone || undefined,
         address: address?.line ? { line: address.line, city: 'Birgunj', ward: address.ward } : undefined,
         role: isMerchant ? 'merchant' : isRider ? 'delivery' : 'customer',
+        emailVerified: !isMerchant && !isRider,
         ...(isMerchant && { shopName, merchantStatus: 'pending' }),
         ...(isRider && {
           riderArea: riderArea || undefined,
@@ -106,12 +119,21 @@ exports.register = [
       });
 
       if (isMerchant || isRider) {
-        const admins = await User.find({ role: 'admin' }).select('_id').lean().catch(() => []);
-        await notifyUsers(admins.map((admin) => admin._id), {
-          type: 'approval',
-          title: isMerchant ? 'Shop application received' : 'Rider application received',
-          body: `${user.name} is waiting for account approval.`,
-          link: '/admin/partners',
+        const token = await issueVerificationToken(user);
+        try {
+          await sendVerificationEmail(user, token);
+        } catch (error) {
+          console.error('[email] partner verification email failed:', error.message);
+          return res.status(503).json({
+            code: 'VERIFICATION_EMAIL_UNAVAILABLE',
+            message: 'Your application was saved, but we could not send the verification email. Use resend verification to try again.',
+            email: user.email,
+          });
+        }
+        return res.status(202).json({
+          verificationRequired: true,
+          email: user.email,
+          message: 'Check your email for a verification link before signing in.',
         });
       }
 
@@ -122,6 +144,70 @@ exports.register = [
     }
   },
 ];
+
+exports.resendVerification = async (req, res) => {
+  const email = String(req.body?.email || '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    return res.status(400).json({ message: 'Enter a valid email address.' });
+  }
+  try {
+    const user = await User.findOne({
+      email,
+      role: { $in: ['merchant', 'delivery'] },
+      emailVerified: false,
+    });
+    if (!user) {
+      return res.json({ message: 'If an unverified partner application exists for this address, a new link will be sent.' });
+    }
+
+    const token = await issueVerificationToken(user);
+    await sendVerificationEmail(user, token);
+    res.json({ message: 'If an unverified partner application exists for this address, a new link will be sent.' });
+  } catch (error) {
+    console.error('[email] verification resend failed:', error.message);
+    res.status(503).json({ message: 'Verification email is temporarily unavailable. Please try again later.' });
+  }
+};
+
+exports.verifyEmail = async (req, res) => {
+  const token = String(req.body?.token || '');
+  if (!/^[A-Za-z0-9_-]{40,60}$/.test(token)) {
+    return res.status(400).json({ message: 'This verification link is invalid or expired. Request a new one.' });
+  }
+  try {
+    const user = await User.findOne({
+      emailVerificationTokenHash: hashVerificationToken(token),
+      emailVerificationExpires: { $gt: new Date() },
+      role: { $in: ['merchant', 'delivery'] },
+      emailVerified: false,
+    }).select('+emailVerificationTokenHash +emailVerificationExpires');
+    if (!user) {
+      return res.status(400).json({ message: 'This verification link is invalid or expired. Request a new one.' });
+    }
+
+    user.emailVerified = true;
+    user.emailVerificationTokenHash = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    await sendBestEffort('partner application email', () => sendApplicationReceivedEmail(user));
+    try {
+      const admins = await User.find({ role: 'admin' }).select('_id').lean();
+      await notifyUsers(admins.map((admin) => admin._id), {
+        type: 'approval',
+        title: user.role === 'merchant' ? 'Shop application received' : 'Rider application received',
+        body: `${user.name} verified their email and is waiting for account approval.`,
+        link: '/admin/partners',
+      });
+    } catch (error) {
+      console.error('[notifications] application notice failed:', error.message);
+    }
+    res.json({ message: 'Email verified. Your application is now waiting for admin review.' });
+  } catch (error) {
+    console.error('[auth] email verification failed:', error.message);
+    res.status(500).json({ message: 'Email verification could not be completed. Please try again.' });
+  }
+};
 
 // Password strength check (used by the client meter)
 exports.checkStrength = (req, res) => {

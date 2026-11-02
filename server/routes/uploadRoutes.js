@@ -1,9 +1,11 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
+const { rateLimit } = require('../middleware/rateLimit');
 const { UPLOADERS, handleUpload, cloudEnabled, removeOld } = require('../middleware/upload');
 const c = require('../controllers/uploadController');
 
 router.use(auth);
+router.use(rateLimit({ windowMs: 60 * 60 * 1000, max: 30, keyFn: (req) => `upload:${req.user.id}` }));
 // Cloudinary uploads return an absolute CDN URL; disk fallbacks return /uploads/…
 const storeUrl = (req) => (cloudEnabled ? req.file.cloudinaryUrl : `/uploads/${req.file.cloudinaryPath || ''}`);
 

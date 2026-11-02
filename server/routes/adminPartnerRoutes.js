@@ -4,6 +4,7 @@ const User = require('../models/User');
 const Product = require('../models/Product');
 const { serverError } = require('../utils/errors');
 const { notifyUser } = require('../utils/notifications');
+const { notifyPartnerStatus, notifyProductReview } = require('../lib/emailNotifications');
 
 router.use(auth);
 
@@ -23,22 +24,27 @@ const setStatus = async (req, res) => {
     if (!['pending', 'approved', 'suspended'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
-    const partner = await User.findOneAndUpdate(
-      { _id: req.params.id, role: 'merchant' },
-      { merchantStatus: status },
-      { new: true }
-    ).select('-password');
+    const partner = await User.findOne({ _id: req.params.id, role: 'merchant' }).select('-password');
     if (!partner) return res.status(404).json({ message: 'Partner not found' });
+    if (status === 'approved' && !partner.emailVerified) {
+      return res.status(409).json({ message: 'The merchant must verify their email before approval.' });
+    }
+    const previousStatus = partner.merchantStatus;
+    partner.merchantStatus = status;
+    await partner.save();
     // suspending a partner also hides their products
     if (status === 'suspended') await Product.updateMany({ merchant: partner._id }, { isActive: false });
     if (status === 'approved') await Product.updateMany({ merchant: partner._id, status: 'approved' }, { isActive: true });
-    if (status === 'approved') {
+    if (status === 'approved' && previousStatus !== status) {
       await notifyUser(partner._id, {
         type: 'approval', title: 'Shop application approved',
         body: 'Your shop is approved. You can now manage products and orders.', link: '/dashboard',
       }).catch(() => {});
     }
-    res.json(partner);
+    if (['approved', 'suspended'].includes(status) && previousStatus !== status) {
+      await notifyPartnerStatus(partner, status);
+    }
+    res.json(partner.toJSON());
   } catch (e) {
     res.status(400).json({ message: e.message });
   }
@@ -57,26 +63,26 @@ const reviewProduct = async (req, res) => {
   try {
     const { status } = req.body;
     if (!['approved', 'rejected', 'pending'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      { status, isActive: status === 'approved' },
-      { new: true }
-    );
+    const product = await Product.findById(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
     if (status === 'approved' && product.merchant) {
-      const merchant = await User.findOne({ _id: product.merchant, role: 'merchant', merchantStatus: 'approved' }).select('_id');
+      const merchant = await User.findOne({ _id: product.merchant, role: 'merchant', merchantStatus: 'approved', emailVerified: true }).select('_id');
       if (!merchant) {
-        await Product.updateOne({ _id: product._id }, { status: 'pending', isActive: false });
         return res.status(409).json({ message: 'Approve the shop application before approving its products.' });
       }
     }
-    if (product.merchant) {
+    const previousStatus = product.status;
+    product.status = status;
+    product.isActive = status === 'approved';
+    await product.save();
+    if (product.merchant && previousStatus !== status && ['approved', 'rejected'].includes(status)) {
       await notifyUser(product.merchant, {
         type: 'approval',
         title: status === 'approved' ? 'Product approved' : 'Product not approved',
         body: `${product.name} ${status === 'approved' ? 'is now live in the shop.' : 'needs changes before it can be listed.'}`,
         link: '/products',
       }).catch(() => {});
+      await notifyProductReview(product.merchant, product, status);
     }
     res.json(product);
   } catch (e) {

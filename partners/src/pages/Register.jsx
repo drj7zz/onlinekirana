@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Store, Bike, ShieldCheck } from 'lucide-react';
 import API from '@shared/api';
-import { useAuth } from '@shared/context/AuthContext';
 import { PasswordField, StrengthMeter, checkPassword } from '@shared/components/PasswordSecurity';
 import useSeo from '@shared/hooks/useSeo';
 
@@ -26,12 +25,12 @@ export default function Register() {
     description:
       'Create your OnlineKirana partner account as a shopkeeper or a delivery rider. No shop licence, PAN or VAT card — just your name, email, phone and a password.',
   });
-  const { register } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState('merchant');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', shopName: '', line: '', ward: '', riderArea: '', riderVehicle: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
+  const [verificationEmail, setVerificationEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const set = (k) => (e) => setForm({ ... form, [k]: e. target. value });
@@ -40,6 +39,7 @@ export default function Register() {
   const submit = async (e) => {
     e. preventDefault();
     setError('');
+    setVerificationEmail('');
     const clientPwErrors = checkPassword(form. password, form. name, form. email);
     if (clientPwErrors. length) {
       setFieldErrors({ password: ['Needs: ' + clientPwErrors. join(', ')] });
@@ -48,7 +48,7 @@ export default function Register() {
     setFieldErrors({});
     setSubmitting(true);
     try {
-      const account = await register(API, {
+      const { data: account } = await API.post('/auth/register', {
         name: form. name,
         email: form. email,
         password: form. password,
@@ -61,16 +61,14 @@ export default function Register() {
           : { shopName: form. shopName, address: { line: form. line, ward: form. ward } }),
       });
 
-      // A new partner cannot work yet — send them to a page that says so rather
-      // than to an empty workspace.
-      const needsApproval = isRider
-        ? account?. riderStatus === 'pending'
-        : account?. merchantStatus === 'pending';
-      navigate(needsApproval ? '/pending' : (isRider ? '/rider' : '/dashboard'), { replace: true });
+      if (account?.verificationRequired) {
+        navigate(`/verify-email?email=${encodeURIComponent(account.email)}`, { replace: true });
+      }
     } catch (err) {
       const data = err. response?. data;
       if (data?. errors) setFieldErrors(data. errors);
       else setError(data?. message || 'Registration failed');
+      if (data?.code === 'VERIFICATION_EMAIL_UNAVAILABLE') setVerificationEmail(data.email || form.email.trim());
     } finally {
       setSubmitting(false);
     }
@@ -147,6 +145,7 @@ export default function Register() {
       )}
 
       {error && <p className="error">{error}</p>}
+      {verificationEmail && <p className="muted"><Link to={`/verify-email?email=${encodeURIComponent(verificationEmail)}`}>Resend verification email</Link></p>}
       {fieldErrors. name && <p className="error">{fieldErrors. name}</p>}
       {fieldErrors. shopName && <p className="error">{fieldErrors. shopName}</p>}
       {fieldErrors. riderArea && <p className="error">{fieldErrors. riderArea}</p>}

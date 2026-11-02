@@ -28,6 +28,8 @@ if (process.env.CLOUDINARY_URL) {
 
 const cloudEnabled = Boolean(process.env.CLOUDINARY_URL);
 
+const checkCloudinary = () => cloudinary.api.ping();
+
 // ---- local-disk fallback (used only when Cloudinary is not configured) ----
 const ROOT = path.join(__dirname, '..', 'uploads');
 for (const sub of ['avatars', 'shops', 'products']) {
@@ -146,4 +148,4 @@ const UPLOADERS = {
   products: makeUploader('products'),
 };
 
-module.exports = { UPLOADERS, handleUpload, UPLOAD_ROOT: ROOT, cloudEnabled, removeOld };
+module.exports = { UPLOADERS, handleUpload, UPLOAD_ROOT: ROOT, cloudEnabled, checkCloudinary, removeOld };

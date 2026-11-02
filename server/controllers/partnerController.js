@@ -5,12 +5,13 @@ const Delivery = require('../models/Delivery');
 const { serverError } = require('../utils/errors');
 const deliveryController = require('./deliveryController');
 const { enqueue } = require('../lib/platform');
+const { notifyOrderStatus } = require('../lib/emailNotifications');
 
 // Guard: only approved merchants can manage products
 exports.requireMerchant = async (req, res, next) => {
   if (req.user.role !== 'merchant') return res.status(403).json({ message: 'Merchant (partner) access only' });
   try {
-    const merchant = await User.findOne({ _id: req.user.id, role: 'merchant', merchantStatus: 'approved' }).select('_id');
+    const merchant = await User.findOne({ _id: req.user.id, role: 'merchant', merchantStatus: 'approved', emailVerified: true }).select('_id');
     if (!merchant) return res.status(403).json({ message: 'Your shop application must be approved before managing products and orders.' });
     next();
   } catch (error) { next(error); }
@@ -132,6 +133,7 @@ exports.updateOrderStatus = async (req, res) => {
     await order.save();
 
     const delivery = await deliveryController.dispatchForOrder(order._id);
+    await notifyOrderStatus(order._id, 'packed');
     // Notifications fan-out runs as background tasks — packing returns instantly.
     await enqueue({ type: 'order-packed', orderId: String(order._id), orderUser: String(order.user) }).catch(() => {});
     if (delivery) await enqueue({ type: 'notify-riders', deliveryId: String(delivery._id) }).catch(() => {});

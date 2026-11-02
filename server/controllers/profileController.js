@@ -3,6 +3,7 @@ const { cleanStr, validatePassword, NAME_RE, PHONE_RE } = require('../middleware
 const { serverError } = require('../utils/errors');
 const { revokeAllSessions } = require('../lib/platform');
 const { encryptPII, decryptPII } = require('../lib/piiCrypto');
+const { notifyPasswordChanged } = require('../lib/emailNotifications');
 
 // Everything the logged-in user may see about themselves (never the password hash)
 const myView = (u) => ({
@@ -93,6 +94,7 @@ exports.changePassword = async (req, res) => {
     await user.save();
     // Security: a password change kills every existing session for this user.
     await revokeAllSessions(String(user._id)).catch(() => {});
+    await notifyPasswordChanged(user);
     res.json({ message: 'Password updated' });
   } catch (e) {
     serverError(res, e);

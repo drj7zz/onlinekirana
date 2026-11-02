@@ -65,6 +65,12 @@ MONGO_URI=mongodb://127.0.0.1:27017/onlinekirana   # or your Atlas connection st
 JWT_SECRET=replace-with-a-long-random-string
 # Allowed browser origins, comma-separated. Storefront :5173, partner portal :5174.
 CLIENT_URL=http://localhost:5173,http://localhost:5174
+PARTNER_PORTAL_URL=http://localhost:5174
+# Configure Resend and a sender address on a domain verified in Resend.
+RESEND_API_KEY=re_replace_with_a_Resend_API_key
+EMAIL_FROM=OnlineKirana <no-reply@your-verified-domain.example>
+# Optional
+EMAIL_REPLY_TO=support@your-verified-domain.example
 
 # Used by the seed script
 ADMIN_NAME=OnlineKirana Admin
@@ -150,6 +156,23 @@ partner origins. For a pitch demo, set `PILOT_DELIVERY_ENABLED=true`; enable
 belong to the API environment, and changing them requires an API restart or
 redeploy. Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
 if browser push is part of the demo.
+
+Configure transactional email on the **API host only**: set `RESEND_API_KEY`,
+`EMAIL_FROM` to a sender on a Resend-verified domain, `PARTNER_PORTAL_URL` to
+the HTTPS partner portal, and optionally `EMAIL_REPLY_TO`. Never add the Resend
+key to Vercel or commit it. Merchant and rider applications require a
+24-hour, one-time email link before login or approval. Applicants can request
+another link; sends are limited per IP and per email. New orders are only
+accepted after the customer delivery code is emailed successfully. Product
+review, application, account status, order progress, and password-change emails
+are sent through Resend; transient status-email failures are reported in API
+logs without undoing completed admin/order actions.
+
+Admins can check Resend sender-domain status, Cloudinary connectivity, and
+Redis availability at `/admin/integrations` in the partner portal. The check
+does not send a test email or reveal credentials. Set `CLOUDINARY_URL` and a
+shared `REDIS_URL` in the API host for durable uploaded images and
+cross-instance rate limits/background jobs.
 
 After deployment, check `https://<api-host>/api/health`, load both sites, sign in
 to each role, and place one test order during the free window and one eligible

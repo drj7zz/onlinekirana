@@ -4,6 +4,10 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+  // Existing accounts remain verified; public merchant/rider registration sets this false.
+  emailVerified: { type: Boolean, default: true },
+  emailVerificationTokenHash: { type: String, select: false },
+  emailVerificationExpires: { type: Date, select: false },
   password: { type: String, required: true, minlength: 6 },
   phone: { type: String, trim: true },
   address: {
@@ -51,6 +55,7 @@ const userSchema = new mongoose.Schema({
 
 userSchema.index({ role: 1, merchantStatus: 1 });
 userSchema.index({ role: 1, riderStatus: 1 });
+userSchema.index({ emailVerificationTokenHash: 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
