@@ -123,8 +123,8 @@ onlinekirana/
 | `address` | `{ line, ward, city='Birgunj', location? }` | delivery default and optional customer pin |
 | `avatarUrl` | String | uploaded avatar |
 | `role` | enum | `customer` \| `merchant` \| `delivery` \| `admin` (default `customer`) |
-| `emailVerified` | Boolean | Existing accounts default to verified; new merchant and delivery-partner applications must verify by email |
-| `emailVerificationTokenHash`, `emailVerificationExpires` | String, Date | One-time verification token hash and 24-hour expiry; never returned to clients |
+| `emailVerified` | Boolean | Legacy-named gate; new partners complete the in-app code step, which does not establish email ownership |
+| `emailVerificationCodeHash`, `emailVerificationExpires`, `emailVerificationAttempts` | String, Date, Number | Hashed 6-digit in-app code, 15-minute expiry, and per-code attempt counter |
 | `shopName` | String | merchant only |
 | `merchantStatus` | enum | `pending` \| `approved` \| `suspended` |
 | `shopDescription` / `shopPhone` / `shopLogoUrl` | String | public shop profile |
@@ -194,8 +194,9 @@ contain my products" and preserves the historical price even if the product chan
 
 **Registration safety** — public registration permits only `customer`, `merchant`, or
 `delivery`; any other value (including `admin`) is discarded by the validator. New
-merchant and delivery-partner accounts must verify their email before login or approval.
-Admin is seeded only via script.
+merchant and delivery-partner accounts must complete the in-app code step before
+login or approval. This temporary step does not verify email ownership. Admin
+is seeded only via script.
 
 **Session handling on the client** (`api.js`)
 - Token persisted in `localStorage` (`ok_token`); user in `ok_user`.
@@ -234,10 +235,9 @@ Base URL `/api`. Auth: `Authorization: Bearer <token>`.
 **Rate limits** (`middleware/rateLimit.js`, Redis-backed with per-process memory fallback)
 - Login per **IP**: 20 requests / 15 min.
 - Login per **account** (email): 6 requests / 15 min.
-- Partner verification email: 3 sends per email / hour and 12 sends per IP / hour.
-- Email verification attempts: 30 per IP / hour.
-- Partner applications: 3 verification sends per address / hour.
-- Admin-created riders: 6 per admin / hour and 3 sends per recipient / hour.
+- Partner verification-code issuance: 3 per email / hour and 12 per IP / hour.
+- Partner code verification: 5 attempts per code and 30 requests per IP / hour.
+- Admin-created riders: 6 per admin / hour and 3 code issuances per recipient / hour.
 - Password changes: 5 per account / hour.
 - Customer order placements: 8 per account / hour.
 - Image uploads: 30 per account / hour.
@@ -245,13 +245,15 @@ Base URL `/api`. Auth: `Authorization: Bearer <token>`.
 - Over the limit → `429` with `Retry-After`.
 - Redis shares limits between API instances; the memory fallback is per-process.
 
-**Transactional email** uses Resend (`RESEND_API_KEY`, `EMAIL_FROM`). Merchant and
-rider applications store a SHA-256 hash of a random, 24-hour verification token;
-the raw token is only sent in the partner-portal link. Verification emails are
-rate-limited by recipient and IP. Delivery hand-over codes are emailed before
-the order is accepted; checkout is rolled back if that required email cannot be
-sent. Application/status, product review, order progress, and password-change
-emails are best-effort, with failures logged explicitly.
+**Temporary partner verification** uses a random six-digit in-app code. The
+database stores only its SHA-256 hash, code expiry, and failed-attempt count.
+The code is shown in the portal and reissue requires the application password.
+This does not prove email ownership and is not suitable for identity
+verification or account recovery. Resend is optional for registration and
+checkout. Customer delivery codes remain in the authenticated order card after
+the rider picks up the order. Application/status, product-review, order-progress
+and password-change emails are optional Resend notifications; their failure
+does not undo completed actions.
 
 Admins can check Resend sender-domain status, Cloudinary API connectivity, and
 Redis availability at `GET /api/admin/integrations`. This endpoint never returns

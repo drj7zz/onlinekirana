@@ -2,10 +2,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {
   sendEmail,
-  sendVerificationEmail,
   checkEmailProvider,
 } = require('../lib/email');
-const { hashVerificationToken, issueVerificationToken } = require('../lib/emailVerification');
+const {
+  hashVerificationCode,
+  issueVerificationCode,
+  MAX_CODE_ATTEMPTS,
+  CODE_TTL_MS,
+} = require('../lib/emailVerification');
 
 function withEnv(t, values) {
   const previous = {};
@@ -55,28 +59,6 @@ test('email sender posts a transactional message to Resend without exposing prov
   assert.equal(request.body.from, 'OnlineKirana <no-reply@example.test>');
 });
 
-test('verification email safely escapes user content and creates a partner link', async (t) => {
-  withEnv(t, {
-    RESEND_API_KEY: 'test-key',
-    EMAIL_FROM: 'no-reply@example.test',
-    EMAIL_REPLY_TO: '',
-    PARTNER_PORTAL_URL: 'https://partners.example.test',
-    NODE_ENV: 'production',
-  });
-  const originalFetch = global.fetch;
-  t.after(() => { global.fetch = originalFetch; });
-  let message;
-  global.fetch = async (_url, options) => {
-    message = JSON.parse(options.body);
-    return { ok: true, status: 200, json: async () => ({}) };
-  };
-
-  await sendVerificationEmail({ email: 'partner@example.test', name: '<img src=x>', role: 'merchant' }, 'a'.repeat(43));
-  assert.match(message.text, /https:\/\/partners\.example\.test\/verify-email\?token=/);
-  assert.match(message.html, /&lt;img src=x&gt;/);
-  assert.doesNotMatch(message.html, /<img src=x>/);
-});
-
 test('Resend health check reports sender-domain verification without returning account data', async (t) => {
   withEnv(t, {
     RESEND_API_KEY: 'test-key',
@@ -91,11 +73,14 @@ test('Resend health check reports sender-domain verification without returning a
   assert.deepEqual(await checkEmailProvider(), { status: 'ok' });
 });
 
-test('verification tokens are stored as a hash and expire after one day', async () => {
-  const user = { save: async () => {} };
-  const token = await issueVerificationToken(user);
-  assert.notEqual(user.emailVerificationTokenHash, token);
-  assert.equal(user.emailVerificationTokenHash, hashVerificationToken(token));
+test('in-app verification codes are six digits, stored as a hash, and expire after 15 minutes', async () => {
+  const user = { emailVerificationAttempts: 4, save: async () => {} };
+  const code = await issueVerificationCode(user);
+  assert.match(code, /^\d{6}$/);
+  assert.notEqual(user.emailVerificationCodeHash, code);
+  assert.equal(user.emailVerificationCodeHash, hashVerificationCode(code));
+  assert.equal(user.emailVerificationAttempts, 0);
   assert.ok(user.emailVerificationExpires.getTime() > Date.now());
-  assert.ok(user.emailVerificationExpires.getTime() <= Date.now() + 24 * 60 * 60 * 1000);
+  assert.ok(user.emailVerificationExpires.getTime() <= Date.now() + CODE_TTL_MS);
+  assert.equal(MAX_CODE_ATTEMPTS, 5);
 });

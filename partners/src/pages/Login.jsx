@@ -47,7 +47,7 @@ export default function Login() {
       <label>Email<input type="email" required autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label>
       <label>Password<PasswordField value={form.password} autoComplete="current-password" onChange={(e) => setForm({ ...form, password: e.target.value })} /></label>
       {error && <p className="error">{error}</p>}
-      {verificationEmail && <p className="muted"><Link to={`/verify-email?email=${encodeURIComponent(verificationEmail)}`}>Resend verification email</Link></p>}
+      {verificationEmail && <p className="muted"><Link to={`/verify-email?email=${encodeURIComponent(verificationEmail)}`}>Enter or request an in-app code</Link></p>}
       <button type="submit" className="cta-btn" disabled={submitting}>
         {submitting ? 'Signing in…' : <>Sign in <ArrowRight size={17} className="cta-arrow" aria-hidden="true" /></>}
       </button>

@@ -90,43 +90,8 @@ async function checkEmailProvider() {
   }
 }
 
-function partnerPortalUrl() {
-  const value = process.env.PARTNER_PORTAL_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:5174');
-  if (!value) {
-    const error = new Error('PARTNER_PORTAL_URL is required to build email verification links.');
-    error.code = 'EMAIL_LINK_NOT_CONFIGURED';
-    throw error;
-  }
-  let url;
-  try {
-    url = new URL(value);
-  } catch {
-    throw new Error('PARTNER_PORTAL_URL must be an absolute HTTP(S) URL.');
-  }
-  if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) {
-    throw new Error('PARTNER_PORTAL_URL must be an absolute HTTP(S) URL without credentials.');
-  }
-  if (process.env.NODE_ENV === 'production' && url.protocol !== 'https:') {
-    throw new Error('PARTNER_PORTAL_URL must use HTTPS in production.');
-  }
-  return url.origin;
-}
-
 function emailLayout(title, content) {
   return `<!doctype html><html lang="en"><body style="margin:0;background:#f5f7f5;font-family:Arial,sans-serif;color:#202820"><main style="max-width:560px;margin:32px auto;padding:28px;background:#fff;border-radius:12px"><h1 style="font-size:22px;color:#0c831f">${escapeHtml(title)}</h1>${content}<p style="margin-top:28px;color:#667066;font-size:13px">OnlineKirana · Birgunj</p></main></body></html>`;
-}
-
-async function sendVerificationEmail(user, token) {
-  const url = new URL('/verify-email', partnerPortalUrl());
-  url.searchParams.set('token', token);
-  const link = url.toString();
-  const role = user.role === 'delivery' ? 'delivery partner' : 'merchant';
-  return sendEmail({
-    to: user.email,
-    subject: 'Verify your OnlineKirana partner email',
-    text: `Hello ${user.name}, verify your email to continue your OnlineKirana ${role} application: ${link}\n\nThis link expires in 24 hours. If you did not apply, ignore this email.`,
-    html: emailLayout('Verify your email', `<p>Hello ${escapeHtml(user.name)},</p><p>Verify your email to continue your OnlineKirana ${escapeHtml(role)} application.</p><p><a href="${escapeHtml(link)}" style="display:inline-block;padding:12px 18px;background:#0c831f;color:#fff;text-decoration:none;border-radius:7px">Verify email</a></p><p>This link expires in 24 hours. If you did not apply, ignore this email.</p>`),
-  });
 }
 
 async function sendApplicationReceivedEmail(user) {
@@ -163,16 +128,6 @@ async function sendProductReviewEmail(user, product, status) {
     subject: `${title}: ${product.name}`,
     text: `Hello ${user.name}, "${product.name}" ${approved ? 'was approved' : 'was not approved'}. ${detail}`,
     html: emailLayout(title, `<p>Hello ${escapeHtml(user.name)},</p><p><strong>${escapeHtml(product.name)}</strong> ${approved ? 'was approved' : 'was not approved'}.</p><p>${escapeHtml(detail)}</p>`),
-  });
-}
-
-async function sendDeliveryCodeEmail(user, order, code) {
-  const orderNumber = String(order._id).slice(-6).toUpperCase();
-  return sendEmail({
-    to: user.email,
-    subject: `Your OnlineKirana delivery code · Order ${orderNumber}`,
-    text: `Hello ${user.name}, your delivery hand-over code for order ${orderNumber} is ${code}. Keep it private and share it with the rider only when your order arrives.`,
-    html: emailLayout('Your delivery hand-over code', `<p>Hello ${escapeHtml(user.name)},</p><p>Your code for order <strong>${escapeHtml(orderNumber)}</strong> is:</p><p style="font-size:32px;letter-spacing:8px;font-weight:bold;color:#0c831f">${escapeHtml(code)}</p><p>Keep this code private. Share it with the rider only when your order arrives.</p>`),
   });
 }
 
@@ -220,11 +175,9 @@ module.exports = {
   emailConfigured,
   checkEmailProvider,
   sendEmail,
-  sendVerificationEmail,
   sendApplicationReceivedEmail,
   sendPartnerStatusEmail,
   sendProductReviewEmail,
-  sendDeliveryCodeEmail,
   sendOrderStatusEmail,
   sendPasswordChangedEmail,
   sendBestEffort,

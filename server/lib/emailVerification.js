@@ -1,16 +1,23 @@
 const crypto = require('crypto');
 
-const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
+const CODE_TTL_MS = 15 * 60 * 1000;
+const MAX_CODE_ATTEMPTS = 5;
 
-const hashVerificationToken = (token) =>
-  crypto.createHash('sha256').update(token).digest('hex');
+const hashVerificationCode = (code) =>
+  crypto.createHash('sha256').update(code).digest('hex');
 
-async function issueVerificationToken(user) {
-  const token = crypto.randomBytes(32).toString('base64url');
-  user.emailVerificationTokenHash = hashVerificationToken(token);
-  user.emailVerificationExpires = new Date(Date.now() + TOKEN_TTL_MS);
+async function issueVerificationCode(user) {
+  const code = crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+  user.emailVerificationCodeHash = hashVerificationCode(code);
+  user.emailVerificationExpires = new Date(Date.now() + CODE_TTL_MS);
+  user.emailVerificationAttempts = 0;
   await user.save();
-  return token;
+  return code;
 }
 
-module.exports = { hashVerificationToken, issueVerificationToken };
+module.exports = {
+  hashVerificationCode,
+  issueVerificationCode,
+  MAX_CODE_ATTEMPTS,
+  CODE_TTL_MS,
+};

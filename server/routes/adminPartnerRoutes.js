@@ -27,7 +27,7 @@ const setStatus = async (req, res) => {
     const partner = await User.findOne({ _id: req.params.id, role: 'merchant' }).select('-password');
     if (!partner) return res.status(404).json({ message: 'Partner not found' });
     if (status === 'approved' && !partner.emailVerified) {
-      return res.status(409).json({ message: 'The merchant must verify their email before approval.' });
+      return res.status(409).json({ message: 'The merchant must complete the in-app code step before approval.' });
     }
     const previousStatus = partner.merchantStatus;
     partner.merchantStatus = status;

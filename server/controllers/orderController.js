@@ -132,7 +132,7 @@ exports.place = async (req, res) => {
       deliveryInstructions: String(deliveryInstructions || '').slice(0, 300),
     });
 
-    const orderCustomer = await User.findById(req.user.id).select('name email');
+    const orderCustomer = await User.findById(req.user.id).select('name');
 
     // A customer must never receive an order that has no corresponding delivery
     // job. If job creation fails, the outer handler removes the order and stock
@@ -142,7 +142,6 @@ exports.place = async (req, res) => {
       shop,
       address: deliveryAddress,
       customerName: orderCustomer?.name || '',
-      customerEmail: orderCustomer?.email || '',
       fee: deliveryFee,
       distance: km,
       slot,
@@ -161,10 +160,6 @@ exports.place = async (req, res) => {
     if (createdOrder) await Delivery.deleteOne({ order: createdOrder._id }).catch(() => {});
     if (createdOrder) await Order.deleteOne({ _id: createdOrder._id }).catch(() => {});
     for (const item of reserved) await Product.updateOne({ _id: item.id }, { $inc: { stock: item.qty } }).catch(() => {});
-    if (['EMAIL_NOT_CONFIGURED', 'EMAIL_LINK_NOT_CONFIGURED', 'EMAIL_PROVIDER_UNAVAILABLE', 'EMAIL_PROVIDER_REJECTED', 'EMAIL_TIMEOUT', 'DELIVERY_CODE_EMAIL_FAILED'].includes(e.code)) {
-      console.error('[checkout] delivery-code email unavailable:', e.code);
-      return res.status(503).json({ message: 'We could not email your delivery code, so the order was not placed. Please try again later.' });
-    }
     serverError(res, e);
   }
 };

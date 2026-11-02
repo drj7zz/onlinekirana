@@ -209,7 +209,7 @@ export default function OrderCard({
 
       {showOtp && o.delivery?.status === 'picked' && <DeliveryCode orderId={o._id} />}
       {showOtp && o.delivery && ['pending', 'assigned', 'accepted'].includes(o.delivery.status) && (
-        <p className="order-note muted">Your hand-over code was emailed when you placed this order. Keep it private and share it with the rider only when your delivery arrives.</p>
+        <p className="order-note muted">Your hand-over code appears here after the rider collects your order. Keep it private and share it only when your delivery arrives.</p>
       )}
 
       {/* compact collapsed row: qty + reorder only — the name, price and status

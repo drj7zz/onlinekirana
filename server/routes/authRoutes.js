@@ -12,10 +12,10 @@ const emailKey = (req) => {
 const registrationEmailLimit = rateLimit({
   windowMs: 60 * 60 * 1000,
   max: 3,
-  keyFn: (req) => ['merchant', 'delivery'].includes(req.body?.role) ? `partner-verification-email:${emailKey(req)}` : null,
+  keyFn: (req) => ['merchant', 'delivery'].includes(req.body?.role) ? `partner-verification-code:${emailKey(req)}` : null,
 });
 const resendIpLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 12, keyFn: (req) => `verification-ip:${req.ip}` });
-const resendEmailLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, keyFn: (req) => `partner-verification-email:${emailKey(req)}` });
+const resendEmailLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 3, keyFn: (req) => `partner-verification-code:${emailKey(req)}` });
 const verifyIpLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 30, keyFn: (req) => `verification-attempt:${req.ip}` });
 router.post('/register', registerLimit, registrationEmailLimit, register);
 router.post('/verify-email', verifyIpLimit, authController.verifyEmail);

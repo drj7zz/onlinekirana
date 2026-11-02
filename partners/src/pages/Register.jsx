@@ -30,7 +30,6 @@ export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', shopName: '', line: '', ward: '', riderArea: '', riderVehicle: '' });
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
-  const [verificationEmail, setVerificationEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const set = (k) => (e) => setForm({ ... form, [k]: e. target. value });
@@ -39,7 +38,6 @@ export default function Register() {
   const submit = async (e) => {
     e. preventDefault();
     setError('');
-    setVerificationEmail('');
     const clientPwErrors = checkPassword(form. password, form. name, form. email);
     if (clientPwErrors. length) {
       setFieldErrors({ password: ['Needs: ' + clientPwErrors. join(', ')] });
@@ -62,13 +60,15 @@ export default function Register() {
       });
 
       if (account?.verificationRequired) {
-        navigate(`/verify-email?email=${encodeURIComponent(account.email)}`, { replace: true });
+        navigate(`/verify-email?email=${encodeURIComponent(account.email)}`, {
+          replace: true,
+          state: { email: account.email, verificationCode: account.verificationCode },
+        });
       }
     } catch (err) {
       const data = err. response?. data;
       if (data?. errors) setFieldErrors(data. errors);
       else setError(data?. message || 'Registration failed');
-      if (data?.code === 'VERIFICATION_EMAIL_UNAVAILABLE') setVerificationEmail(data.email || form.email.trim());
     } finally {
       setSubmitting(false);
     }
@@ -145,7 +145,6 @@ export default function Register() {
       )}
 
       {error && <p className="error">{error}</p>}
-      {verificationEmail && <p className="muted"><Link to={`/verify-email?email=${encodeURIComponent(verificationEmail)}`}>Resend verification email</Link></p>}
       {fieldErrors. name && <p className="error">{fieldErrors. name}</p>}
       {fieldErrors. shopName && <p className="error">{fieldErrors. shopName}</p>}
       {fieldErrors. riderArea && <p className="error">{fieldErrors. riderArea}</p>}

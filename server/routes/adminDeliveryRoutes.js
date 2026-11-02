@@ -8,8 +8,7 @@ const { serverError } = require('../utils/errors');
 const { cleanStr, PHONE_RE } = require('../middleware/validate');
 const { notifyUser } = require('../utils/notifications');
 const { rateLimit } = require('../middleware/rateLimit');
-const { issueVerificationToken } = require('../lib/emailVerification');
-const { sendVerificationEmail } = require('../lib/email');
+const { issueVerificationCode } = require('../lib/emailVerification');
 const { notifyPartnerStatus } = require('../lib/emailNotifications');
 const addRiderLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 6, keyFn: (req) => `admin-add-rider:${req.user.id}` });
 const riderEmailLimit = rateLimit({
@@ -80,23 +79,12 @@ const addRider = async (req, res) => {
       emailVerified: false,
     });
 
-    const token = await issueVerificationToken(rider);
-    try {
-      await sendVerificationEmail(rider, token);
-    } catch (error) {
-      console.error('[email] invited rider verification email failed:', error.message);
-      await User.deleteOne({ _id: rider._id }).catch((cleanupError) => {
-        console.error('[delivery] failed to remove an unverified rider after email failure:', cleanupError.message);
-      });
-      return res.status(503).json({
-        code: 'VERIFICATION_EMAIL_UNAVAILABLE',
-        message: 'The verification email could not be sent, so the rider account was not created. Try again after email service is available.',
-      });
-    }
+    const verificationCode = await issueVerificationCode(rider);
 
     res.status(201).json({
       rider: { id: rider._id, name: rider.name, email: rider.email, phone: rider.phone, riderArea, riderVehicle, riderStatus: rider.riderStatus },
-      message: 'A verification link was sent to the rider. Approve the account after they verify their email.',
+      message: 'Share the one-time in-app code with the rider. Approve the account after they complete the code step.',
+      verificationCode,
       tempPassword,
     });
   } catch (e) {
@@ -114,7 +102,7 @@ const setRiderStatus = async (req, res) => {
     const rider = await User.findOne({ _id: req.params.id, role: 'delivery' }).select('-password');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
     if (['available', 'on_delivery', 'offline'].includes(status) && !rider.emailVerified) {
-      return res.status(409).json({ message: 'The rider must verify their email before approval.' });
+      return res.status(409).json({ message: 'The rider must complete the in-app code step before approval.' });
     }
     const previousStatus = rider.riderStatus;
     rider.riderStatus = status;

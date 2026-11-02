@@ -12,7 +12,6 @@ const {
 const { notifyUsers } = require('../utils/notifications');
 const { decryptPII } = require('../lib/piiCrypto');
 const { notifyPartnerStatus, notifyOrderStatus } = require('../lib/emailNotifications');
-const { sendDeliveryCodeEmail } = require('../lib/email');
 
 // Mirrors the order status a delivery step implies, so the customer's order
 // timeline always agrees with what the rider has actually done.
@@ -196,7 +195,7 @@ exports.setRiderStatus = async (req, res) => {
     const rider = await User.findOne({ _id: req.params.id, role: 'delivery' }).select('-password');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
     if (status === 'available' && !rider.emailVerified) {
-      return res.status(409).json({ message: 'The rider must verify their email before approval.' });
+      return res.status(409).json({ message: 'The rider must complete the in-app code step before approval.' });
     }
 
     const previousStatus = rider.riderStatus;
@@ -532,8 +531,8 @@ async function releaseRiderIfIdle(riderId) {
 }
 
 /** Called from the order controller right after a successful checkout. */
-async function createForOrder({ order, shop, address, customerName, customerEmail, fee, slot, instructions, distance }) {
-  const delivery = await Delivery.create({
+async function createForOrder({ order, shop, address, customerName, fee, slot, instructions, distance }) {
+  return Delivery.create({
     order: order._id,
     status: 'pending',
     otp: generateOtp(),
@@ -556,18 +555,6 @@ async function createForOrder({ order, shop, address, customerName, customerEmai
       location: address?.location || null,
     },
   });
-  try {
-    if (!customerEmail) throw new Error('The customer email address is unavailable.');
-    const user = { name: customerName, email: customerEmail };
-    await sendDeliveryCodeEmail(user, order, delivery.otp);
-  } catch (error) {
-    await Delivery.deleteOne({ _id: delivery._id }).catch((cleanupError) => {
-      console.error('[delivery] failed to remove a job after email failure:', cleanupError.message);
-    });
-    if (!error.code) error.code = 'DELIVERY_CODE_EMAIL_FAILED';
-    throw error;
-  }
-  return delivery;
 }
 
 // Exported as a flat object so the route file can destructure it in one line.
