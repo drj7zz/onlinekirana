@@ -29,16 +29,19 @@ export default function BottomTabs() {
   const { user } = useAuth();
   const { count } = useCart();
   const { pathname } = useLocation();
+  const tabs = user
+    ? TABS
+    : [
+      ...TABS.filter(({ to }) => to !== '/cart' && to !== '/orders' && to !== '/profile'),
+      { to: '/login', label: 'Profile', icon: UserCircle2 },
+    ];
 
   // Order confirmation and mid-checkout screens have their own next-step UI.
   if (pathname === '/checkout') return null;
 
   return (
     <nav className="bottom-tabs" aria-label="Primary, mobile">
-      {TABS.map(({ to, label, icon: Icon, end, badge, auth }) => {
-        // Hide signed-in-only tabs entirely for anonymous users — an empty
-        // "Orders" tab that only opens login reads as broken.
-        if (auth && !user) return null;
+      {tabs.map(({ to, label, icon: Icon, end, badge }) => {
         return (
           <NavLink key={to} to={to} end={end} className={({ isActive }) => `tab${isActive ? ' active' : ''}`}>
             <span className="tab-icon">

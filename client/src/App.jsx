@@ -25,7 +25,7 @@ import RoleGuard from './components/RoleGuard';
  */
 export default function App() {
   return (
-    <div className="app-shell">
+    <div className="app-shell storefront-shell">
       <ToastProvider>
         <Navbar />
         <main className="container app-main">

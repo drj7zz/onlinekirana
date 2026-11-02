@@ -10,6 +10,12 @@ import './styles.css';
 
 applyTheme(initialTheme());
 
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/push-sw.js').catch((error) => {
+    console.error('Service worker registration failed:', error);
+  });
+}
+
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
