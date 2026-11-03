@@ -12,7 +12,7 @@ import useSeo from '@shared/hooks/useSeo';
  */
 const STEPS_MERCHANT = [
   'Go to Register — shopkeepers and riders use the same form, you just pick the right option.',
-  'Register your shop: shop name, your name, email, phone and a password. That is the whole form.',
+  'Register your shop: shop name, your name, email, phone and a password. Verify your email from the link we send.',
   'We review the shop and approve it (usually the same day).',
   'Fill in your public shop page — description, area, contact.',
   'List your first products. Each one is approved before it goes live.',
@@ -22,7 +22,7 @@ const STEPS_MERCHANT = [
 const STEPS_RIDER = [
   'Go to Register and pick “I want to deliver”. You need your name, email, phone and a password — nothing else.',
   'Tell us the wards you cover and how you travel (bike, cycle, on foot).',
-  'Your application reaches the operations desk, who normally approve it the same day.',
+  'Verify your email from the link we send; then your application reaches the operations desk.',
   'Sign back in, tap Go on shift, and open jobs start appearing for you to take.',
   'Collect from the shop, drop it off, and read out the customer’s 4-digit hand-over code to finish.',
 ];
@@ -61,7 +61,7 @@ export default function Join() {
         <p>
           We do not ask for a shop licence, a PAN or VAT card, a citizenship scan, or a
           driving licence. Registering an account needs only your name, email, phone and a
-          password. We approve partners on what they sell and where they deliver, and we
+          password. Verify your email before our team reviews the application. We approve partners on what they sell and where they deliver, and we
           approve riders on being reachable — that is the whole check.
         </p>
       </div>

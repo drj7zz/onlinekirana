@@ -7,6 +7,15 @@ const Order = require('../models/Order');
 const { serverError } = require('../utils/errors');
 const { cleanStr, PHONE_RE } = require('../middleware/validate');
 const { notifyUser } = require('../utils/notifications');
+const { rateLimit } = require('../middleware/rateLimit');
+const { issueVerificationCode } = require('../lib/emailVerification');
+const { notifyPartnerStatus } = require('../lib/emailNotifications');
+const addRiderLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 6, keyFn: (req) => `admin-add-rider:${req.user.id}` });
+const riderEmailLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  keyFn: (req) => `admin-rider-email:${crypto.createHash('sha256').update(String(req.body?.email || '').trim().toLowerCase()).digest('hex')}`,
+});
 
 // Dispatch-board numbers, shown as cards above the job board.
 const summary = async (req, res) => {
@@ -65,12 +74,17 @@ const addRider = async (req, res) => {
       role: 'delivery',
       riderArea,
       riderVehicle,
-      riderStatus: 'available',
-      merchantStatus: 'approved',
+      riderStatus: 'pending',
+      merchantStatus: 'pending',
+      emailVerified: false,
     });
+
+    const verificationCode = await issueVerificationCode(rider);
 
     res.status(201).json({
       rider: { id: rider._id, name: rider.name, email: rider.email, phone: rider.phone, riderArea, riderVehicle, riderStatus: rider.riderStatus },
+      message: 'Share the one-time in-app code with the rider. Approve the account after they complete the code step.',
+      verificationCode,
       tempPassword,
     });
   } catch (e) {
@@ -85,22 +99,26 @@ const setRiderStatus = async (req, res) => {
     if (!['pending', 'available', 'on_delivery', 'offline', 'suspended'].includes(status)) {
       return res.status(400).json({ message: 'Invalid status' });
     }
-    const update = { riderStatus: status };
-    if (status === 'available') update.merchantStatus = 'approved';
-    if (status === 'suspended') update.merchantStatus = 'suspended';
-    const rider = await User.findOneAndUpdate(
-      { _id: req.params.id, role: 'delivery' },
-      update,
-      { new: true }
-    ).select('-password');
+    const rider = await User.findOne({ _id: req.params.id, role: 'delivery' }).select('-password');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
-    if (status === 'available') {
+    if (['available', 'on_delivery', 'offline'].includes(status) && !rider.emailVerified) {
+      return res.status(409).json({ message: 'The rider must complete the in-app code step before approval.' });
+    }
+    const previousStatus = rider.riderStatus;
+    rider.riderStatus = status;
+    if (status === 'available') rider.merchantStatus = 'approved';
+    if (status === 'suspended') rider.merchantStatus = 'suspended';
+    await rider.save();
+    if (status === 'available' && previousStatus !== status) {
       await notifyUser(rider._id, {
         type: 'approval', title: 'Rider account approved',
         body: 'You can go on shift and accept available deliveries.', link: '/rider',
       }).catch(() => {});
     }
-    res.json(rider);
+    if (['available', 'suspended'].includes(status) && previousStatus !== status) {
+      await notifyPartnerStatus(rider, status);
+    }
+    res.json(rider.toJSON());
   } catch (e) {
     serverError(res, e);
   }
@@ -108,7 +126,7 @@ const setRiderStatus = async (req, res) => {
 
 router.use(auth);
 router.get('/summary', summary);
-router.post('/riders', addRider);
+router.post('/riders', addRiderLimit, riderEmailLimit, addRider);
 router.patch('/riders/:id/status', setRiderStatus);
 
 module.exports = router;

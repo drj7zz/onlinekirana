@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Store, Bike, ShieldCheck } from 'lucide-react';
 import API from '@shared/api';
-import { useAuth } from '@shared/context/AuthContext';
 import { PasswordField, StrengthMeter, checkPassword } from '@shared/components/PasswordSecurity';
 import useSeo from '@shared/hooks/useSeo';
 
@@ -26,7 +25,6 @@ export default function Register() {
     description:
       'Create your OnlineKirana partner account as a shopkeeper or a delivery rider. No shop licence, PAN or VAT card — just your name, email, phone and a password.',
   });
-  const { register } = useAuth();
   const navigate = useNavigate();
   const [role, setRole] = useState('merchant');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', shopName: '', line: '', ward: '', riderArea: '', riderVehicle: '' });
@@ -48,7 +46,7 @@ export default function Register() {
     setFieldErrors({});
     setSubmitting(true);
     try {
-      const account = await register(API, {
+      const { data: account } = await API.post('/auth/register', {
         name: form. name,
         email: form. email,
         password: form. password,
@@ -61,12 +59,12 @@ export default function Register() {
           : { shopName: form. shopName, address: { line: form. line, ward: form. ward } }),
       });
 
-      // A new partner cannot work yet — send them to a page that says so rather
-      // than to an empty workspace.
-      const needsApproval = isRider
-        ? account?. riderStatus === 'pending'
-        : account?. merchantStatus === 'pending';
-      navigate(needsApproval ? '/pending' : (isRider ? '/rider' : '/dashboard'), { replace: true });
+      if (account?.verificationRequired) {
+        navigate(`/verify-email?email=${encodeURIComponent(account.email)}`, {
+          replace: true,
+          state: { email: account.email, verificationCode: account.verificationCode },
+        });
+      }
     } catch (err) {
       const data = err. response?. data;
       if (data?. errors) setFieldErrors(data. errors);

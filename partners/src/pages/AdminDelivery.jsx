@@ -241,8 +241,7 @@ export default function AdminDelivery() {
         {error && <p className="error">{error}</p>}
         {created && (
           <p className="save-msg">
-            <UserPlus size={14} aria-hidden="true" /> {created.rider.name} added. One-time password:{' '}
-            <strong>{created.tempPassword}</strong> — share it privately; they should change it after signing in.
+            <UserPlus size={14} aria-hidden="true" /> {created.rider.name} added. Share the in-app code <strong>{created.verificationCode}</strong> and temporary password <strong>{created.tempPassword}</strong> privately. This code does not verify email ownership; they should change the password after signing in.
           </p>
         )}
         <button type="submit" disabled={busy}>{busy ? 'Adding…' : 'Add rider'}</button>

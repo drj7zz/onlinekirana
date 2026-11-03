@@ -35,7 +35,8 @@ function AvatarPicker({ endpoint, onUploaded }, ref) {
 const ForwardAvatarPicker = forwardRef(AvatarPicker);
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const toast = useToast();
   const [form, setForm] = useState(emptyForm);
   const [pw, setPw] = useState(emptyPw);
@@ -106,6 +107,7 @@ export default function Profile() {
     try {
       await API.put('/profile/password', { currentPassword: pw.currentPassword, newPassword: pw.newPassword });
       setPw(emptyPw);
+      updateUser({ hasPassword: true });
       setPwMsg({ ok: true, text: 'Password updated' });
       toast.success('Password updated');
     } catch (err) {
@@ -114,6 +116,11 @@ export default function Profile() {
     } finally {
       setPwSaving(false);
     }
+  };
+
+  const signOut = () => {
+    logout();
+    navigate('/');
   };
 
   if (!user) return <p className="empty">Please <Link to="/login">login</Link>.</p>;
@@ -257,6 +264,10 @@ export default function Profile() {
         </details>
       </section>
 
+      <button type="button" className="profile-logout-btn" onClick={signOut}>
+        <LogOut size={18} aria-hidden="true" />
+        <span>Log out</span>
+      </button>
     </div>
   );
 }

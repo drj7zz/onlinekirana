@@ -12,6 +12,7 @@ const { createForOrder } = require('./deliveryController');
 const { notifyUsers } = require('../utils/notifications');
 const { encryptPII, decryptPII } = require('../lib/piiCrypto');
 const { cleanStr } = require('../middleware/validate');
+const { notifyOrderStatus } = require('../lib/emailNotifications');
 
 // Place order: cart items come from client, but prices are re-read from DB (never trust client prices)
 exports.place = async (req, res) => {
@@ -153,8 +154,10 @@ exports.place = async (req, res) => {
       body: `${createdOrder.items.length} item(s) · रू ${grandTotal.toLocaleString('en-IN')}`,
       link: '/orders',
     });
+    await notifyOrderStatus(createdOrder, 'placed');
     res.status(201).json(createdOrder);
   } catch (e) {
+    if (createdOrder) await Delivery.deleteOne({ order: createdOrder._id }).catch(() => {});
     if (createdOrder) await Order.deleteOne({ _id: createdOrder._id }).catch(() => {});
     for (const item of reserved) await Product.updateOne({ _id: item.id }, { $inc: { stock: item.qty } }).catch(() => {});
     serverError(res, e);
@@ -244,6 +247,7 @@ exports.cancelMine = async (req, res) => {
       body: `Order #${String(updated._id).slice(-6).toUpperCase()} was cancelled by the customer.`,
       link: '/orders',
     });
+    await notifyOrderStatus(updated, 'cancelled');
     res.json({
       order: updated,
       cancellation: {

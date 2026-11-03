@@ -122,7 +122,9 @@ onlinekirana/
 | `phone` | String | optional, Nepali mobile |
 | `address` | `{ line, ward, city='Birgunj', location? }` | delivery default and optional customer pin |
 | `avatarUrl` | String | uploaded avatar |
-| `role` | enum | `customer` \| `merchant` \| `admin` (default `customer`) |
+| `role` | enum | `customer` \| `merchant` \| `delivery` \| `admin` (default `customer`) |
+| `emailVerified` | Boolean | Legacy-named gate; new partners complete the in-app code step, which does not establish email ownership |
+| `emailVerificationCodeHash`, `emailVerificationExpires`, `emailVerificationAttempts` | String, Date, Number | Hashed 6-digit in-app code, 15-minute expiry, and per-code attempt counter |
 | `shopName` | String | merchant only |
 | `merchantStatus` | enum | `pending` \| `approved` \| `suspended` |
 | `shopDescription` / `shopPhone` / `shopLogoUrl` | String | public shop profile |
@@ -190,8 +192,11 @@ contain my products" and preserves the historical price even if the product chan
 - **Client side** — `<RoleGuard role="…">` wraps protected pages; unauthenticated or
   wrong-role users see a friendly `AccessDenied` gate (no internals leaked).
 
-**Registration safety** — `role` can only resolve to `merchant` or `customer`; any other
-value (including `admin`) is discarded by the validator. Admin is seeded only via script.
+**Registration safety** — public registration permits only `customer`, `merchant`, or
+`delivery`; any other value (including `admin`) is discarded by the validator. New
+merchant and delivery-partner accounts must complete the in-app code step before
+login or approval. This temporary step does not verify email ownership. Admin
+is seeded only via script.
 
 **Session handling on the client** (`api.js`)
 - Token persisted in `localStorage` (`ok_token`); user in `ok_user`.
@@ -206,7 +211,7 @@ Base URL `/api`. Auth: `Authorization: Bearer <token>`.
 
 | Resource | Base | Highlights |
 |---|---|---|
-| Auth | `/api/auth` | `POST /register`, `POST /login`, `POST /password-strength` |
+| Auth | `/api/auth` | `POST /register`, `POST /login`, `POST /verify-email`, `POST /resend-verification`, `POST /password-strength` |
 | Products | `/api/products` | `GET /` (`search,category,sort,min,max`), `GET /categories`, `GET /:id` |
 | Shops | `/api/shops` | `GET /`, `GET /:id` (public shop + live products) |
 | Reviews | `/api/reviews` | `GET /product/:productId`, `POST /product/:productId`, `DELETE /:id` |
@@ -214,6 +219,7 @@ Base URL `/api`. Auth: `Authorization: Bearer <token>`.
 | Partner | `/api/partner` | shop `GET/PUT`, products `GET/POST/PUT/DELETE`, orders `GET`, `PATCH /orders/:id/status` |
 | Admin — products | `/api/admin/products` | `GET/POST/PUT/DELETE` |
 | Admin — partners | `/api/admin/partners` | `GET /`, `PATCH /:id/status`, `GET /pending-products`, `PATCH /products/:id/review` |
+| Admin — integrations | `/api/admin/integrations` | `GET /` (Resend, Cloudinary and Redis health; admin only) |
 | Profile | `/api/profile` | `GET`, `PUT /`, `PUT /password` |
 | Dashboard | `/api/dashboard` | `GET /` — role-shaped stats |
 | Uploads | `/api/uploads` | `POST /avatar`, `POST /shop-logo`, `POST /product` |
@@ -226,11 +232,32 @@ Base URL `/api`. Auth: `Authorization: Bearer <token>`.
 - `utils/errors.serverError()` whitelists a few safe messages (`"Product not found"`,
   `"Order not found"`, …) and otherwise hides DB/query details — especially in production.
 
-**Rate limits** (`middleware/rateLimit.js`, in-memory)
+**Rate limits** (`middleware/rateLimit.js`, Redis-backed with per-process memory fallback)
 - Login per **IP**: 20 requests / 15 min.
 - Login per **account** (email): 6 requests / 15 min.
+- Partner verification-code issuance: 3 per email / hour and 12 per IP / hour.
+- Partner code verification: 5 attempts per code and 30 requests per IP / hour.
+- Admin-created riders: 6 per admin / hour and 3 code issuances per recipient / hour.
+- Password changes: 5 per account / hour.
+- Customer order placements: 8 per account / hour.
+- Image uploads: 30 per account / hour.
+- Integration health checks: 6 per admin / 15 min.
 - Over the limit → `429` with `Retry-After`.
-- Note: in-memory buckets are per-process; use a shared store (Redis) if you scale horizontally.
+- Redis shares limits between API instances; the memory fallback is per-process.
+
+**Temporary partner verification** uses a random six-digit in-app code. The
+database stores only its SHA-256 hash, code expiry, and failed-attempt count.
+The code is shown in the portal and reissue requires the application password.
+This does not prove email ownership and is not suitable for identity
+verification or account recovery. Resend is optional for registration and
+checkout. Customer delivery codes remain in the authenticated order card after
+the rider picks up the order. Application/status, product-review, order-progress
+and password-change emails are optional Resend notifications; their failure
+does not undo completed actions.
+
+Admins can check Resend sender-domain status, Cloudinary API connectivity, and
+Redis availability at `GET /api/admin/integrations`. This endpoint never returns
+API credentials and is rate-limited.
 
 ---
 
@@ -343,9 +370,17 @@ origins, and verify that late-night test orders quote the same fee as checkout.
 | `MONGO_URI` | server | MongoDB/Atlas connection string |
 | `JWT_SECRET` | server | signs/verifies JWTs |
 | `CLIENT_URL` | server | allowed CORS origin |
+| `GOOGLE_CLIENT_ID` | server | validates customer Google ID tokens |
 | `ADMIN_NAME` / `ADMIN_EMAIL` / `ADMIN_PASSWORD` | server | consumed by `npm run seed-admin` |
 | `DB_USER` / `DB_PASS` | server | Atlas credentials (informational; the full URI is in `MONGO_URI`) |
 | `VITE_API_URL` | client | API base URL for the SPA |
+| `VITE_GOOGLE_CLIENT_ID` | client | enables the Google Identity Services button; use the same OAuth Web client ID as the API |
+
+Google sign-in is customer-only. The API verifies Google ID tokens, requires a
+verified email, links an existing customer account with the same email, and asks
+new users to complete their shopper details. Add each storefront's exact origin
+to the Google OAuth client's authorized JavaScript origins. Google-only users
+can add a password later from their profile.
 
 > `server/.env` holds live database credentials and the JWT secret — keep it out of
 > version control and rotate both if they are ever exposed.

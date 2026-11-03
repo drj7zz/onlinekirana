@@ -27,7 +27,7 @@ export const strengthScore = (pw) => {
   return Math.min(s, 5);
 };
 
-export function PasswordField({ value, onChange, name = 'password', autoComplete = 'new-password', placeholder }) {
+export function PasswordField({ value, onChange, name = 'password', autoComplete = 'new-password', placeholder, required = true }) {
   const [show, setShow] = useState(false);
   return (
     <div style={{ position: 'relative' }}>
@@ -38,8 +38,8 @@ export function PasswordField({ value, onChange, name = 'password', autoComplete
         onChange={onChange}
         autoComplete={autoComplete}
         placeholder={placeholder}
-        required
-        minLength={8}
+        required={required}
+        minLength={required ? 8 : undefined}
         style={{ width: '100%', paddingRight: '3.2rem' }}
       />
       <button type="button" className="muted-btn" onClick={() => setShow(!show)}
