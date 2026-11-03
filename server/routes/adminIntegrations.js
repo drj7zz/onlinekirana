@@ -3,7 +3,6 @@ const auth = require('../middleware/auth');
 const { requireAdmin } = require('../middleware/roles');
 const { rateLimit } = require('../middleware/rateLimit');
 const { getRedis } = require('../lib/redis');
-const { checkEmailProvider } = require('../lib/email');
 const { cloudEnabled, checkCloudinary } = require('../middleware/upload');
 
 const checkLimit = rateLimit({
@@ -34,14 +33,13 @@ async function checkRedis() {
 }
 
 router.get('/', auth, requireAdmin, checkLimit, async (req, res) => {
-  const [email, cloudinary, redis] = await Promise.all([
-    checkEmailProvider(),
+  const [cloudinary, redis] = await Promise.all([
     cloudEnabled
       ? withTimeout(checkCloudinary(), 8000).then(() => ({ status: 'ok' })).catch(() => ({ status: 'error' }))
       : { status: 'not_configured' },
     checkRedis(),
   ]);
-  res.json({ email, cloudinary, redis });
+  res.json({ cloudinary, redis });
 });
 
 module.exports = router;

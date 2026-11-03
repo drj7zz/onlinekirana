@@ -266,6 +266,15 @@ exports.cancelMine = async (req, res) => {
 exports.myOrders = async (req, res) => {
   try {
     const orders = await Order.find({ user: req.user.id }).sort({ createdAt: -1 }).lean();
+    // Phone/line/ward are stored AES-GCM encrypted (`v1:…`); decrypt before the
+    // buyer's own card renders them, or the UI shows ciphertext blobs.
+    for (const order of orders) {
+      if (order.deliveryAddress) {
+        order.deliveryAddress.phone = decryptPII(order.deliveryAddress.phone) || '';
+        order.deliveryAddress.line = decryptPII(order.deliveryAddress.line) || '';
+        order.deliveryAddress.ward = decryptPII(order.deliveryAddress.ward) || '';
+      }
+    }
     const jobs = await Delivery.find({ order: { $in: orders.map((order) => order._id) } })
       .select('order status rider slot fee')
       .populate('rider', 'name phone riderVehicle')
@@ -381,7 +390,16 @@ exports.allOrders = async (req, res) => {
       .populate('rider', 'name phone riderVehicle riderStatus')
       .lean();
     const byOrder = new Map(jobs.map((j) => [String(j.order), j]));
-    for (const o of orders) o.delivery = byOrder.get(String(o._id)) || null;
+    for (const j of jobs) if (j.rider?.phone) j.rider.phone = decryptPII(j.rider.phone) || '';
+    for (const o of orders) {
+      if (o.deliveryAddress) {
+        o.deliveryAddress.phone = decryptPII(o.deliveryAddress.phone) || '';
+        o.deliveryAddress.line = decryptPII(o.deliveryAddress.line) || '';
+        o.deliveryAddress.ward = decryptPII(o.deliveryAddress.ward) || '';
+      }
+      if (o.user?.phone) o.user.phone = decryptPII(o.user.phone) || '';
+      o.delivery = byOrder.get(String(o._id)) || null;
+    }
     res.json(orders);
   } catch (e) {
     serverError(res, e);

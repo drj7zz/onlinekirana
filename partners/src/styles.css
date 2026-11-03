@@ -359,36 +359,37 @@
 .inventory-sync-row p { font-size: .8rem; }
 .inventory-sync-row button { flex: 0 0 auto; }
 .inventory-form-disclosure .form { gap: .65rem; }
-.order-details-disclosure { margin-top: .75rem; box-shadow: none; }
-.order-details-disclosure > summary { min-height: 44px; padding: .55rem .75rem; }
-.order-details-disclosure .workspace-disclosure-body { padding-top: .75rem; }
+
+/* ===== merchant prep card: stage + action in one strip ===== */
+.prep-note {
+  display: flex; align-items: center; gap: .6rem; flex-wrap: wrap;
+  margin: .7rem 0; padding: .65rem .75rem;
+  border: 1px solid var(--brand-border); border-radius: 11px;
+  background: var(--brand-tint);
+}
+.prep-note > svg { flex: 0 0 auto; color: var(--brand); }
+.prep-note > div { display: flex; align-items: center; gap: .4rem; min-width: 0; flex: 1 1 auto; flex-wrap: wrap; }
+.prep-note strong { color: var(--grey-900); font-size: .88rem; }
+.prep-note .muted { font-size: .8rem; }
+.prep-note > button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: .35rem; }
+
+/* prep-card facts strip + item list rhythm */
+.order-workflow-card .order-customer-details { margin-bottom: .6rem; }
+.order-workflow-card .order-items { margin-bottom: .4rem; }
+.order-workflow-card .order-head-side { align-items: flex-end; }
+.order-workflow-card .order-head-side small { text-align: right; font-size: .75rem; }
+@media (max-width: 760px) {
+  .prep-note { align-items: stretch; flex-direction: column; }
+  .prep-note > button { width: 100%; justify-content: center; }
+}
+
+/* facts grid shared by the prep card and (kept for reuse) other order views */
 .order-customer-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .55rem; margin-bottom: .7rem; }
 .order-customer-details > div { display: flex; flex-direction: column; gap: .1rem; min-width: 0; padding: .55rem .65rem; border: 1px solid var(--grey-200); border-radius: 9px; background: var(--grey-50); }
 .order-customer-details span { color: var(--grey-500); font-size: .68rem; font-weight: 750; text-transform: uppercase; letter-spacing: .04em; }
 .order-customer-details strong, .order-customer-details a { color: var(--grey-800); font-size: .82rem; overflow-wrap: anywhere; }
 .order-customer-details a { color: var(--brand); font-weight: 750; }
-.order-details-disclosure .order-items { margin-bottom: .4rem; }
-.order-workflow-card .order-head-side { align-items: flex-end; }
-.order-workflow-card .order-head-side button { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; }
-@media (max-width: 760px) {
-  .workspace-disclosure > summary { align-items: flex-start; padding: .7rem .8rem; }
-  .workspace-disclosure > summary > small { max-width: 42%; }
-  .workspace-disclosure-body { padding: 0 .8rem .8rem; }
-  .merchant-shop-disclosure .form { padding: .75rem; }
-  .inventory-sync-row { align-items: stretch; flex-direction: column; }
-  .inventory-sync-row button { width: 100%; }
-  .order-workflow-card .order-head { align-items: flex-start; }
-  .order-workflow-card .order-head-side { align-items: stretch; }
-  .order-workflow-card .order-head-side button { width: 100%; }
-  .order-customer-details { grid-template-columns: 1fr; }
-}
-@media (max-width: 420px) {
-  .workspace-disclosure > summary { gap: .4rem; }
-  .workspace-disclosure > summary > span { font-size: .84rem; }
-  .workspace-disclosure > summary > small { font-size: .68rem; }
-  .merchant-profile-identity { flex-wrap: wrap; }
-  .merchant-profile-identity > .muted-btn { margin-left: auto; }
-}
+
 .workspace-section-heading {
   display: flex; align-items: center; justify-content: space-between; gap: .75rem;
   margin: 1.15rem 0 .7rem;
@@ -481,3 +482,14 @@
 .prod-row-facts strong { font-size: .86rem; color: var(--grey-900); }
 .prod-row-desc { margin: 0 0 .55rem; font-size: .82rem; color: var(--grey-600); }
 .prod-row .prod-row-actions { padding: 0; }
+
+/* ===== rider job legs: call + open-in-maps ===== */
+.job-leg-links { display: flex; align-items: center; flex-wrap: wrap; gap: .55rem; margin-top: .15rem; }
+.job-leg-links a { display: inline-flex; align-items: center; gap: .3rem; font-size: .8rem; font-weight: 700; }
+.job-maps {
+  color: var(--brand);
+  border: 1px solid var(--brand-border);
+  border-radius: 999px; padding: .18rem .6rem;
+  background: var(--brand-tint);
+}
+.job-maps:hover { background: var(--brand-border); }

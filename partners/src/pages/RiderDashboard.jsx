@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bike, MapPin, Phone, PackageOpen, KeyRound, CircleCheck,
-  Power, Navigation, PackageCheck, Store, Clock,
+  Power, Navigation, PackageCheck, Store, Clock, Map as MapIcon,
 } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
@@ -10,6 +10,43 @@ import { useLive } from '@shared/hooks/useLive';
 import ImageUpload from '@shared/components/ImageUpload';
 import { DELIVERY_LABEL, DELIVERY_STEPS, DELIVERY_WINDOW_LABEL, money, timeAgo } from '@shared/lib/delivery';
 import WorkspaceHeader from '../components/WorkspaceHeader.jsx';
+
+/**
+ * Open one address externally in a map app. Coordinates win when the job carries
+ * a pin (lat/lng from checkout); otherwise the human-readable address is used,
+ * which Google Maps geocodes on its own. `target=_blank` keeps the rider's shift
+ * tab intact — the map opens in a new tab or the phone's map app.
+ */
+const mapsUrl = ({ line, ward, location, city = 'Birgunj' }) => {
+  if (location?.lat !== undefined && location?.lng !== undefined) {
+    return `https://www.google.com/maps/search/?api=1&query=${location.lat},${location.lng}`;
+  }
+  const text = [line, ward && `Ward ${ward}`, city].filter(Boolean).join(', ');
+  return text ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}` : '';
+};
+
+/** One address with a call, a pin and an open-in-maps affordance. */
+function JobLeg({ label, icon: Icon, iconCls, name, address, phone }) {
+  const url = mapsUrl(address);
+  return (
+    <div className="job-leg">
+      <span className={`job-leg-icon${iconCls ? ` ${iconCls}` : ''}`}><Icon size={15} aria-hidden="true" /></span>
+      <div>
+        <span className="job-leg-label">{label}</span>
+        <strong>{name}</strong>
+        {address.line && <span className="muted">{[address.line, address.ward && `Ward ${address.ward}`].filter(Boolean).join(', ')}</span>}
+        <span className="job-leg-links">
+          {phone && <a className="job-phone" href={`tel:${phone}`}><Phone size={12} aria-hidden="true" /> {phone}</a>}
+          {url && (
+            <a className="job-maps" href={url} target="_blank" rel="noreferrer" title={`Open ${label.toLowerCase()} in Google Maps`}>
+              <MapIcon size={12} aria-hidden="true" /> Maps
+            </a>
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 /** What a rider can do at each step, in their own words. */
 const NEXT_ACTIONS = {
@@ -91,26 +128,24 @@ function JobCard({ job, onAdvance, onClaim, canAccept }) {
         </p>
       )}
 
-      {/* where to go, in order: shop first, then the customer */}
+      {/* where to go, in order: shop first, then the customer. Each leg carries
+          a tap-to-call and an open-in-maps link for turn-by-turn navigation. */}
       <div className="job-route">
-        <div className="job-leg">
-          <span className="job-leg-icon"><Store size={15} aria-hidden="true" /></span>
-          <div>
-            <span className="job-leg-label">Collect from</span>
-            <strong>{pick.shopName || 'OnlineKirana counter'}</strong>
-            <span className="muted">{[pick.line, pick.ward && `Ward ${pick.ward}`].filter(Boolean).join(', ') || 'Main counter'}</span>
-            {pick.phone && <a className="job-phone" href={`tel:${pick.phone}`}><Phone size={12} aria-hidden="true" /> {pick.phone}</a>}
-          </div>
-        </div>
-        <div className="job-leg">
-          <span className="job-leg-icon drop"><MapPin size={15} aria-hidden="true" /></span>
-          <div>
-            <span className="job-leg-label">Deliver to</span>
-            <strong>{drop.name || 'Customer'}</strong>
-            <span className="muted">{[drop.line, drop.ward && `Ward ${drop.ward}`].filter(Boolean).join(', ')}, Birgunj</span>
-            {drop.phone && <a className="job-phone" href={`tel:${drop.phone}`}><Phone size={12} aria-hidden="true" /> {drop.phone}</a>}
-          </div>
-        </div>
+        <JobLeg
+          label="Collect from"
+          icon={Store}
+          name={pick.shopName || 'OnlineKirana counter'}
+          address={{ line: pick.line, ward: pick.ward, location: pick.location, city: '' }}
+          phone={pick.phone}
+        />
+        <JobLeg
+          label="Deliver to"
+          icon={MapPin}
+          iconCls="drop"
+          name={drop.name || 'Customer'}
+          address={{ line: drop.line, ward: drop.ward, location: drop.location, city: 'Birgunj' }}
+          phone={drop.phone}
+        />
       </div>
 
       {job.slot && <p className="job-slot">Delivery window: {DELIVERY_WINDOW_LABEL[job.slot] || job.slot}</p>}

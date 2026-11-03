@@ -4,12 +4,9 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-  // Legacy field name: for new partners, this tracks completion of the temporary
-  // in-app code step and does not establish ownership of the email address.
+  // Kept as a soft legacy flag: historical accounts recorded completion of the
+  // temporary in-app code step here. New accounts are simply verified on create.
   emailVerified: { type: Boolean, default: true },
-  emailVerificationCodeHash: { type: String, select: false },
-  emailVerificationExpires: { type: Date, select: false },
-  emailVerificationAttempts: { type: Number, default: 0, select: false },
   passwordless: { type: Boolean, default: false },
   password: { type: String, required() { return !this.passwordless; }, minlength: 6 },
   googleSub: { type: String, select: false },
@@ -59,7 +56,6 @@ const userSchema = new mongoose.Schema({
 
 userSchema.index({ role: 1, merchantStatus: 1 });
 userSchema.index({ role: 1, riderStatus: 1 });
-userSchema.index({ emailVerificationCodeHash: 1 }, { unique: true, sparse: true });
 userSchema.index({ googleSub: 1 }, { unique: true, sparse: true });
 
 userSchema.pre('save', async function (next) {

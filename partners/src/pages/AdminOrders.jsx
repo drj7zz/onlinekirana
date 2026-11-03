@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  PackageOpen, Search, Bike, Truck, ExternalLink,
+  PackageOpen, Search, Bike, Truck, ExternalLink, ClipboardList,
 } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import OrderCard from '@shared/components/OrderCard';
 import { DELIVERY_LABEL, DELIVERY_WINDOW_LABEL, money, timeAgo } from '@shared/lib/delivery';
+import WorkspaceHeader from '../components/WorkspaceHeader.jsx';
 
 const STATUSES = ['cancelled'];
 
@@ -129,59 +130,50 @@ export default function AdminOrders() {
   });
 
   return (
-    <div>
-      <div className="page-head">
-        <h1>Orders &amp; deliveries</h1>
-        <p>
-          Every order, with the rider who is carrying it. The dispatch desk is where you step in
-          when a job has nobody on it.
-        </p>
-      </div>
+    <div className="workspace-page">
+      <WorkspaceHeader
+        icon={ClipboardList}
+        eyebrow="Operations workspace"
+        title="Orders & deliveries"
+        description="Every order, with the rider who is carrying it. Step in here when a job has nobody on it."
+      />
 
       {/* the two queues that need a human */}
       {(needRider.length > 0 || onTheRoad.length > 0) && (
-        <div className="card-panel">
-          <h2><Truck size={18} className="action-icon" aria-hidden="true" /> Live deliveries</h2>
-          <div className="stat-grid">
-            <div className={`stat-card${needRider.length ? ' accent' : ''}`}>
-              <div className="stat-value">{needRider.length}</div>
-              <div className="stat-label">Waiting for a rider</div>
+        <details className="workspace-disclosure" open>
+          <summary><span><Truck size={17} aria-hidden="true" /> Live deliveries</span><small>{needRider.length} waiting · {onTheRoad.length} on the road</small></summary>
+          <div className="workspace-disclosure-body">
+            <div className="stat-grid">
+              <div className={`stat-card${needRider.length ? ' accent' : ''}`}>
+                <div className="stat-value">{needRider.length}</div>
+                <div className="stat-label">Waiting for a rider</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">{onTheRoad.length}</div>
+                <div className="stat-label">Out with a rider</div>
+              </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-value">{onTheRoad.length}</div>
-              <div className="stat-label">Out with a rider</div>
-            </div>
+            {needRider.length > 0 && (
+              <div className="section" style={{ marginTop: '1rem' }}>
+                <div className="workspace-section-heading">
+                  <div><h2>Nobody on these yet</h2><p>Packed orders stay open until an on-shift rider accepts one. Approve more riders or invite the team to go on shift.</p></div>
+                  <span className="workspace-count">{needRider.length}</span>
+                </div>
+                {needRider.map((o) => (
+                  <JobLine key={o._id} order={o} job={o.delivery} to="/admin/delivery" />
+                ))}
+                <Link className="cta-btn" to="/admin/delivery" style={{ marginTop: '.6rem', display: 'inline-flex' }}>
+                  Open the dispatch desk <ExternalLink size={15} aria-hidden="true" />
+                </Link>
+              </div>
+            )}
           </div>
-          {needRider.length > 0 && (
-            <div className="section" style={{ marginTop: '1.2rem' }}>
-              <h2>Nobody on these yet</h2>
-              <p className="section-sub">
-                These packed orders remain open until an on-shift rider chooses to accept. Approve more riders
-                or invite the delivery team to go on shift.
-              </p>
-              {needRider.map((o) => (
-                <JobLine key={o._id} order={o} job={o.delivery} to="/admin/delivery" />
-              ))}
-              <Link className="cta-btn" to="/admin/delivery" style={{ marginTop: '.6rem', display: 'inline-flex' }}>
-                Open the dispatch desk <ExternalLink size={15} aria-hidden="true" />
-              </Link>
-            </div>
-          )}
-        </div>
+        </details>
       )}
 
       {error && <p className="error" role="alert">{error}</p>}
 
       {/* search + filters */}
-      <div className="search-wrap list-search">
-        <Search size={16} className="search-icon" aria-hidden="true" />
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by order number, customer, phone or rider"
-          aria-label="Search orders"
-        />
-      </div>
       <div className="chips">
         {FILTERS.map((f) => (
           <button
@@ -194,6 +186,12 @@ export default function AdminOrders() {
           </button>
         ))}
       </div>
+      <label className="history-search"><Search size={16} aria-hidden="true" /><input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search by order number, customer, phone or rider"
+        aria-label="Search orders"
+      /></label>
 
       {loading ? (
         <p className="loading-shimmer">Loading orders</p>

@@ -153,8 +153,11 @@ export default function Navbar() {
     seen.add(l.label);
     barLinks.push(l);
   }
-
-  const quick = ROLE_QUICK[user?.role] || [];
+  const quickRoutes = new Set(barLinks.map((l) => l.to));
+  // The account dropdown repeats the workspace tools — drop any quick action
+  // whose route already appears in the bar, then fall back to the profile page
+  // when a role ends up with nothing unique to show.
+  const quick = (ROLE_QUICK[user?.role] || []).filter((q) => !quickRoutes.has(q.to));
 
   return (
     <header className="site-header">
@@ -297,7 +300,9 @@ export default function Navbar() {
             )}
 
             <nav className="drawer-links" aria-label="Mobile">
-              {links.map(({ to, label, icon: Icon, end }, i) => (
+              {/* barLinks (not raw links): same first-label-wins dedupe as the
+                  desktop bar, so /orders and /admin/orders never both appear. */}
+              {barLinks.map(({ to, label, icon: Icon, end }, i) => (
                 <NavLink key={`${to}-${i}`} to={to} end={end} onClick={closeAll}
                   className={({ isActive }) => `drawer-link${isActive ? ' is-active' : ''}`}>
                   <Icon size={17} aria-hidden="true" />

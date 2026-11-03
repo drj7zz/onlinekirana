@@ -12,7 +12,6 @@ import Faq from './pages/Faq.jsx';
 import Join from './pages/Join.jsx';
 import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
-import VerifyEmail from './pages/VerifyEmail.jsx';
 import Pending from './pages/Pending.jsx';
 import Profile from './pages/Profile.jsx';
 
@@ -64,7 +63,6 @@ export default function App() {
           <Route path="/join" element={<Join />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
           {/* Application-pending notice. Open to any signed-in partner: a brand new
               account has no workspace to enter until an admin approves it. */}
           <Route path="/pending" element={<Pending />} />

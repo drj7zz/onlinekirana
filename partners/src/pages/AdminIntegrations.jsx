@@ -5,9 +5,8 @@ import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 
 const LABELS = {
-  email: 'Resend email delivery',
   cloudinary: 'Cloudinary image storage',
-  redis: 'Redis rate limits and background jobs',
+  redis: 'Redis rate limits, caching and background jobs',
 };
 
 const STATUS = {

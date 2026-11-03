@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowRight, ShoppingBasket, Store, Bike, ShieldCheck } from 'lucide-react';
 import API from '@shared/api';
@@ -16,14 +16,7 @@ import { STOREFRONT_URL } from '@shared/lib/apps';
  *  - Brand aside with the portal pitch, and "Sign in / Create account" tabs.
  *  - Role picker on the register side (shop vs. delivery), which swaps in the
  *    shop-name or rider-area fields.
- *  - Google sign-in on BOTH sides — this is the only auth surface where Google
- *    sign-in appears in the portal, since it lives here rather than in a
- *    dedicated page.
  */
-
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-let initializedGoogleClientId = null;
-let googleCredentialHandler = null;
 
 const initialForm = (profile = {}) => ({
   role: 'merchant',
@@ -37,97 +30,6 @@ const initialForm = (profile = {}) => ({
   riderArea: '',
   riderVehicle: '',
 });
-
-/** Google Identity button — same behaviour as the storefront's, shared markup. */
-function GoogleIdentityButton({ onCredential }) {
-  const buttonRef = useRef(null);
-  const [status, setStatus] = useState('loading');
-
-  useEffect(() => {
-    const button = buttonRef.current;
-    if (!GOOGLE_CLIENT_ID || !button) return undefined;
-    let active = true;
-    let renderedWidth = 0;
-    googleCredentialHandler = onCredential;
-    const renderButton = () => {
-      if (!active || !window.google?.accounts?.id) return;
-      const width = Math.min(400, Math.floor(button.clientWidth || 340));
-      if (width < 180 || width === renderedWidth) return;
-      if (initializedGoogleClientId !== GOOGLE_CLIENT_ID) {
-        window.google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: ({ credential }) => {
-            if (credential) googleCredentialHandler?.(credential);
-          },
-          auto_select: false,
-        });
-        initializedGoogleClientId = GOOGLE_CLIENT_ID;
-      }
-      button.replaceChildren();
-      renderedWidth = width;
-      window.google.accounts.id.renderButton(button, {
-        type: 'standard',
-        theme: document.documentElement.dataset.theme === 'dark' ? 'filled_black' : 'outline',
-        size: 'large',
-        text: 'continue_with',
-        shape: 'rectangular',
-        width,
-        logo_alignment: 'left',
-        locale: 'en',
-      });
-      setStatus('ready');
-    };
-
-    const resizeObserver = typeof ResizeObserver === 'undefined'
-      ? null
-      : new ResizeObserver(renderButton);
-    if (resizeObserver) resizeObserver.observe(button);
-    else window.addEventListener('resize', renderButton);
-    let script = document.querySelector('script[data-google-identity]');
-    if (window.google?.accounts?.id) {
-      renderButton();
-    } else {
-      if (!script) {
-        script = document.createElement('script');
-        script.src = 'https://accounts.google.com/gsi/client';
-        script.async = true;
-        script.defer = true;
-        script.dataset.googleIdentity = 'true';
-        document.head.appendChild(script);
-      }
-      const handleLoad = () => renderButton();
-      const handleError = () => active && setStatus('error');
-      script.addEventListener('load', handleLoad);
-      script.addEventListener('error', handleError);
-      if (window.google?.accounts?.id) renderButton();
-      return () => {
-        active = false;
-        resizeObserver?.disconnect();
-        window.removeEventListener('resize', renderButton);
-        if (googleCredentialHandler === onCredential) googleCredentialHandler = null;
-        script.removeEventListener('load', handleLoad);
-        script.removeEventListener('error', handleError);
-        button.replaceChildren();
-      };
-    }
-
-    return () => {
-      active = false;
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', renderButton);
-      if (googleCredentialHandler === onCredential) googleCredentialHandler = null;
-      button.replaceChildren();
-    };
-  }, [onCredential]);
-
-  return (
-    <div className="google-signin">
-      {status === 'loading' && <p className="muted" role="status">Loading Google sign-in…</p>}
-      {status === 'error' && <p className="error" role="alert">Google sign-in could not load. Check your connection and try again.</p>}
-      <div ref={buttonRef} className="google-signin-button" />
-    </div>
-  );
-}
 
 const ROLES = [
   { key: 'merchant', icon: Store, title: 'I have a shop', blurb: 'Sell groceries on OnlineKirana' },
@@ -143,15 +45,11 @@ export default function PartnerAuth() {
   });
   const location = useLocation();
   const navigate = useNavigate();
-  const { login, completeSession } = useAuth();
+  const { login } = useAuth();
   const isRegister = location.pathname === '/register';
-  const googleHandoff = location.state?.googleCredential ? location.state : null;
-  const [form, setForm] = useState(() => initialForm(googleHandoff?.profile));
-  const [googleCredential, setGoogleCredential] = useState(googleHandoff?.googleCredential || '');
-  const hasGoogleRegistration = isRegister && Boolean(googleCredential);
+  const [form, setForm] = useState(initialForm);
   const [fieldErrors, setFieldErrors] = useState({});
   const [error, setError] = useState('');
-  const [verificationEmail, setVerificationEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const set = (key) => (event) => {
@@ -160,40 +58,12 @@ export default function PartnerAuth() {
   };
   const isRider = form.role === 'delivery';
 
-  const onGoogleCredential = useCallback(async (credential) => {
-    setError('');
-    setFieldErrors({});
-    setSubmitting(true);
-    try {
-      const { data } = await API.post('/auth/google', { credential });
-      if (data.registrationRequired) {
-        setGoogleCredential(credential);
-        setForm((current) => ({
-          ...current,
-          name: data.profile?.name || current.name,
-          email: data.profile?.email || current.email,
-        }));
-        navigate('/register', { state: { googleCredential: credential, profile: data.profile } });
-        return;
-      }
-      // Partners sign in through this page too; the role-aware portal home
-      // takes over once the session exists.
-      completeSession(data);
-      navigate('/', { replace: true });
-    } catch (requestError) {
-      setError(requestError.response?.data?.message || 'Google sign-in failed. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
-  }, [completeSession, navigate]);
-
   const submit = async (event) => {
     event.preventDefault();
     setError('');
-    setVerificationEmail('');
     const passwordErrors = form.password
       ? checkPassword(form.password, form.name, form.email)
-      : googleCredential ? [] : ['Password is required'];
+      : ['Password is required'];
     if (passwordErrors.length) {
       setFieldErrors({ password: ['Needs: ' + passwordErrors.join(', ')] });
       return;
@@ -206,19 +76,16 @@ export default function PartnerAuth() {
         await API.post('/auth/register', {
           name: form.name,
           email: form.email,
-          password: form.password || undefined,
+          password: form.password,
           phone: form.phone,
           role: form.role,
           ...(isRider
             ? { riderArea: form.riderArea, riderVehicle: form.riderVehicle }
             : { shopName: form.shopName, address: { line: form.line, ward: form.ward } }),
-        }).then((account) => {
-          if (account?.data?.verificationRequired) {
-            navigate(`/verify-email?email=${encodeURIComponent(account.data.email)}`, {
-              replace: true,
-              state: { email: account.data.email, verificationCode: account.data.verificationCode },
-            });
-          }
+        }).then(() => {
+          // New partner accounts are signed in immediately — the account goes
+          // straight to admin review on the Approvals desk.
+          navigate('/', { replace: true });
         });
       } else {
         // `scope: 'portal'` — shoppers get sent to the storefront instead.
@@ -229,7 +96,6 @@ export default function PartnerAuth() {
       const data = requestError.response?.data;
       if (data?.errors) setFieldErrors(data.errors);
       else setError(data?.message || (isRegister ? 'Registration failed' : 'Login failed'));
-      if (data?.code === 'EMAIL_NOT_VERIFIED') setVerificationEmail(form.email.trim());
     } finally {
       setSubmitting(false);
     }
@@ -296,7 +162,6 @@ export default function PartnerAuth() {
                 autoComplete="email"
                 value={form.email}
                 onChange={set('email')}
-                readOnly={hasGoogleRegistration}
               />
             </label>
             {fieldErrors.email && <p className="error">{fieldErrors.email}</p>}
@@ -313,7 +178,6 @@ export default function PartnerAuth() {
 
             {isRegister && (
               <>
-                {hasGoogleRegistration && <p className="customer-auth-note">Google verified your email. Finish the partner details below.</p>}
                 <label>Phone
                   <input required autoComplete="tel" inputMode="numeric" placeholder="98XXXXXXXX" value={form.phone} onChange={set('phone')} />
                   <span className="muted">{isRider ? 'Customers and shops use this to reach you during a delivery.' : 'Used for order updates and shop contact.'}</span>
@@ -349,20 +213,10 @@ export default function PartnerAuth() {
             )}
 
             {error && <p className="error" role="alert">{error}</p>}
-            {verificationEmail && (
-              <p className="customer-auth-note">
-                Your email is not verified yet. <Link to={`/verify-email?email=${encodeURIComponent(verificationEmail)}`}>Enter or request an in-app code</Link>.
-              </p>
-            )}
             <button type="submit" className="cta-btn customer-auth-submit" disabled={submitting}>
               {submitting ? 'Please wait…' : <>{isRegister ? (isRider ? 'Apply to deliver' : 'Apply as a partner') : 'Sign in'} <ArrowRight size={17} aria-hidden="true" /></>}
             </button>
           </form>
-
-          <div className="customer-auth-divider"><span>or continue with</span></div>
-          {GOOGLE_CLIENT_ID
-            ? <GoogleIdentityButton onCredential={onGoogleCredential} />
-            : <p className="customer-auth-note">Google sign-in is unavailable until it is configured.</p>}
 
           <p className="customer-auth-partner">
             {isRegister

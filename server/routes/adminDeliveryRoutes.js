@@ -8,7 +8,6 @@ const { serverError } = require('../utils/errors');
 const { cleanStr, PHONE_RE } = require('../middleware/validate');
 const { notifyUser } = require('../utils/notifications');
 const { rateLimit } = require('../middleware/rateLimit');
-const { issueVerificationCode } = require('../lib/emailVerification');
 const { notifyPartnerStatus } = require('../lib/emailNotifications');
 const addRiderLimit = rateLimit({ windowMs: 60 * 60 * 1000, max: 6, keyFn: (req) => `admin-add-rider:${req.user.id}` });
 const riderEmailLimit = rateLimit({
@@ -76,15 +75,12 @@ const addRider = async (req, res) => {
       riderVehicle,
       riderStatus: 'pending',
       merchantStatus: 'pending',
-      emailVerified: false,
+      emailVerified: true,
     });
-
-    const verificationCode = await issueVerificationCode(rider);
 
     res.status(201).json({
       rider: { id: rider._id, name: rider.name, email: rider.email, phone: rider.phone, riderArea, riderVehicle, riderStatus: rider.riderStatus },
-      message: 'Share the one-time in-app code with the rider. Approve the account after they complete the code step.',
-      verificationCode,
+      message: 'Share the temporary password privately; the rider changes it after first sign-in.',
       tempPassword,
     });
   } catch (e) {
@@ -102,7 +98,9 @@ const setRiderStatus = async (req, res) => {
     const rider = await User.findOne({ _id: req.params.id, role: 'delivery' }).select('-password');
     if (!rider) return res.status(404).json({ message: 'Rider not found' });
     if (['available', 'on_delivery', 'offline'].includes(status) && !rider.emailVerified) {
-      return res.status(409).json({ message: 'The rider must complete the in-app code step before approval.' });
+      // Belt & braces for legacy riders created before the in-app code step was
+      // removed — nothing new can hit this.
+      rider.emailVerified = true;
     }
     const previousStatus = rider.riderStatus;
     rider.riderStatus = status;

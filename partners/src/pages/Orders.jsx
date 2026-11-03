@@ -138,16 +138,28 @@ export default function Orders() {
             <p className="empty">No orders are waiting for acceptance or packing.</p>
           ) : (
             <div className="order-list">
-              {toPack.map((o) => (
-                <article key={o._id} className="order-card order-workflow-card">
-                  <header className="order-head">
-                    <div className="order-head-main">
-                      <span className="order-ref">Order #{String(o._id).slice(-6).toUpperCase()}</span>
-                      <span className="muted">{(o.items || []).filter((i) => i.merchant === user._id).length} of your item(s)</span>
-                      <span className={`status s-${o.status}`}>{STAGE[o.status]?.label || o.status}</span>
-                    </div>
-                    <div className="order-head-side">
-                      <strong className="order-total">रू {Number(o.total || 0).toLocaleString('en-IN')}</strong>
+              {toPack.map((o) => {
+                const mine = (o.items || []).filter((i) => i.merchant === user._id);
+                const addr = o.deliveryAddress || {};
+                return (
+                  <article key={o._id} className="order-card order-workflow-card">
+                    <header className="order-head">
+                      <div className="order-head-main">
+                        <span className="order-ref">Order #{String(o._id).slice(-6).toUpperCase()}</span>
+                        <span className={`status s-${o.status}`}>{STAGE[o.status]?.label || o.status}</span>
+                      </div>
+                      <div className="order-head-side">
+                        <strong className="order-total">रू {Number(o.total || 0).toLocaleString('en-IN')}</strong>
+                        <small className="muted">{mine.length} of your item(s)</small>
+                      </div>
+                    </header>
+
+                    <div className="prep-note">
+                      <Store size={14} aria-hidden="true" />
+                      <div>
+                        <strong>{STAGE[o.status]?.label || o.status}</strong>
+                        <span className="muted">{STAGE[o.status]?.hint}</span>
+                      </div>
                       {o.status === 'pending' ? (
                         <button className="cta-btn" onClick={() => setStatus(o._id, 'confirmed')} disabled={busyId === o._id}>
                           <CircleCheck size={15} aria-hidden="true" /> {busyId === o._id ? 'Accepting…' : 'Accept order'}
@@ -158,28 +170,17 @@ export default function Orders() {
                         </button>
                       )}
                     </div>
-                  </header>
 
-                  <div className="order-note">
-                    <Store size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} aria-hidden="true" />
-                    <strong>{STAGE[o.status]?.label || o.status}</strong>
-                    <div className="muted" style={{ marginTop: '.2rem' }}>{STAGE[o.status]?.hint}</div>
-                  </div>
+                    <div className="order-customer-details">
+                      <div><span>Customer</span><strong>{o.user?.name || 'Customer'}</strong></div>
+                      <div><span>Contact</span>{addr.phone ? <a href={`tel:${addr.phone}`}>{addr.phone}</a> : <strong>Not provided</strong>}</div>
+                      <div><span>Delivery address</span><strong>{[addr.line, addr.ward && `Ward ${addr.ward}`, 'Birgunj'].filter(Boolean).join(', ') || 'Address unavailable'}</strong></div>
+                      <div><span>Payment</span><strong>{o.paymentMethod === 'cod' ? 'Cash on delivery' : o.paymentMethod}</strong></div>
+                    </div>
 
-                  <details className="workspace-disclosure order-details-disclosure" open>
-                    <summary><span>Customer &amp; order details</span><small>{(o.items || []).filter((i) => i.merchant === user._id).length} item(s)</small></summary>
-                    <div className="workspace-disclosure-body">
-                      <div className="order-customer-details">
-                        <div><span>Customer</span><strong>{o.user?.name || 'Customer'}</strong></div>
-                        <div><span>Delivery address</span><strong>{[o.deliveryAddress?.line, o.deliveryAddress?.ward && `Ward ${o.deliveryAddress.ward}`, 'Birgunj'].filter(Boolean).join(', ') || 'Address unavailable'}</strong></div>
-                        <div><span>Contact</span>{o.deliveryAddress?.phone ? <a href={`tel:${o.deliveryAddress.phone}`}>{o.deliveryAddress.phone}</a> : <strong>Not provided</strong>}</div>
-                        <div><span>Payment</span><strong>{o.paymentMethod === 'cod' ? 'Cash on delivery' : o.paymentMethod}</strong></div>
-                      </div>
-                      <div className="order-items">
-                        <ul>
-                          {(o.items || [])
-                            .filter((i) => i.merchant === user._id)
-                            .map((i, idx) => {
+                    <div className="order-items">
+                      <ul>
+                        {mine.map((i, idx) => {
                           const product = i.product && typeof i.product === 'object' ? i.product : null;
                           const productId = product?._id || i.product;
                           const photo = imageUrl(product?.imageUrl);
@@ -206,14 +207,13 @@ export default function Orders() {
                               <span className="oi-price">रू {Number(i.price || 0).toLocaleString('en-IN')}</span>
                             </li>
                           );
-                            })}
-                        </ul>
-                      </div>
-                      {o.deliveryInstructions && <p className="order-note"><strong>Delivery note:</strong> {o.deliveryInstructions}</p>}
+                        })}
+                      </ul>
                     </div>
-                  </details>
-                </article>
-              ))}
+                    {o.deliveryInstructions && <p className="order-note"><strong>Delivery note:</strong> {o.deliveryInstructions}</p>}
+                  </article>
+                );
+              })}
             </div>
           )}
 
