@@ -133,6 +133,15 @@ variables in the server host's secret settings, and set `VITE_API_URL` in each
 frontend's build settings to the public API origin (for example,
 `https://api.example.com`, without `/api`). `VITE_API_URL` is baked into the
 frontend bundle; changing it requires rebuilding and redeploying both frontends.
+In Vercel, configure these public URLs for both **Production** and **Preview**
+on each project:
+
+| Vercel project | Variable | Value |
+| --- | --- | --- |
+| `onlinekiranabirgunj` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
+| `onlinekiranabirgunj` | `VITE_PARTNERS_URL` | `https://onlinekirana-partners.vercel.app` |
+| `onlinekirana-partners` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
+| `onlinekirana-partners` | `VITE_STOREFRONT_URL` | `https://onlinekiranabirgunj.vercel.app` |
 
 Set `NODE_ENV=production`, `MONGO_URI`, a random `JWT_SECRET` of at least 32
 characters, and `CLIENT_URL` to the exact comma-separated HTTPS storefront and
@@ -166,18 +175,19 @@ across server restarts.
 - The pitch policy says no returns or refunds during the pilot. Obtain local legal review and publish a legally compliant policy before accepting real customers.
 
 **Partner onboarding**
-`Register as merchant` → status *pending* → admin approves → `Shop Setup` (name, logo, description, address) → add products (*pending*) → admin approves → shop page live → fulfil orders.
+`Register as merchant` → status *pending* → admin approves → `Shop & profile` (shop details first, then personal details/security) → save product drafts on this device → sync products for admin approval → shop page live → accept and pack orders.
 
 **Order lifecycle**
-`pending → confirmed → packed → out_for_delivery → delivered` (or `cancelled`).
+`pending → confirmed → packed → assigned → out_for_delivery → delivered` (or `cancelled`).
 
 **Merchant → rider handoff** (riders choose the jobs they accept)
 1. Customer orders from a shop and picks a slot.
-2. The merchant taps **Mark packed** — the job is now available in the rider portal.
-3. An on-shift rider reviews open orders and taps **Accept order**. The order is assigned only after that choice; matching an area never assigns it automatically.
-4. The rider taps **I've reached the shop** on arrival, then **Goods collected**.
-5. The customer sees the order move to *On the way* from their own account.
-6. At the door the rider reads out the customer's 4-digit hand-over code. Only that code completes the drop.
+2. The merchant reviews customer/address and basket details, then taps **Accept order**.
+3. The merchant prepares the basket and taps **Mark packed** — the job is now available in the rider portal.
+4. An on-shift rider reviews open orders and taps **Accept order**. The order is assigned only after that choice; matching an area never assigns it automatically.
+5. The rider taps **I've reached the shop** on arrival, then **Goods collected**.
+6. The customer sees the order move to *On the way* from their own account.
+7. At the door the rider reads out the customer's 4-digit hand-over code. Only that code completes the drop.
 
 Until a rider accepts it, the job stays `pending` and appears in the open orders list. Riders can
 accept only while on shift and below the active order limit. Customer name, phone, address and
@@ -239,7 +249,7 @@ Base URL: `/api`. All authenticated routes expect `Authorization: Bearer <token>
 | GET/POST | `/products` | merchant |
 | PUT/DELETE | `/products/:id` | merchant (own) |
 | GET | `/orders` | merchant (orders with their items) |
-| PATCH | `/orders/:id/status` | merchant (`packed`/`out_for_delivery`/`delivered`) |
+| PATCH | `/orders/:id/status` | merchant (`confirmed` accept, then `packed`) |
 
 ### Admin — `/api/admin`
 | Method | Route | Access |
@@ -256,6 +266,7 @@ Base URL: `/api`. All authenticated routes expect `Authorization: Bearer <token>
 | GET/PUT | `/api/profile`, PUT `/api/profile/password` | user |
 | GET | `/api/dashboard` | user (role-shaped response) |
 | POST | `/api/uploads/avatar`, `/shop-logo`, `/product` | user |
+| DELETE | `/api/uploads/avatar` | user (remove own photo) |
 | GET | `/api/health` | public |
 
 Static uploads are served from `GET /uploads/...`.

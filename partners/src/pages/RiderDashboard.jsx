@@ -9,6 +9,7 @@ import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import ImageUpload from '@shared/components/ImageUpload';
 import { DELIVERY_LABEL, DELIVERY_STEPS, DELIVERY_WINDOW_LABEL, money, timeAgo } from '@shared/lib/delivery';
+import WorkspaceHeader from '../components/WorkspaceHeader.jsx';
 
 /** What a rider can do at each step, in their own words. */
 const NEXT_ACTIONS = {
@@ -255,21 +256,22 @@ export default function RiderDashboard() {
   const done = data.mine.filter((j) => j.status === 'delivered');
 
   return (
-    <div>
-      <h1>Namaste, {user.name.split(' ')[0]}!</h1>
-      <p className="muted">
-        <Bike size={14} aria-hidden="true" /> {user.riderVehicle || 'Rider'}
-        {user.riderArea && ` · ${user.riderArea}`}
-      </p>
+    <div className="workspace-page">
+      <WorkspaceHeader
+        icon={Bike}
+        eyebrow="Rider workspace"
+        title={`Namaste, ${user.name.split(' ')[0]}!`}
+        description={`${user.riderVehicle || 'Rider'}${user.riderArea ? ` · ${user.riderArea}` : ''} · Manage your shift and deliveries.`}
+        status={<span className={`workspace-shift-status${online ? ' is-online' : ''}`}><span />{online ? 'On shift' : 'Off shift'}</span>}
+        actions={(
+          <button className={online ? 'muted-btn' : 'cta-btn'} onClick={toggleShift} disabled={user.riderStatus === 'suspended'}>
+            <Power size={16} aria-hidden="true" /> {online ? 'Go off shift' : 'Go on shift'}
+          </button>
+        )}
+      />
 
-      <div className="shift-bar">
-        <button className={online ? 'cta-btn' : 'muted-btn'} onClick={toggleShift} disabled={user.riderStatus === 'suspended'}>
-          <Power size={16} aria-hidden="true" /> {online ? 'Go off shift' : 'Go on shift'}
-        </button>
-        {user.riderStatus === 'suspended' && <span className="muted">Your account is suspended — contact the admin.</span>}
-      </div>
-
-      {msg && <p className="muted">{msg}</p>}
+      {user.riderStatus === 'suspended' && <p className="workspace-alert" role="status">Your account is suspended — contact the admin.</p>}
+      {msg && <p className="workspace-message" role="status">{msg}</p>}
 
       <div className="stat-grid">
         <div className="stat-card accent"><div className="stat-value">{active.length}</div><div className="stat-label">Active jobs</div></div>
@@ -281,36 +283,48 @@ export default function RiderDashboard() {
         <p className="loading-shimmer">Loading your jobs</p>
       ) : (
         <>
-          <h2>Your jobs</h2>
-          {active.length === 0 ? (
-            <div className="empty-state">
-              <PackageOpen size={34} aria-hidden="true" />
-              <p>Nothing in hand right now. {online ? 'Open jobs below are yours to take.' : 'Go on shift to see open jobs.'}</p>
-            </div>
-          ) : (
-            <div className="order-list">
-              {active.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} />)}
-            </div>
-          )}
-
-          {data.open.length > 0 && (
-            <>
-              <h2>Available deliveries</h2>
-              <p className="muted">Choose a delivery when you are ready. Customer name, address and phone appear after you accept it.</p>
-              <div className="order-list">
-                {data.open.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} canAccept={online} />)}
+          <div className="workspace-delivery-grid">
+            <section className="workspace-panel workspace-delivery-panel">
+              <div className="workspace-section-heading">
+                <div><h2>Your jobs</h2><p>Deliveries you have accepted and are working on.</p></div>
+                <span className="workspace-count">{active.length}</span>
               </div>
-            </>
-          )}
+              {active.length === 0 ? (
+                <div className="empty-state">
+                  <PackageOpen size={34} aria-hidden="true" />
+                  <p>Nothing in hand right now. {online ? 'Open jobs below are yours to take.' : 'Go on shift to see open jobs.'}</p>
+                </div>
+              ) : (
+                <div className="order-list rider-job-grid">
+                  {active.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} />)}
+                </div>
+              )}
+            </section>
 
-          {done.length > 0 && (
-            <>
-              <h2>Delivered</h2>
-              <div className="order-list">
-                {done.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} />)}
-              </div>
-            </>
-          )}
+            {data.open.length > 0 && (
+              <section className="workspace-panel workspace-delivery-panel">
+                <div className="workspace-section-heading">
+                  <div><h2>Available deliveries</h2><p>Customer details appear after you accept a job.</p></div>
+                  <span className="workspace-count">{data.open.length}</span>
+                </div>
+                <div className="order-list rider-job-grid">
+                  {data.open.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} canAccept={online} />)}
+                </div>
+              </section>
+            )}
+
+            {done.length > 0 && (
+              <section className="workspace-panel workspace-delivery-panel">
+                <div className="workspace-section-heading">
+                  <div><h2>Delivered</h2><p>Your completed deliveries.</p></div>
+                  <span className="workspace-count">{done.length}</span>
+                </div>
+                <div className="order-list rider-job-grid">
+                  {done.map((j) => <JobCard key={j._id} job={j} onAdvance={advance} onClaim={claim} />)}
+                </div>
+              </section>
+            )}
+          </div>
         </>
       )}
     </div>

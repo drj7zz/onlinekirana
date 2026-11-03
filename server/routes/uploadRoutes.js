@@ -12,6 +12,7 @@ router.post('/avatar', ...handleUpload(UPLOADERS.avatars, 'avatars'), (req, res,
   else if (req.file) req.uploadedUrl = `/uploads/avatars/${req.file.filename}`;
   next();
 }, c.uploadAvatar);
+router.delete('/avatar', c.removeAvatar);
 router.post('/shop-logo', ...handleUpload(UPLOADERS.shops, 'shops'), (req, res, next) => {
   if (cloudEnabled) req.uploadedUrl = req.file?.cloudinaryUrl;
   else if (req.file) req.uploadedUrl = `/uploads/shops/${req.file.filename}`;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PackageOpen, Bike, Phone, Store, PackageCheck, Search } from 'lucide-react';
+import { PackageOpen, Bike, Phone, Store, PackageCheck, Search, ReceiptText, CircleCheck } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
@@ -8,21 +8,19 @@ import OrderCard from '@shared/components/OrderCard';
 import { productPath } from '@shared/lib/productUrl';
 import { STOREFRONT_URL } from '@shared/lib/apps';
 import { imageUrl } from '@shared/api';
+import WorkspaceHeader from '../components/WorkspaceHeader.jsx';
 
 /**
- * What the shop is being asked to do right now. The merchant's whole job is to
- * pack the goods; riders choose open jobs from their dashboard. This strip
- * shows whether a rider has accepted the job and is on the way to the
- * counter, so nobody has to phone to ask.
+ * The shop accepts the order and packs it; riders choose packed delivery jobs.
  */
 const STAGE = {
   pending: {
-    label: 'Waiting to be packed',
-    hint: 'Pack the goods, then mark it packed — riders can choose to accept it.',
+    label: 'New order',
+    hint: 'Review the customer and basket, then accept the order.',
   },
   confirmed: {
-    label: 'Waiting to be packed',
-    hint: 'Pack the goods, then mark it packed — riders can choose to accept it.',
+    label: 'Accepted — ready to pack',
+    hint: 'Prepare the products, then mark the order packed for riders.',
   },
   packed: {
     label: 'Packed — waiting for a rider',
@@ -90,15 +88,14 @@ export default function Orders() {
   };
   useLive(load, 8000, [user?._id]);
 
-  // Packing makes the delivery available for riders to accept.
-  const pack = async (id) => {
+  const setStatus = async (id, status) => {
     setBusyId(id);
     setError('');
     try {
-      await API.patch(`/partner/orders/${id}/status`, { status: 'packed' });
+      await API.patch(`/partner/orders/${id}/status`, { status });
       load();
     } catch (e) {
-      setError(e.response?.data?.message || 'Could not mark that order packed.');
+      setError(e.response?.data?.message || 'Could not update this order. Please refresh and try again.');
     } finally {
       setBusyId(null);
     }
@@ -108,46 +105,57 @@ export default function Orders() {
   if (user.role !== 'merchant') return <p className="empty">Order fulfilment is for merchant partners only.</p>;
 
   const inDelivery = ['packed', 'assigned', 'out_for_delivery', 'delivered', 'cancelled'];
-  const toPack = orders.filter((o) => !inDelivery.includes(o.status));
+  const toPack = orders.filter((o) => ['pending', 'confirmed'].includes(o.status));
+  const deliveryOrders = orders.filter((o) => inDelivery.includes(o.status));
   const history = [...orders].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .filter((o) => historyFilter === 'all' || (historyFilter === 'active' ? !['delivered', 'cancelled'].includes(o.status) : o.status === historyFilter))
     .filter((o) => !historySearch.trim() || `${o._id} ${o.status} ${(o.items || []).map((i) => i.name).join(' ')}`.toLowerCase().includes(historySearch.trim().toLowerCase()));
 
   return (
-    <div>
-      <h1>Orders</h1>
-      <p className="muted">
-        Pack the goods and mark each order packed. Riders see the open job and choose
-        whether to accept it; area alone never assigns an order to someone.
-      </p>
+    <div className="workspace-page">
+      <WorkspaceHeader
+        icon={ReceiptText}
+        eyebrow="Merchant workspace"
+        title="Shop orders"
+        description="Pack orders and hand them over to a rider. Riders choose open jobs when they are ready."
+      />
 
       {error && <p className="error">{error}</p>}
 
       {orders.length === 0 ? (
-        <div className="empty-state">
+        <div className="empty-state workspace-panel">
           <PackageOpen size={32} aria-hidden="true" />
           <p>No orders with your items yet. When customers buy from your shop, their orders appear here with a delivery tracker.</p>
         </div>
       ) : (
         <>
-          <h2>To pack ({toPack.length})</h2>
+          <div className="workspace-section-heading">
+            <div><h2>New &amp; preparing</h2><p>Review each order, accept it, then pack the products.</p></div>
+            <span className="workspace-count">{toPack.length}</span>
+          </div>
           {toPack.length === 0 ? (
-            <p className="empty">Nothing waiting — every order is with the delivery system.</p>
+            <p className="empty">No orders are waiting for acceptance or packing.</p>
           ) : (
             <div className="order-list">
               {toPack.map((o) => (
-                <article key={o._id} className="order-card">
+                <article key={o._id} className="order-card order-workflow-card">
                   <header className="order-head">
                     <div className="order-head-main">
                       <span className="order-ref">Order #{String(o._id).slice(-6).toUpperCase()}</span>
                       <span className="muted">{(o.items || []).filter((i) => i.merchant === user._id).length} of your item(s)</span>
+                      <span className={`status s-${o.status}`}>{STAGE[o.status]?.label || o.status}</span>
                     </div>
                     <div className="order-head-side">
                       <strong className="order-total">रू {Number(o.total || 0).toLocaleString('en-IN')}</strong>
-                      <button className="cta-btn" onClick={() => pack(o._id)} disabled={busyId === o._id}>
-                        <PackageCheck size={15} aria-hidden="true" />
-                        {busyId === o._id ? 'Packing…' : 'Mark packed'}
-                      </button>
+                      {o.status === 'pending' ? (
+                        <button className="cta-btn" onClick={() => setStatus(o._id, 'confirmed')} disabled={busyId === o._id}>
+                          <CircleCheck size={15} aria-hidden="true" /> {busyId === o._id ? 'Accepting…' : 'Accept order'}
+                        </button>
+                      ) : (
+                        <button className="cta-btn" onClick={() => setStatus(o._id, 'packed')} disabled={busyId === o._id}>
+                          <PackageCheck size={15} aria-hidden="true" /> {busyId === o._id ? 'Packing…' : 'Mark packed'}
+                        </button>
+                      )}
                     </div>
                   </header>
 
@@ -157,11 +165,20 @@ export default function Orders() {
                     <div className="muted" style={{ marginTop: '.2rem' }}>{STAGE[o.status]?.hint}</div>
                   </div>
 
-                  <div className="order-items">
-                    <ul>
-                      {(o.items || [])
-                        .filter((i) => i.merchant === user._id)
-                        .map((i, idx) => {
+                  <details className="workspace-disclosure order-details-disclosure">
+                    <summary><span>Customer &amp; order details</span><small>{(o.items || []).filter((i) => i.merchant === user._id).length} item(s)</small></summary>
+                    <div className="workspace-disclosure-body">
+                      <div className="order-customer-details">
+                        <div><span>Customer</span><strong>{o.user?.name || 'Customer'}</strong></div>
+                        <div><span>Delivery address</span><strong>{[o.deliveryAddress?.line, o.deliveryAddress?.ward && `Ward ${o.deliveryAddress.ward}`, 'Birgunj'].filter(Boolean).join(', ') || 'Address unavailable'}</strong></div>
+                        <div><span>Contact</span>{o.deliveryAddress?.phone ? <a href={`tel:${o.deliveryAddress.phone}`}>{o.deliveryAddress.phone}</a> : <strong>Not provided</strong>}</div>
+                        <div><span>Payment</span><strong>{o.paymentMethod === 'cod' ? 'Cash on delivery' : o.paymentMethod}</strong></div>
+                      </div>
+                      <div className="order-items">
+                        <ul>
+                          {(o.items || [])
+                            .filter((i) => i.merchant === user._id)
+                            .map((i, idx) => {
                           const product = i.product && typeof i.product === 'object' ? i.product : null;
                           const productId = product?._id || i.product;
                           const photo = imageUrl(product?.imageUrl);
@@ -188,46 +205,49 @@ export default function Orders() {
                               <span className="oi-price">रू {Number(i.price || 0).toLocaleString('en-IN')}</span>
                             </li>
                           );
-                        })}
-                    </ul>
-                  </div>
-
-                  {o.deliveryInstructions && (
-                    <p className="order-note"><strong>Customer note:</strong> {o.deliveryInstructions}</p>
-                  )}
+                            })}
+                        </ul>
+                      </div>
+                      {o.deliveryInstructions && <p className="order-note"><strong>Delivery note:</strong> {o.deliveryInstructions}</p>}
+                    </div>
+                  </details>
                 </article>
               ))}
             </div>
           )}
 
-          <h2>With the delivery system ({orders.length - toPack.length})</h2>
-          {orders.length - toPack.length === 0 ? (
+          <div className="workspace-section-heading">
+            <div><h2>With the delivery system</h2><p>Track orders that have left your packing queue.</p></div>
+            <span className="workspace-count">{deliveryOrders.length}</span>
+          </div>
+          {deliveryOrders.length === 0 ? (
             <p className="empty">Nothing on the road yet.</p>
           ) : (
             <div className="order-list">
-              {orders
-                .filter((o) => inDelivery.includes(o.status))
-                .map((o) => (
-                  <article key={o._id} className="order-card">
-                    <header className="order-head">
-                      <div className="order-head-main">
-                        <span className="order-ref">Order #{String(o._id).slice(-6).toUpperCase()}</span>
+              {deliveryOrders.map((o) => (
+                <article key={o._id} className="order-card order-workflow-card">
+                  <details className="workspace-disclosure delivery-track-details">
+                    <summary>
+                      <span>
+                        Order #{String(o._id).slice(-6).toUpperCase()}
                         <span className={`status s-${o.status}`}>{STAGE[o.status]?.label || o.status}</span>
-                      </div>
-                      <div className="order-head-side">
-                        <strong className="order-total">रू {Number(o.total || 0).toLocaleString('en-IN')}</strong>
-                      </div>
-                    </header>
-
-                    <p className="muted" style={{ margin: '0 0 .5rem' }}>{STAGE[o.status]?.hint}</p>
-
-                    <RiderPanel delivery={o.delivery} orderStatus={o.status} />
-                  </article>
-                ))}
+                      </span>
+                      <small>रू {Number(o.total || 0).toLocaleString('en-IN')}</small>
+                    </summary>
+                    <div className="workspace-disclosure-body">
+                      <p className="muted" style={{ margin: '.65rem 0' }}>{STAGE[o.status]?.hint}</p>
+                      <RiderPanel delivery={o.delivery} orderStatus={o.status} />
+                    </div>
+                  </details>
+                </article>
+              ))}
             </div>
           )}
 
-          <h2>Full history</h2>
+          <div className="workspace-section-heading">
+            <div><h2>Order history</h2><p>Search and filter your shop&apos;s past orders.</p></div>
+            <span className="workspace-count">{history.length}</span>
+          </div>
           <section className="history-tools" aria-label="Filter order history">
             <label className="history-search"><Search size={16} aria-hidden="true" /><input value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder="Search orders or products" aria-label="Search order history" /></label>
             <div className="history-filters" role="group" aria-label="Order status">

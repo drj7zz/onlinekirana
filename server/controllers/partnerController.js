@@ -3,6 +3,8 @@ const Order = require('../models/Order');
 const User = require('../models/User');
 const Delivery = require('../models/Delivery');
 const { serverError } = require('../utils/errors');
+const { decryptPII } = require('../lib/piiCrypto');
+const { notifyUsers } = require('../utils/notifications');
 const deliveryController = require('./deliveryController');
 const { enqueue } = require('../lib/platform');
 
@@ -83,6 +85,7 @@ exports.myOrders = async (req, res) => {
     const orders = await Order.find({ 'items.merchant': req.user.id })
       .sort({ createdAt: -1 })
       .populate('items.product', 'imageUrl description category')
+      .populate('user', 'name phone')
       .lean();
 
     // Join the delivery job so the shopkeeper can see which rider is coming and
@@ -97,7 +100,14 @@ exports.myOrders = async (req, res) => {
     const byOrder = new Map(jobs.map((j) => [String(j.order), j]));
     for (const o of orders) {
       o.delivery = byOrder.get(String(o._id)) || null;
+      if (o.delivery?.rider) o.delivery.rider.phone = decryptPII(o.delivery.rider.phone) || '';
       if (o.deliveryAddress?.location) delete o.deliveryAddress.location;
+      if (o.deliveryAddress) {
+        o.deliveryAddress.phone = decryptPII(o.deliveryAddress.phone) || '';
+        o.deliveryAddress.line = decryptPII(o.deliveryAddress.line) || '';
+        o.deliveryAddress.ward = decryptPII(o.deliveryAddress.ward) || '';
+      }
+      if (o.user) o.user.phone = decryptPII(o.user.phone) || '';
     }
 
     res.json(orders);
@@ -107,17 +117,15 @@ exports.myOrders = async (req, res) => {
 };
 
 /**
- * The merchant's only lever.
- *
- * A shopkeeper packs goods — that is it. Packing makes the delivery visible
- * to riders, who choose whether to accept it.
+ * The merchant accepts the order, then marks it packed. Delivery assignment
+ * remains a separate rider-owned step.
  */
 exports.updateOrderStatus = async (req, res) => {
   try {
-    const allowed = ['packed'];
+    const allowed = ['confirmed', 'packed'];
     if (!allowed.includes(req.body.status)) {
       return res.status(403).json({
-        message: `Packing is the only step you set. Delivery updates itself once packed.`,
+        message: 'Merchants can accept orders and mark them packed. Delivery updates after a rider accepts.',
       });
     }
     const order = await Order.findOne({ _id: req.params.id, 'items.merchant': req.user.id });
@@ -125,7 +133,28 @@ exports.updateOrderStatus = async (req, res) => {
     if (['cancelled', 'delivered'].includes(order.status)) {
       return res.status(409).json({ message: `Order is already ${order.status}` });
     }
-    if (order.status === 'packed') return res.json(order);
+    if (order.status === req.body.status || (req.body.status === 'confirmed' && order.status === 'packed')) {
+      return res.json(order);
+    }
+
+    if (req.body.status === 'confirmed' && order.status !== 'pending') {
+      return res.status(409).json({ message: 'Only new orders can be accepted.' });
+    }
+    if (req.body.status === 'packed' && order.status !== 'confirmed') {
+      return res.status(409).json({ message: 'Accept the order before marking it packed.' });
+    }
+
+    if (req.body.status === 'confirmed') {
+      order.status = 'confirmed';
+      await order.save();
+      await notifyUsers([order.user], {
+        type: 'order',
+        title: 'Shop accepted your order',
+        body: `Order #${String(order._id).slice(-6).toUpperCase()} is being prepared.`,
+        link: '/orders',
+      });
+      return res.json(order);
+    }
 
     order.status = 'packed';
     order.packedAt = new Date();

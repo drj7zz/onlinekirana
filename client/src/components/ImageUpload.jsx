@@ -8,7 +8,7 @@ import API, { imageUrl } from '../api';
  * - endpoint → '/uploads/avatar' | '/uploads/shop-logo' | '/uploads/product'
  * - value → current saved URL; onChange(url) fires after upload or removal
  */
-export default function ImageUpload({ endpoint, value, onChange, round = false, label = 'Upload image', size = 96 }) {
+export default function ImageUpload({ endpoint, value, onChange, onRemove, round = false, label = 'Upload image', size = 96 }) {
   const inputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -54,7 +54,7 @@ export default function ImageUpload({ endpoint, value, onChange, round = false, 
         onChange={(e) => { pick(e.target.files?.[0]); e.target.value = ''; }} />
       {src && !busy && (
         <button type="button" className="img-upload-clear" aria-label="Remove image"
-          onClick={() => { setPreview(null); onChange(''); }}>
+          onClick={() => { setPreview(null); onRemove ? onRemove() : onChange(''); }}>
           <Trash2 size={12} aria-hidden="true" />
         </button>
       )}

@@ -59,7 +59,7 @@ const ROLE_QUICK = {
   merchant: [
     { to: '/orders', icon: Package, title: 'Shop orders', sub: 'Pack and hand over' },
     { to: '/products', icon: Boxes, title: 'Products', sub: 'List and edit stock' },
-    { to: '/shop-setup', icon: Settings2, title: 'Shop setup', sub: 'Your public page' },
+    { to: '/shop-setup', icon: UserCircle2, title: 'Shop & profile', sub: 'Shop details, picture and security' },
   ],
   delivery: [
     { to: '/rider', icon: Bike, title: 'My shift', sub: 'Pick up and deliver' },

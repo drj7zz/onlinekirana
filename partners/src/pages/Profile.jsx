@@ -104,6 +104,18 @@ export default function Profile() {
     }
   };
 
+  const removeAvatar = async () => {
+    try {
+      await API.delete('/uploads/avatar');
+      setAvatarUrl('');
+      updateUser({ avatarUrl: '' });
+      toast.success('Profile picture removed');
+    } catch (error) {
+      setMsg(error.response?.data?.message || 'Could not remove your profile picture.');
+      toast.error('Could not remove profile picture');
+    }
+  };
+
   if (!user) return <p className="empty">Please <Link to="/login">sign in</Link>.</p>;
 
   const ordersTo = ORDERS_ROUTE[user.role];
@@ -121,7 +133,7 @@ export default function Profile() {
 
       <div className="profile-head">
         <ImageUpload endpoint="/uploads/avatar" value={avatarUrl} round size={88}
-          label="Upload photo" onChange={(url) => { setAvatarUrl(url); updateUser({ avatarUrl: url }); }} />
+          label="Change picture" onChange={(url) => { setAvatarUrl(url); updateUser({ avatarUrl: url }); }} onRemove={removeAvatar} />
         <div>
           <h2>{user.name}</h2>
           <p className="muted">{user.email}</p>

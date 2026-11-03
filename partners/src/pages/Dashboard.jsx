@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleCheck, Package, ReceiptText, PlusCircle, Truck, Bike, Store, ChevronRight } from 'lucide-react';
+import { CircleCheck, Package, ReceiptText, PlusCircle, Truck, Bike, Store, ChevronRight, ShieldCheck, ChevronDown } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import OrderCard from '@shared/components/OrderCard';
+import WorkspaceHeader from '../components/WorkspaceHeader.jsx';
 
 const fmt = (n) => (typeof n === 'number' ? n.toLocaleString('en-IN') : n);
 
@@ -12,6 +13,12 @@ const roleTitle = {
   admin: 'Admin Dashboard',
   merchant: 'Partner Dashboard',
   delivery: 'Delivery Dashboard',
+};
+
+const roleIcon = {
+  admin: ShieldCheck,
+  merchant: Store,
+  delivery: Bike,
 };
 
 const roleActions = {
@@ -41,6 +48,15 @@ const roleActions = {
   ],
 };
 
+const MERCHANT_CARD_LINKS = {
+  myProducts: '/products',
+  liveMine: '/products',
+  pendingMine: '/products',
+  myOrders: '/orders',
+  activeOrders: '/orders',
+  revenue: '/orders',
+};
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
@@ -57,28 +73,41 @@ export default function Dashboard() {
   if (!data) return <p className="loading-shimmer">Loading your dashboard</p>;
 
   const live = <span className="live-dot" title="Updates automatically" />;
+  const Icon = roleIcon[user.role] || Store;
+  const description = user.role === 'merchant'
+    ? `Welcome back, ${user.name.split(' ')[0]}.${user.shopName ? ` ${user.shopName} is ready for business.` : ' Keep your shop and orders moving.'}`
+    : user.role === 'delivery'
+      ? `Welcome back, ${user.name.split(' ')[0]}. Your jobs and earnings update as deliveries move.`
+      : `Welcome back, ${user.name}. You see everything the moment it happens.`;
 
   return (
-    <div>
-      <h1>{roleTitle[user.role] || 'Dashboard'} {live}</h1>
-      <p className="muted">
-        Namaste, {user.name}! {user.role === 'admin' && 'You see everything the moment it happens.'}
-        {user.role === 'merchant' && user.shopName && ` Shop: ${user.shopName}.`}
-        {user.role === 'delivery' && 'Your route updates as jobs come in.'}
-      </p>
+    <div className="workspace-page">
+      <WorkspaceHeader
+        icon={Icon}
+        eyebrow={user.role === 'merchant' ? 'Merchant workspace' : user.role === 'delivery' ? 'Rider workspace' : 'Operations workspace'}
+        title={roleTitle[user.role] || 'Dashboard'}
+        description={description}
+        status={<span className="workspace-live">{live} Live updates</span>}
+      />
 
       <div className="stat-grid">
-        {data.cards.map((c) => (
-          <div key={c.key} className={`stat-card${c.accent ? ' accent' : ''}`}>
-            <div className="stat-value">{fmt(c.value)}</div>
-            <div className="stat-label">{c.label}</div>
-          </div>
-        ))}
+        {data.cards.map((c) => {
+          const card = (
+            <>
+              <div className="stat-value">{fmt(c.value)}</div>
+              <div className="stat-label">{c.label}</div>
+              {user.role === 'merchant' && <span className="workspace-stat-link">View <ChevronRight size={13} aria-hidden="true" /></span>}
+            </>
+          );
+          return user.role === 'merchant' && MERCHANT_CARD_LINKS[c.key]
+            ? <Link key={c.key} to={MERCHANT_CARD_LINKS[c.key]} className={`stat-card workspace-stat-card${c.accent ? ' accent' : ''}`}>{card}</Link>
+            : <div key={c.key} className={`stat-card${c.accent ? ' accent' : ''}`}>{card}</div>;
+        })}
       </div>
 
-      <div className="dash-cols">
-        <div>
-          <h2>Quick actions</h2>
+      <div className="dash-cols workspace-dashboard-grid">
+        <details className="workspace-panel workspace-dashboard-panel" open>
+          <summary className="workspace-panel-summary"><h2>Quick actions</h2><ChevronDown size={17} aria-hidden="true" /></summary>
           {roleActions[user.role]?.map((section) => (
             <section key={section.title} className="dash-action-section">
               <h3>{section.title}</h3>
@@ -90,9 +119,9 @@ export default function Dashboard() {
               ))}
             </section>
           ))}
-        </div>
-        <div>
-          <h2>Recent orders</h2>
+        </details>
+        <details className="workspace-panel workspace-dashboard-panel" open>
+          <summary className="workspace-panel-summary"><h2>Recent orders</h2><ChevronDown size={17} aria-hidden="true" /></summary>
           {data.recentOrders.length === 0 && <p className="empty">Nothing yet.</p>}
           {/* Compact minimal history — collapsed order cards; tap one to open
               its items, bill and delivery details in place. */}
@@ -103,10 +132,10 @@ export default function Dashboard() {
           </div>
           {user.role === 'merchant' && data.recentOrders.length > 0 && (
             <Link to="/orders" className="dash-see-all muted">
-              Full order history <ChevronRight size={13} aria-hidden="true" />
+              View and fulfil orders <ChevronRight size={13} aria-hidden="true" />
             </Link>
           )}
-        </div>
+        </details>
       </div>
     </div>
   );

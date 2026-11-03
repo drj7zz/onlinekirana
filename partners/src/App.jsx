@@ -3,6 +3,7 @@ import { useAuth } from '@shared/context/AuthContext.jsx';
 
 import Navbar from './components/Navbar.jsx';
 import Footer from './components/Footer.jsx';
+import BottomTabs from './components/BottomTabs.jsx';
 import RequireRole from './components/RequireRole.jsx';
 import usePortalSeo from './hooks/usePortalSeo';
 
@@ -33,6 +34,13 @@ function PortalHome() {
   return <Dashboard />;
 }
 
+function ProfileRoute() {
+  const { user } = useAuth();
+  return user?.role === 'merchant'
+    ? <Navigate to="/shop-setup" replace />
+    : <Profile />;
+}
+
 /**
  * The business portal. Everything that is not a shopper lives here: merchant
  * shops, the delivery fleet, and the operations desk. The public side of
@@ -45,7 +53,7 @@ export default function App() {
   usePortalSeo();
 
   return (
-    <div className="app-shell">
+    <div className="app-shell partner-shell">
       <Navbar />
       <main className="container app-main">
         <Routes>
@@ -59,7 +67,7 @@ export default function App() {
           <Route path="/pending" element={<Pending />} />
           {/* Any signed-in role has a profile. The page adapts its fields and its
               "my orders" shortcut to whichever role is signed in. */}
-          <Route path="/profile" element={<RequireRole roles={['merchant', 'delivery', 'admin']} allowPending><Profile /></RequireRole>} />
+          <Route path="/profile" element={<RequireRole roles={['merchant', 'delivery', 'admin']} allowPending><ProfileRoute /></RequireRole>} />
 
           <Route path="/dashboard" element={<RequireRole roles={['merchant', 'delivery', 'admin']}><Dashboard /></RequireRole>} />
           <Route path="/shop-setup" element={<RequireRole roles={['merchant']}><ShopSetup /></RequireRole>} />
@@ -78,6 +86,7 @@ export default function App() {
         </Routes>
       </main>
       <Footer />
+      <BottomTabs />
     </div>
   );
 }

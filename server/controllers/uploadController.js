@@ -21,6 +21,20 @@ exports.uploadAvatar = async (req, res) => {
   }
 };
 
+// DELETE /api/uploads/avatar — remove the signed-in user's profile photo.
+exports.removeAvatar = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    await removeOld(user.avatarUrl);
+    user.avatarUrl = '';
+    await user.save();
+    res.json({ url: '' });
+  } catch (e) {
+    serverError(res, e);
+  }
+};
+
 // POST /api/uploads/shop-logo  (merchant only)  → sets user.shopLogoUrl
 exports.uploadShopLogo = async (req, res) => {
   try {
