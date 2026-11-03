@@ -484,10 +484,10 @@ export default function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [dark, setDark] = useState(initialTheme);
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [installBannerDismissed, setInstallBannerDismissed] = useState(readInstallBannerDismissed);
   const [installHelpOpen, setInstallHelpOpen] = useState(false);
   const [installError, setInstallError] = useState('');
   const [appInstalled, setAppInstalled] = useState(false);
-  const [installBannerDismissed, setInstallBannerDismissed] = useState(readInstallBannerDismissed);
   const menuRef = useRef(null);
 
   useEffect(() => { applyTheme(dark); }, [dark]);
@@ -643,6 +643,11 @@ export default function Navbar() {
 
         {/* right cluster */}
         <div className="nav-actions">
+          {installPrompt && (
+            <button type="button" className="pwa-install-btn" onClick={installApp} aria-label="Install OnlineKirana app">
+              <Download size={16} aria-hidden="true" /> <span>Install app</span>
+            </button>
+          )}
           <button
             type="button"
             className="theme-toggle"
@@ -786,6 +791,12 @@ export default function Navbar() {
                 </button>
               )}
             </nav>
+
+            {installPrompt && (
+              <button type="button" className="drawer-link drawer-btn pwa-install-drawer" onClick={installApp}>
+                <Download size={17} aria-hidden="true" /> <span>Install app</span>
+              </button>
+            )}
 
             {!user && (
               <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>

@@ -1,6 +1,6 @@
 import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Save, KeyRound, CircleCheck, TriangleAlert, Package, Heart, Camera, Pencil, Trash2, ChevronDown } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Save, KeyRound, CircleCheck, TriangleAlert, Package, Heart, Camera, Pencil, Trash2, ChevronDown, LogOut } from 'lucide-react';
 import API from '../api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';

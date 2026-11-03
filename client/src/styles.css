@@ -176,6 +176,9 @@ a { color: inherit; text-decoration: none; }
    scrim then covers only the nav and the panel looks transparent/collapsed. The
    drawer is also portalled to <body> so nothing above it can constrain it. */
 .site-header { position: sticky; top: 0; z-index: 50; background: var(--surface); color: var(--grey-900); border-bottom: 1px solid var(--grey-200); }
+.pwa-install-btn { display: inline-flex; align-items: center; justify-content: center; gap: .35rem; min-height: 36px; padding: 0 .7rem; border: 1px solid var(--grey-300); border-radius: 9px; background: var(--surface); color: var(--brand); font: inherit; font-size: .82rem; font-weight: 700; cursor: pointer; }
+.pwa-install-btn:hover { background: var(--brand-tint); border-color: var(--brand); }
+.pwa-install-drawer { width: 100%; margin-top: .5rem; }
 .pwa-install-banner {
   display: flex; align-items: center; justify-content: space-between; gap: .8rem;
   max-width: 1180px; margin: 0 auto .65rem; padding: .6rem .75rem;
@@ -1684,12 +1687,18 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
   .pwa-install-banner-actions { gap: .3rem; }
   .pwa-install-banner-cta { min-height: 36px; padding: .35rem .55rem; font-size: .76rem; white-space: nowrap; }
   .pwa-install-banner-close { width: 32px; height: 32px; }
+  .pwa-install-btn { width: 40px; min-height: 40px; padding: 0; }
+  .pwa-install-btn span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
   .toast-stack { top: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px) + 10px); right: 12px; left: 12px; align-items: stretch; }
   .toast { max-width: none; }
 }
 @media (max-width: 380px) {
   .pwa-install-banner-copy small { display: none; }
   .pwa-install-banner-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+@media (max-width: 720px) {
+  .storefront-shell > .site-footer { display: none; }
 }
 
 @media (max-width: 720px) {
