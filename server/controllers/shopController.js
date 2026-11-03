@@ -1,13 +1,14 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Product = require('../models/Product');
+const Review = require('../models/Review');
 const { cleanStr, PHONE_RE } = require('../middleware/validate');
 const { serverError } = require('../utils/errors');
 const { cached, cacheInvalidate } = require('../lib/platform');
 const { encryptPII } = require('../lib/piiCrypto');
 
 // Public view of a shop — only approved partners get a live shop page
-const publicShop = (u) => ({
+const publicShop = (u, rating) => ({
   id: u._id,
   shopName: u.shopName,
   description: u.shopDescription || '',
@@ -16,14 +17,24 @@ const publicShop = (u) => ({
   address: { line: u.shopAddress?.line || '', ward: u.shopAddress?.ward || '', city: u.shopAddress?.city || 'Birgunj' },
   memberSince: u.createdAt,
   merchantStatus: u.merchantStatus,
+  ratingAverage: rating?.average || 0,
+  ratingCount: rating?.count || 0,
 });
+
+const shopRating = async (shopId) => {
+  const [row] = await Review.aggregate([
+    { $match: { shop: shopId } },
+    { $group: { _id: '$shop', average: { $avg: '$rating' }, count: { $sum: 1 } } },
+  ]);
+  return row ? { average: Math.round(row.average * 10) / 10, count: row.count } : { average: 0, count: 0 };
+};
 
 // ---- Merchant: load my shop profile for the setup page ----
 exports.myShop = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json({ ...publicShop(user), pickupLocation: user.shopAddress?.location || null });
+    res.json({ ...publicShop(user, await shopRating(user._id)), pickupLocation: user.shopAddress?.location || null });
   } catch (e) {
     serverError(res, e);
   }
@@ -67,7 +78,7 @@ exports.updateMyShop = async (req, res) => {
     // the cached public shop page is now stale
     await cacheInvalidate(`shop:${user._id}`).catch(() => {});
 
-    res.json({ ...publicShop(user), pickupLocation: user.shopAddress?.location || null });
+    res.json({ ...publicShop(user, await shopRating(user._id)), pickupLocation: user.shopAddress?.location || null });
   } catch (e) {
     serverError(res, e);
   }
@@ -80,9 +91,11 @@ exports.getShop = async (req, res) => {
     const payload = await cached(`shop:${req.params.id}`, 30, async () => {
       const user = await User.findById(req.params.id);
       if (!user || user.role !== 'merchant' || user.merchantStatus !== 'approved') return null;
-      const products = await Product.find({ merchant: user._id, isActive: true, status: 'approved' })
-        .sort({ createdAt: -1 });
-      return { shop: publicShop(user), products: JSON.parse(JSON.stringify(products)) };
+      const [products, rating] = await Promise.all([
+        Product.find({ merchant: user._id, isActive: true, status: 'approved' }).sort({ createdAt: -1 }),
+        shopRating(user._id),
+      ]);
+      return { shop: publicShop(user, rating), products: JSON.parse(JSON.stringify(products)) };
     });
     if (!payload) return res.status(404).json({ message: 'Shop not found' });
     res.json(payload);
@@ -96,7 +109,7 @@ exports.listShops = async (req, res) => {
   try {
     const shops = await User.find({ role: 'merchant', merchantStatus: 'approved' })
       .select('shopName shopDescription shopLogoUrl shopAddress createdAt');
-    res.json(shops.map(publicShop));
+    res.json(await Promise.all(shops.map(async (u) => publicShop(u, await shopRating(u._id)))));
   } catch (e) {
     serverError(res, e);
   }

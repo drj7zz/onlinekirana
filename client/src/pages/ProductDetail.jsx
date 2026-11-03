@@ -292,6 +292,7 @@ export default function ProductDetail() {
 
       {/* reviews */}
       <ReviewSection
+        kind="product"
         productId={product._id}
         initialSummary={{ count: product.ratingCount || 0, average: product.ratingAverage || 0 }}
         user={user}

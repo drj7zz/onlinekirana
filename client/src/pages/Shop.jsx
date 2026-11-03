@@ -4,10 +4,14 @@ import { Store, MapPin, Phone, PackageX, CalendarClock } from 'lucide-react';
 import API, { imageUrl } from '../api';
 import ProductCard from '../components/ProductCard';
 import SmartImage from '../components/SmartImage';
+import ReviewSection from '../components/ReviewSection';
 import { SkeletonGrid } from '../components/Skeletons';
+import { useAuth } from '../context/AuthContext';
+import { Stars } from './ProductDetail';
 
 export default function Shop() {
   const { id } = useParams();
+  const { user } = useAuth();
   // The result is tagged with the shop it belongs to. Navigating from one shop
   // to another then shows the loading state immediately, instead of briefly
   // rendering the previous shop's products under the new name.
@@ -49,6 +53,12 @@ export default function Shop() {
         />
         <div className="shop-hero-info">
           <h1>{shop.shopName}</h1>
+          {shop.ratingCount > 0 && (
+            <div className="rating-inline">
+              <Stars value={shop.ratingAverage} />
+              <span className="muted">{shop.ratingAverage} · {shop.ratingCount} shop review{shop.ratingCount === 1 ? '' : 's'}</span>
+            </div>
+          )}
           {shop.description && <p>{shop.description}</p>}
           <p className="shop-meta muted">
             <MapPin size={13} aria-hidden="true" /> {(shop.address.line || shop.address.ward) ? `${shop.address.line}${shop.address.ward ? `, Ward ${shop.address.ward}` : ''}, ${shop.address.city}` : 'Birgunj'}
@@ -62,6 +72,14 @@ export default function Shop() {
       {products.length === 0
         ? <p className="empty">This shop has no live products right now.</p>
         : <div className="grid">{products.map((p) => <ProductCard key={p._id} product={p} />)}</div>}
+
+      {/* shop reviews — any logged-in shopper may rate the shop */}
+      <ReviewSection
+        shopId={shop.id || shop._id}
+        kind="shop"
+        initialSummary={{ count: shop.ratingCount || 0, average: shop.ratingAverage || 0 }}
+        user={user}
+      />
     </div>
   );
 }

@@ -2202,3 +2202,77 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
 }
 .inline-icon-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .inline-icon-row > svg { flex: 0 0 auto; }
+
+/* ===== beta notice popup (public notice disclaimer) ===== */
+.beta-notice-overlay {
+  position: fixed; inset: 0; z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, .62);
+  backdrop-filter: blur(3px);
+  animation: toast-in .2s ease;
+}
+.beta-notice-card {
+  position: relative;
+  width: min(560px, 100%);
+  max-height: 90vh;
+  display: flex; flex-direction: column;
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .35);
+  overflow: hidden;
+}
+.beta-notice-image {
+  display: block; width: 100%;
+  object-fit: contain; object-position: top;
+  max-height: calc(90vh - 64px);
+  overflow-y: auto;
+}
+.beta-notice-text {
+  padding: 1.4rem 1.5rem;
+  overflow-y: auto;
+  color: var(--grey-700); font-size: .88rem; line-height: 1.55;
+}
+.beta-notice-text h2 { margin-bottom: .6rem; color: var(--brand-text, #1d4ed8); font-size: 1.05rem; }
+.beta-notice-text ul { margin: .5rem 0; padding-left: 1.1rem; }
+.beta-notice-text li { margin-bottom: .35rem; }
+.beta-notice-sign { margin-top: .8rem; color: var(--grey-500); font-size: .78rem; }
+.beta-notice-close {
+  position: absolute; top: .6rem; right: .6rem; z-index: 1;
+  width: 34px; height: 34px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; border-radius: 999px;
+  background: rgba(15, 23, 42, .55); color: #fff;
+  font-size: 1rem; font-weight: 700; line-height: 1;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.beta-notice-close:hover { background: rgba(15, 23, 42, .8); }
+.beta-notice-accept {
+  margin: 0; padding: .85rem 1rem;
+  border: none; border-top: 1px solid var(--grey-200);
+  background: var(--brand, #f59e0b); color: var(--grey-900, #111);
+  font-weight: 800; font-size: .92rem;
+  cursor: pointer;
+}
+.beta-notice-accept:hover { filter: brightness(.96); }
+
+/* ===== shop reviews (shop page) ===== */
+.shop-reviews-block {
+  margin-top: 2rem;
+  padding: 1.4rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--grey-200);
+  border-radius: 18px;
+}
+.shop-reviews-block h2 {
+  display: flex; align-items: center; gap: .45rem;
+  margin-bottom: 1rem;
+  color: var(--grey-900);
+  font-size: 1.15rem;
+}
+.shop-reviews-block .review-summary,
+.shop-reviews-block .review-form,
+.shop-reviews-block .review-list { margin-bottom: 1.1rem; }
+.shop-reviews-block .review-form textarea { width: 100%; }
+.nowrap { white-space: nowrap; }

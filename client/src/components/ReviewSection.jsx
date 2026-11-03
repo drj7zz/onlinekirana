@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Star, MessageSquare, LoaderCircle, BadgeCheck, Trash2 } from 'lucide-react';
+import { Star, MessageSquare, LoaderCircle, BadgeCheck, Trash2, Store } from 'lucide-react';
 import API from '../api';
 import { Stars } from '../pages/ProductDetail';
 
@@ -7,10 +7,12 @@ const initials = (name = '') => name.split(' ').map((w) => w[0]).slice(0, 2).joi
 const when = (d) => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
 /**
- * Product reviews: summary (average + star bars), the list, and a form.
- * Anyone logged in can review; "verified" marks buyers with a delivered order.
+ * Reviews for a product OR a shop (`kind="shop"`). Summary (average + star
+ * bars), the list, and a form. Anyone logged in can review either; "verified"
+ * marks buyers with a delivered order for that product.
  */
-export default function ReviewSection({ productId, initialSummary, user, onChanged }) {
+export default function ReviewSection({ productId, shopId, kind = 'product', initialSummary, user, onChanged }) {
+  const id = kind === 'shop' ? shopId : productId;
   const [summary, setSummary] = useState(initialSummary || { count: 0, average: 0, breakdown: [] });
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,10 +24,10 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
 
   // `setLoading(true)` runs as part of the fetch kick-off, not as a separate
   // state update, so the "loading" flag and the data always arrive together and
-  // switching products cannot briefly show the previous product's reviews.
+  // switching subjects cannot briefly show the previous one's reviews.
   const load = () => {
     setLoading(true);
-    API.get(`/reviews/product/${productId}`)
+    API.get(`/reviews/${kind}/${id}`)
       .then((r) => { setSummary(r.data.summary); setReviews(r.data.reviews); })
       .catch(() => { })
       .finally(() => setLoading(false));
@@ -34,7 +36,7 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
+  }, [kind, id]);
 
   const mine = user ? reviews.find((r) => r.user === user._id) : null;
 
@@ -42,7 +44,7 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
     e.preventDefault();
     if (!user) return;
     setSaving(true); setError('');
-    API.post(`/reviews/product/${productId}`, { rating, comment })
+    API.post(`/reviews/${kind}/${id}`, { rating, comment })
       .then(() => { setComment(''); setRating(5); load(); onChanged?.(); })
       .catch((err) => setError(err.response?.data?.message || 'Could not save your review'))
       .finally(() => setSaving(false));
@@ -57,8 +59,11 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
   const pct = (n) => (summary.count ? Math.round((n / summary.count) * 100) : 0);
 
   return (
-    <section className="pdp-block" id="reviews">
-      <h2><MessageSquare size={18} aria-hidden="true" /> Ratings &amp; reviews</h2>
+    <section className={kind === 'shop' ? 'shop-reviews-block' : 'pdp-block'} id="reviews">
+      <h2>
+        {kind === 'shop' ? <Store size={18} aria-hidden="true" /> : <MessageSquare size={18} aria-hidden="true" />}{' '}
+        {kind === 'shop' ? 'Shop ratings & reviews' : 'Ratings & reviews'}
+      </h2>
 
       <div className="review-summary">
         <div className="review-avg">
@@ -92,7 +97,7 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
               ))}
             </div>
           </div>
-          <textarea rows="3" maxLength="800" placeholder="Share what you liked about this product…"
+          <textarea rows="3" maxLength="800" placeholder={kind === 'shop' ? 'How was this shop — products, service, delivery?' : 'Share what you liked about this product…'}
             value={comment} onChange={(e) => setComment(e.target.value)} />
           {error && <p className="error">{error}</p>}
           <button type="submit" disabled={saving}>
@@ -101,7 +106,7 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
         </form>
       ) : (
         <p className="review-login-hint">
-          <a href="/login" className="shop-link">Log in</a> to rate and review this product.
+          <a href="/login" className="shop-link">Log in</a> to rate and review this {kind}.
         </p>
       )}
 
@@ -109,7 +114,7 @@ export default function ReviewSection({ productId, initialSummary, user, onChang
       {loading ? (
         <p className="loading-shimmer">Loading reviews</p>
       ) : reviews.length === 0 ? (
-        <p className="empty">No reviews yet — be the first to review this product.</p>
+        <p className="empty">No reviews yet — be the first to review this {kind}.</p>
       ) : (
         <ul className="review-list">
           {reviews.map((r) => (

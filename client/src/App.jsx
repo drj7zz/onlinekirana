@@ -17,6 +17,7 @@ import Dashboard from './pages/Dashboard';
 import Info from './pages/Info';
 import NotFound from './pages/NotFound';
 import RoleGuard from './components/RoleGuard';
+import BetaNoticeModal from './components/BetaNoticeModal';
 
 /**
  * The storefront. Shoppers only — the merchant, delivery and operations
@@ -52,6 +53,7 @@ export default function App() {
         <StickyCartBar />
         <BottomTabs />
         <Footer />
+        <BetaNoticeModal />
       </ToastProvider>
     </div>
   );
