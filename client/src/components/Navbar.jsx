@@ -697,7 +697,7 @@ export default function Navbar() {
           {/* the partner portal is a business app — a signed-in shopper has no
               business there, so the link is for guests only */}
           {!user && (
-            <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="portal-link">Portal ↗</a>
+            <a href={PORTAL_URL()} target="_blank" rel="noreferrer" className="portal-link">Portal ↗</a>
           )}
 
           {/* hamburger — desktop only; mobile uses the bottom tab bar */}
@@ -799,7 +799,7 @@ export default function Navbar() {
             )}
 
             {!user && (
-              <a href={PORTAL_URL} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>
+              <a href={PORTAL_URL()} target="_blank" rel="noreferrer" className="drawer-portal">Partner portal ↗</a>
             )}
           </div>
         </div>,

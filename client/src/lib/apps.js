@@ -76,11 +76,27 @@ const otherApp = (key, configured, port) => {
   return self;
 };
 
+/**
+ * A cross-app URL read lazily, on first use. Both apps share this module, and
+ * each app only knows about ONE sibling (the storefront knows the portal, the
+ * portal knows the storefront). Evaluating both eagerly at import time made
+ * every app warn about a variable it never uses — the portal logged
+ * "VITE_PARTNERS_URL is not set" although nothing in it links to the portal.
+ * Reading on first use keeps the warning tied to a link actually rendered.
+ */
+const lazyUrl = (key, port) => {
+  let cached;
+  return () => {
+    if (cached === undefined) cached = otherApp(key, import.meta.env[key], port);
+    return cached;
+  };
+};
+
 /** This app's own public address — always correct, never configured. */
 export const SELF_URL = selfOrigin();
 
 /** The partner portal — merchants, riders, operations. */
-export const PORTAL_URL = otherApp('VITE_PARTNERS_URL', import.meta.env.VITE_PARTNERS_URL, 5174);
+export const PORTAL_URL = lazyUrl('VITE_PARTNERS_URL', 5174);
 
 /** The shopper storefront. */
-export const STOREFRONT_URL = otherApp('VITE_STOREFRONT_URL', import.meta.env.VITE_STOREFRONT_URL, 5173);
+export const STOREFRONT_URL = lazyUrl('VITE_STOREFRONT_URL', 5173);

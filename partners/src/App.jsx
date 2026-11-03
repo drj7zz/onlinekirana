@@ -18,7 +18,7 @@ import Profile from './pages/Profile.jsx';
 
 import Dashboard from './pages/Dashboard.jsx';
 import ShopSetup from './pages/ShopSetup.jsx';
-import Products from './pages/Products.jsx';
+import Inventory from './pages/Inventory.jsx';
 import Orders from './pages/Orders.jsx';
 import RiderDashboard from './pages/RiderDashboard.jsx';
 
@@ -74,7 +74,8 @@ export default function App() {
 
           <Route path="/dashboard" element={<RequireRole roles={['merchant', 'delivery', 'admin']}><Dashboard /></RequireRole>} />
           <Route path="/shop-setup" element={<RequireRole roles={['merchant']}><ShopSetup /></RequireRole>} />
-          <Route path="/products" element={<RequireRole roles={['merchant']}><Products /></RequireRole>} />
+          <Route path="/products" element={<Navigate to="/inventory" replace />} />
+          <Route path="/inventory" element={<RequireRole roles={['merchant']}><Inventory /></RequireRole>} />
           <Route path="/orders" element={<RequireRole roles={['merchant']}><Orders /></RequireRole>} />
           <Route path="/rider" element={<RequireRole roles={['delivery']}><RiderDashboard /></RequireRole>} />
 

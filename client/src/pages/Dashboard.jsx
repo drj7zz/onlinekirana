@@ -47,15 +47,15 @@ const roleActions = {
   merchant: [
     { to: '/', label: 'Shop groceries', icon: ShoppingCart, hint: 'Browse what other shops are selling' },
     { to: '/orders', label: 'My orders', icon: ClipboardList, hint: 'Track the orders you placed' },
-    { to: PORTAL_URL, label: 'Manage my shop', icon: CircleCheck, hint: 'Products, orders and your shop page live in the partner portal' },
+    { to: PORTAL_URL(), label: 'Manage my shop', icon: CircleCheck, hint: 'Products, orders and your shop page live in the partner portal' },
   ],
   delivery: [
     { to: '/', label: 'Shop groceries', icon: ShoppingCart, hint: 'Browse what is selling in your area' },
-    { to: PORTAL_URL, label: 'My deliveries', icon: CircleCheck, hint: 'Shifts, jobs and earnings live in the partner portal' },
+    { to: PORTAL_URL(), label: 'My deliveries', icon: CircleCheck, hint: 'Shifts, jobs and earnings live in the partner portal' },
   ],
   admin: [
     { to: '/', label: 'Shop groceries', icon: ShoppingCart, hint: 'See the storefront as a shopper' },
-    { to: PORTAL_URL, label: 'Operations desk', icon: CircleCheck, hint: 'Approvals, catalogue, orders and dispatch live in the partner portal' },
+    { to: PORTAL_URL(), label: 'Operations desk', icon: CircleCheck, hint: 'Approvals, catalogue, orders and dispatch live in the partner portal' },
   ],
 };
 

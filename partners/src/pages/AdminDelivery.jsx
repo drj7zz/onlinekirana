@@ -71,7 +71,7 @@ function JobRow({ job, onAdvance, onCancel }) {
           {(job$?.items || []).map((item, index) => (
             <li key={`${item.product || item.name}-${index}`}>
               {item.product ? (
-                <a href={`${STOREFRONT_URL}${productPath({ _id: item.product, name: item.name })}`} target="_blank" rel="noreferrer">{item.name}</a>
+                <a href={`${STOREFRONT_URL()}${productPath({ _id: item.product, name: item.name })}`} target="_blank" rel="noreferrer">{item.name}</a>
               ) : item.name}
               <span>× {item.qty} {item.unit}</span>
             </li>

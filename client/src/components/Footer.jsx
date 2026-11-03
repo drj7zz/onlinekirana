@@ -120,10 +120,10 @@ export default function Footer() {
         <div className="footer-col">
           <h3>Partners</h3>
           <ul className="footer-links">
-            <li><a href={`${PORTAL_URL}/join`} target="_blank" rel="noreferrer">Partner with us ↗</a></li>
-            <li><a href={PORTAL_URL} target="_blank" rel="noreferrer">Seller dashboard ↗</a></li>
-            <li><a href={`${PORTAL_URL}/register`} target="_blank" rel="noreferrer">Deliver with us ↗</a></li>
-            <li><a href={`${PORTAL_URL}/faq`} target="_blank" rel="noreferrer">Partner FAQ ↗</a></li>
+            <li><a href={`${PORTAL_URL()}/join`} target="_blank" rel="noreferrer">Partner with us ↗</a></li>
+            <li><a href={PORTAL_URL()} target="_blank" rel="noreferrer">Seller dashboard ↗</a></li>
+            <li><a href={`${PORTAL_URL()}/register`} target="_blank" rel="noreferrer">Deliver with us ↗</a></li>
+            <li><a href={`${PORTAL_URL()}/faq`} target="_blank" rel="noreferrer">Partner FAQ ↗</a></li>
           </ul>
         </div>
       </div>

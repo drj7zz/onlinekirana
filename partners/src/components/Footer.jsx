@@ -24,16 +24,16 @@ const GET_STARTED = [
 ];
 
 const SHOPPING = [
-  { label: 'Shop groceries', href: STOREFRONT_URL },
-  { label: 'About us', href: `${STOREFRONT_URL}/about` },
-  { label: 'Contact', href: `${STOREFRONT_URL}/contact` },
-  { label: 'Refunds & returns', href: `${STOREFRONT_URL}/about#refund` },
+  { label: 'Shop groceries', href: STOREFRONT_URL() },
+  { label: 'About us', href: `${STOREFRONT_URL()}/about` },
+  { label: 'Contact', href: `${STOREFRONT_URL()}/contact` },
+  { label: 'Refunds & returns', href: `${STOREFRONT_URL()}/about#refund` },
 ];
 
 const LEGAL = [
-  { label: 'Privacy', href: `${STOREFRONT_URL}/about#privacy` },
-  { label: 'Terms', href: `${STOREFRONT_URL}/about#terms` },
-  { label: 'Contact', href: `${STOREFRONT_URL}/contact` },
+  { label: 'Privacy', href: `${STOREFRONT_URL()}/about#privacy` },
+  { label: 'Terms', href: `${STOREFRONT_URL()}/about#terms` },
+  { label: 'Contact', href: `${STOREFRONT_URL()}/contact` },
 ];
 
 export default function Footer() {

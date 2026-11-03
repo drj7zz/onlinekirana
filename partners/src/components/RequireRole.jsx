@@ -30,7 +30,7 @@ export default function RequireRole({ roles, children, allowPending = false }) {
         </p>
         <div className="gate-actions">
           {user.role === 'customer' ? (
-            <a className="cta-btn" href={STOREFRONT_URL}>Go to the storefront</a>
+            <a className="cta-btn" href={STOREFRONT_URL()}>Go to the storefront</a>
           ) : (
             <Link className="cta-btn" to="/dashboard">Go to my dashboard</Link>
           )}

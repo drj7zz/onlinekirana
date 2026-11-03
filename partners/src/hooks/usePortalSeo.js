@@ -14,7 +14,7 @@ const PRIVATE_ROUTES = {
   '/profile': 'My Profile',
   '/dashboard': 'Partner Dashboard',
   '/shop-setup': 'Shop Setup',
-  '/products': 'My Products',
+  '/inventory': 'My Inventory',
   '/orders': 'Shop Orders',
   '/rider': 'Rider Console',
   '/admin/orders': 'Orders — Operations',

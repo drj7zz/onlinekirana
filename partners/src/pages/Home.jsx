@@ -102,7 +102,7 @@ export default function Home() {
         <p className="p-hero-sub">
           Shopkeepers, delivery riders and the operations desk each get a clean, focused
           workspace. Customers shop on the{' '}
-          <a className="shop-link" href={STOREFRONT_URL} target="_blank" rel="noreferrer">storefront</a> —
+          <a className="shop-link" href={STOREFRONT_URL()} target="_blank" rel="noreferrer">storefront</a> —
           everything behind this portal is for the people who make it run.
         </p>
         <div className="p-hero-actions">
@@ -186,7 +186,7 @@ export default function Home() {
             Register a shop <ArrowRight size={16} className="cta-arrow" aria-hidden="true" />
           </Link>
           <Link to="/faq" className="p-btn-ghost">Read the FAQ</Link>
-          <a href={STOREFRONT_URL} target="_blank" rel="noreferrer" className="p-btn-ghost">
+          <a href={STOREFRONT_URL()} target="_blank" rel="noreferrer" className="p-btn-ghost">
             Visit the storefront ↗
           </a>
         </div>

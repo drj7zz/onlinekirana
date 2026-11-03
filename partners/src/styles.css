@@ -441,3 +441,43 @@
   .partner-shell > .site-footer { display: none; }
   .partner-shell > .app-main { padding-bottom: 76px; }
 }
+
+/* ==================================================================
+   Workspace redesign additions.
+   ================================================================== */
+
+/* ===== partner auth (split-panel, matches storefront .customer-auth) ===== */
+/* Role picker cards on the register side — shop vs. delivery. */
+.partner-auth-roles { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+.partner-auth-role {
+  display: flex; align-items: flex-start; gap: .55rem; text-align: left;
+  padding: .65rem .7rem; border: 1px solid var(--grey-200); border-radius: 10px;
+  background: var(--surface); cursor: pointer; color: var(--grey-700);
+}
+.partner-auth-role svg { margin-top: .15rem; flex: none; }
+.partner-auth-role span { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.partner-auth-role strong { font-size: .84rem; color: var(--grey-900); }
+.partner-auth-role small { font-size: .74rem; color: var(--grey-500); line-height: 1.35; }
+.partner-auth-role.is-active { border-color: var(--brand); background: var(--brand-tint); }
+.partner-auth-role.is-active strong { color: var(--brand); }
+.partner-auth-row { display: grid; grid-template-columns: 1fr auto; gap: .6rem; }
+.partner-auth-row label:last-child input { width: 5.5rem; }
+@media (max-width: 480px) { .partner-auth-row { grid-template-columns: 1fr; } }
+
+/* ===== inventory: compact expandable product rows ===== */
+.prod-row-expandable { padding: 0; overflow: hidden; }
+.prod-row-summary {
+  display: flex; align-items: center; gap: .75rem; width: 100%;
+  padding: .6rem .75rem; background: transparent; border: 0; cursor: pointer;
+  text-align: left; font: inherit; color: inherit;
+}
+.prod-row-summary:hover { background: color-mix(in srgb, var(--grey-100) 60%, transparent); }
+.prod-row-chev { margin-left: auto; flex: none; transition: transform .15s ease; }
+.prod-row-chev.is-open { transform: rotate(180deg); }
+.prod-row-body { padding: .65rem .75rem; border-top: 1px solid var(--grey-200); }
+.prod-row-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: .5rem .9rem; margin-bottom: .55rem; }
+.prod-row-facts div { display: flex; flex-direction: column; gap: .1rem; }
+.prod-row-facts span { font-size: .7rem; color: var(--grey-500); text-transform: uppercase; letter-spacing: .04em; }
+.prod-row-facts strong { font-size: .86rem; color: var(--grey-900); }
+.prod-row-desc { margin: 0 0 .55rem; font-size: .82rem; color: var(--grey-600); }
+.prod-row .prod-row-actions { padding: 0; }

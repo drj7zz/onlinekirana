@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { PackageOpen, Bike, Phone, Store, PackageCheck, Search, ReceiptText, CircleCheck } from 'lucide-react';
+import { PackageOpen, Bike, Phone, Store, PackageCheck, Search, ReceiptText, CircleCheck, SlidersHorizontal } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
 import OrderCard from '@shared/components/OrderCard';
+import Dropdown from '@shared/components/Dropdown';
 import { productPath } from '@shared/lib/productUrl';
 import { STOREFRONT_URL } from '@shared/lib/apps';
 import { imageUrl } from '@shared/api';
@@ -165,7 +166,7 @@ export default function Orders() {
                     <div className="muted" style={{ marginTop: '.2rem' }}>{STAGE[o.status]?.hint}</div>
                   </div>
 
-                  <details className="workspace-disclosure order-details-disclosure">
+                  <details className="workspace-disclosure order-details-disclosure" open>
                     <summary><span>Customer &amp; order details</span><small>{(o.items || []).filter((i) => i.merchant === user._id).length} item(s)</small></summary>
                     <div className="workspace-disclosure-body">
                       <div className="order-customer-details">
@@ -193,7 +194,7 @@ export default function Orders() {
                                       <div>
                                         {product?.category && <strong>{product.category}</strong>}
                                         <p>{product?.description || 'No product description available.'}</p>
-                                        <a href={`${STOREFRONT_URL}${productPath({ _id: productId, name: i.name })}`} target="_blank" rel="noreferrer">
+                                        <a href={`${STOREFRONT_URL()}${productPath({ _id: productId, name: i.name })}`} target="_blank" rel="noreferrer">
                                           View product
                                         </a>
                                       </div>
@@ -249,10 +250,18 @@ export default function Orders() {
             <span className="workspace-count">{history.length}</span>
           </div>
           <section className="history-tools" aria-label="Filter order history">
+            <Dropdown
+              icon={SlidersHorizontal}
+              value={historyFilter}
+              options={[
+                ['all', 'All orders'],
+                ['active', 'In progress'],
+                ['delivered', 'Delivered'],
+                ['cancelled', 'Cancelled'],
+              ].map(([v, l]) => ({ value: v, label: l }))}
+              onChange={setHistoryFilter}
+            />
             <label className="history-search"><Search size={16} aria-hidden="true" /><input value={historySearch} onChange={(e) => setHistorySearch(e.target.value)} placeholder="Search orders or products" aria-label="Search order history" /></label>
-            <div className="history-filters" role="group" aria-label="Order status">
-              {[['all', 'All orders'], ['active', 'In progress'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled']].map(([key, label]) => <button key={key} type="button" className={historyFilter === key ? 'active' : ''} aria-pressed={historyFilter === key} onClick={() => setHistoryFilter(key)}>{label}</button>)}
-            </div>
           </section>
           <div className="order-list">
             {history.map((o) => (

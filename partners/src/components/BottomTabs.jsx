@@ -16,7 +16,7 @@ const WORKSPACE_TABS = {
   merchant: [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/orders', label: 'Orders', icon: ClipboardList },
-    { to: '/products', label: 'Products', icon: Boxes },
+    { to: '/inventory', label: 'Inventory', icon: Boxes },
     { to: '/shop-setup', label: 'Shop & profile', icon: Settings2 },
   ],
   delivery: [

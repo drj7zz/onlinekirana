@@ -132,7 +132,7 @@ export default function Faq() {
         <h1>Partner FAQ</h1>
         <p>
           Short answers to the questions we hear most. Can&apos;t find yours?{' '}
-          <a className="shop-link" href={`${STOREFRONT_URL}/contact`} target="_blank" rel="noreferrer">
+          <a className="shop-link" href={`${STOREFRONT_URL()}/contact`} target="_blank" rel="noreferrer">
             Contact support on the storefront ↗
           </a>
         </p>

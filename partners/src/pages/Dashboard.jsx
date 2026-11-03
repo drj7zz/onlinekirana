@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleCheck, Package, ReceiptText, PlusCircle, Truck, Bike, Store, ChevronRight, ShieldCheck, ChevronDown, Activity } from 'lucide-react';
+import { CircleCheck, Package, ReceiptText, Truck, Bike, Store, Boxes, ChevronRight, ShieldCheck, ChevronDown, Activity } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
@@ -38,7 +38,7 @@ const roleActions = {
   merchant: [
     { title: 'My shop', actions: [
       { to: '/shop-setup', label: 'Shop setup', icon: Store, hint: 'Update your public shop page' },
-      { to: '/products', label: 'Products', icon: PlusCircle, hint: 'Manage your product listings' },
+      { to: '/inventory', label: 'Inventory', icon: Boxes, hint: 'Add products, manage stock and sync drafts' },
       { to: '/orders', label: 'Orders', icon: Truck, hint: 'Review items, pack orders and track delivery' },
     ] },
   ],
@@ -50,9 +50,9 @@ const roleActions = {
 };
 
 const MERCHANT_CARD_LINKS = {
-  myProducts: '/products',
-  liveMine: '/products',
-  pendingMine: '/products',
+  myProducts: '/inventory',
+  liveMine: '/inventory',
+  pendingMine: '/inventory',
   myOrders: '/orders',
   activeOrders: '/orders',
   revenue: '/orders',

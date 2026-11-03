@@ -268,7 +268,7 @@ export default function CustomerAuth() {
 
           <p className="customer-auth-partner">
             <Store size={14} aria-hidden="true" />
-            Merchant, rider or operations? <a href={PORTAL_URL} target="_blank" rel="noreferrer">Use the partner portal</a>.
+            Merchant, rider or operations? <a href={PORTAL_URL()} target="_blank" rel="noreferrer">Use the partner portal</a>.
           </p>
         </div>
       </div>

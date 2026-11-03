@@ -39,7 +39,7 @@ const NAV_LINKS = [
 
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['merchant', 'delivery', 'admin'] },
   { to: '/orders', label: 'Orders', icon: Package, roles: ['merchant'] },
-  { to: '/products', label: 'Products', icon: Boxes, roles: ['merchant'] },
+  { to: '/inventory', label: 'Inventory', icon: Boxes, roles: ['merchant'] },
   { to: '/shop-setup', label: 'Shop setup', icon: Settings2, roles: ['merchant'] },
   { to: '/rider', label: 'My shift', icon: Bike, roles: ['delivery'] },
 
@@ -58,7 +58,7 @@ const NAV_LINKS = [
 const ROLE_QUICK = {
   merchant: [
     { to: '/orders', icon: Package, title: 'Shop orders', sub: 'Pack and hand over' },
-    { to: '/products', icon: Boxes, title: 'Products', sub: 'List and edit stock' },
+    { to: '/inventory', icon: Boxes, title: 'Inventory', sub: 'Add products, edit stock' },
     { to: '/shop-setup', icon: UserCircle2, title: 'Shop & profile', sub: 'Shop details, picture and security' },
   ],
   delivery: [
@@ -231,7 +231,7 @@ export default function Navbar() {
           {/* The storefront lives on another origin. The storefront header marks
               the mirror-image link with `.portal-link`; reusing it here keeps the
               cross-app affordance identical in both directions. */}
-          <a href={STOREFRONT_URL} target="_blank" rel="noreferrer" className="portal-link">Storefront <ArrowUpRight size={13} aria-hidden="true" /></a>
+          <a href={STOREFRONT_URL()} target="_blank" rel="noreferrer" className="portal-link">Storefront <ArrowUpRight size={13} aria-hidden="true" /></a>
 
           {/* mobile hamburger */}
           <button type="button" className="burger" onClick={() => setDrawerOpen(true)} aria-label="Open menu">
@@ -312,7 +312,7 @@ export default function Navbar() {
                   <LogOut size={17} aria-hidden="true" /> <span>Log out</span>
                 </button>
               ) : null}
-              <a href={STOREFRONT_URL} target="_blank" rel="noreferrer" className="drawer-portal">Shop on the storefront ↗</a>
+              <a href={STOREFRONT_URL()} target="_blank" rel="noreferrer" className="drawer-portal">Shop on the storefront ↗</a>
             </div>
           </div>
         </div>,

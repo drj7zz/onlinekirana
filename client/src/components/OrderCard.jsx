@@ -244,7 +244,7 @@ export default function OrderCard({
                     under, so the path is built from those two — the slug comes
                     from the recorded name, which may since have been renamed. */}
                 {i.product ? (
-                  <a href={`${STOREFRONT_URL}${productPath({ _id: i.product, name: i.name })}`} className="oi-link" target="_blank" rel="noreferrer">
+                  <a href={`${STOREFRONT_URL()}${productPath({ _id: i.product, name: i.name })}`} className="oi-link" target="_blank" rel="noreferrer">
                     {i.name}
                   </a>
                 ) : i.name}

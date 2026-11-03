@@ -104,7 +104,7 @@ export default function Join() {
           Start registration <ArrowRight size={16} className="cta-arrow" aria-hidden="true" />
         </Link>
         <Link to="/faq" className="muted" style={{ marginLeft: '.8rem' }}>Read the FAQ</Link>
-        <a href={STOREFRONT_URL} target="_blank" rel="noreferrer" className="muted" style={{ marginLeft: '.8rem' }}>
+        <a href={STOREFRONT_URL()} target="_blank" rel="noreferrer" className="muted" style={{ marginLeft: '.8rem' }}>
           Visit the storefront ↗
         </a>
       </div>
