@@ -107,11 +107,19 @@ export default function BetaNoticeModal() {
 }
 
 /**
- * The notice is a long legal document scan — at card width the text is too
- * small to read. A zoomable viewer (wheel / pinch / double-tap, drag to pan)
- * lets people actually read it without leaving the modal.
+ * The notice is a long legal document scan. On phones the original image
+ * behaviour stays: full-width, natively scrollable/zoomable by the browser
+ * (pinch). On desktop (pointer: fine) it renders PDF-style — fixed viewport,
+ * scroll/ctrl-wheel zoom and drag-to-pan — plus a Download button everywhere.
  */
+const isDesktop = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(pointer: fine) and (min-width: 900px)').matches;
+
 function ZoomableNotice({ onFail }) {
+  // Media query is evaluated once per component instance; it does not affect
+  // rendering inputs (only which branch renders), so lazy state is fine.
+  const [desktop] = useState(isDesktop);
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
@@ -166,6 +174,22 @@ function ZoomableNotice({ onFail }) {
 
   const reset = () => { setScale(1); setOffset({ x: 0, y: 0 }); };
 
+  if (!desktop) {
+    // Mobile: keep it exactly as before — plain full-width image the browser
+    // can pinch-zoom natively; just add a download button.
+    return (
+      <div className="notice-zoom-wrap">
+        <img
+          src="/notice.png"
+          alt="Online Kirana — Public Notice & Beta Service Announcement"
+          className="beta-notice-image"
+          onError={onFail}
+        />
+        <NoticeDownload />
+      </div>
+    );
+  }
+
   return (
     <div className="notice-zoom-wrap">
       <div
@@ -192,33 +216,22 @@ function ZoomableNotice({ onFail }) {
           onError={onFail}
         />
       </div>
-      <div className="notice-zoom-controls">
-        <button
-          type="button"
-          className="notice-zoom-btn"
-          aria-label="Zoom out"
-          onClick={() => zoomAt(1 / 1.25, 0, 0)}
-        >
-          −
-        </button>
-        <span className="notice-zoom-level" aria-live="polite">{Math.round(scale * 100)}%</span>
-        <button
-          type="button"
-          className="notice-zoom-btn"
-          aria-label="Zoom in"
-          onClick={() => zoomAt(1.25, 0, 0)}
-        >
-          +
-        </button>
-        <button
-          type="button"
-          className="notice-zoom-btn notice-zoom-reset"
-          onClick={reset}
-        >
-          Reset
-        </button>
-      </div>
-      <p className="notice-zoom-hint">Scroll or pinch to zoom · drag to pan · double-tap to reset</p>
+      <NoticeDownload />
+      <p className="notice-zoom-hint">Ctrl/scroll to zoom · drag to pan · double-click to reset</p>
     </div>
   );
 }
+
+/** Save a copy of the official notice (same bytes the popup renders). */
+function NoticeDownload() {
+  return (
+    <a
+      className="notice-download"
+      href="/notice.png"
+      download="online-kirana-public-notice.png"
+    >
+      ⬇ Download the notice
+    </a>
+  );
+}
+
