@@ -2228,6 +2228,94 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
   max-height: calc(90vh - 64px);
   overflow-y: auto;
 }
+
+/* Zoomable notice viewer: the notice is a long scanned document, so it needs
+   real zoom (wheel/pinch/buttons) plus drag-to-pan to be readable. */
+.notice-zoom-wrap {
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.notice-zoom-viewport {
+  position: relative;
+  height: calc(90vh - 150px);
+  min-height: 240px;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  background: var(--grey-100);
+}
+.notice-zoom-viewport.is-dragging { cursor: grabbing; }
+.notice-zoom-image {
+  display: block; width: 100%;
+  user-select: none; -webkit-user-drag: none;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.notice-zoom-controls {
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .45rem;
+  border-top: 1px solid var(--grey-200);
+  background: var(--surface);
+}
+.notice-zoom-btn {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--grey-300); border-radius: 8px;
+  background: var(--surface); color: var(--grey-700);
+  font-size: 1.05rem; font-weight: 700; line-height: 1;
+  cursor: pointer;
+}
+.notice-zoom-btn:hover { background: var(--grey-100); }
+.notice-zoom-reset { width: auto; padding: 0 .65rem; font-size: .72rem; }
+.notice-zoom-level { min-width: 3.2em; text-align: center; font-size: .75rem; color: var(--grey-600); }
+.notice-zoom-hint {
+  margin: 0; padding: 0 .8rem .5rem;
+  text-align: center; font-size: .68rem; color: var(--grey-500);
+}
+
+/* Zoomable notice viewer: the notice is a long scanned document, so it needs
+   real zoom (wheel/pinch/buttons) plus drag-to-pan to be readable. */
+.notice-zoom-wrap {
+  display: flex; flex-direction: column;
+  min-height: 0;
+}
+.notice-zoom-viewport {
+  position: relative;
+  height: calc(90vh - 150px);
+  min-height: 240px;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  background: var(--grey-100);
+}
+.notice-zoom-viewport.is-dragging { cursor: grabbing; }
+.notice-zoom-image {
+  display: block; width: 100%;
+  user-select: none; -webkit-user-drag: none;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+.notice-zoom-controls {
+  display: flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .45rem;
+  border-top: 1px solid var(--grey-200);
+  background: var(--surface);
+}
+.notice-zoom-btn {
+  width: 30px; height: 30px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--grey-300); border-radius: 8px;
+  background: var(--surface); color: var(--grey-700);
+  font-size: 1.05rem; font-weight: 700; line-height: 1;
+  cursor: pointer;
+}
+.notice-zoom-btn:hover { background: var(--grey-100); }
+.notice-zoom-reset { width: auto; padding: 0 .65rem; font-size: .72rem; }
+.notice-zoom-level { min-width: 3.2em; text-align: center; font-size: .75rem; color: var(--grey-600); }
+.notice-zoom-hint {
+  margin: 0; padding: 0 .8rem .5rem;
+  text-align: center; font-size: .68rem; color: var(--grey-500);
+}
 .beta-notice-text {
   padding: 1.4rem 1.5rem;
   overflow-y: auto;

@@ -1,366 +1,193 @@
-# 🛒 OnlineKirana — Local Grocery Marketplace for Birgunj
+# 🛒 OnlineKirana — Online Grocery Marketplace, Birgunj
 
-A full-stack **MERN** grocery marketplace built for **Birgunj, Nepal**. It is a
-**multi-vendor** store: local shopkeepers sign up as partners, list their products,
-and an admin approves them before they go live. Customers browse, order, and track
-delivery — all priced in **Nepali Rupees (रू)**, with delivery coverage based on active riders in Birgunj.
+**Online Kirana Pvt. Ltd., Birgunj, Nepal** — a production e-commerce service connecting
+local shopkeepers with customers in Birgunj. Customers browse, order and track delivery
+in **Nepali Rupees (रू)**; merchants run their own shop pages and fulfilment; riders
+deliver; an operations desk moderates the marketplace.
 
-> **Nothing is hardcoded.** The store starts empty. Every product, shop, order and
-> review lives in MongoDB and is created through the app itself.
+> **Status: Beta.** See the [Public Notice & Beta Service Announcement](#-official-public-notice--beta-service-announcement) at the bottom of this document.
+
+**Live:** storefront `https://onlinekiranabirgunj.vercel.app` · partner portal
+`https://onlinekirana-partners.vercel.app` · API `https://onlinekirana.onrender.com`
 
 ---
 
-## ✨ What makes it more than a basic store
+## 📑 Documentation map
+
+| Document | Contents |
+|---|---|
+| **README.md** (this file) | Business overview, policies & regulations, official public notice, user flows, roadmap |
+| **[TECHNICAL.md](./TECHNICAL.md)** | Architecture, stack, CI/CD pipeline, hosting, environment variables, file structure, data model, API reference, security, flowcharts |
+| **[SECURITY.md](./SECURITY.md)** | Security policy and vulnerability reporting |
+
+---
+
+## ✨ What the service offers
 
 | Capability | Detail |
 |---|---|
-| **Multi-vendor** | Merchants register, get approved, set up a public shop page, and manage their own products and orders. |
+| **Multi-vendor marketplace** | Local shopkeepers register, get approved, set up a public shop page, and manage their own products and orders. |
 | **Admin moderation** | Admin approves partner applications and new/edited products before they appear in the shop. |
-| **Split apps** | The storefront (`:5173`) is shoppers-only. Merchants, riders and operations get their own portal (`:5174`) with a separate sign-in, enforced server-side via the login `scope`. |
-| **Appearance** | Storefront and partner portal support saved light and dark themes. |
-| **No paperwork** | No shop licence, PAN/VAT, citizenship or driving licence is required to join. A partner account is just a name, email, phone and password. |
-| **Self-service sign-up** | Shopkeepers *and* riders both apply from the same form, picking their role. Both land `pending`; an admin reviews every application in the Approvals section. |
-| **Notifications** | In-app notifications are available across the storefront and partner portal, with optional browser push for order and approval updates. |
-| **Rider choice** | A packed order is offered to on-shift riders. A rider must accept it before customer contact details are revealed. Pilot delivery is free from 5 am–10 pm; 10 pm–midnight may be offered at ₹10 per started estimated kilometer when a rider is online. |
-| **One typeface** | DM Sans across both apps, loaded with preconnect for a consistent, quick render. |
-| **Verified reviews** | One review per user per product. A review is marked **verified** only if the buyer has a *delivered* order for that product. |
-| **Role-based dashboards** | Same `/dashboard` route, three different views (customer / merchant / admin) rendered from one endpoint. |
-| **Live-ish updates** | Lists re-fetch on an interval while the tab is visible — orders and stock update without a page refresh. |
-| **Hardened auth** | Bcrypt hashing, JWT sessions, login rate-limiting (per IP *and* per account), password strength policy, timing-safe login. |
-| **Server-authoritative pricing** | Prices, discounts and stock are always re-read from the DB on checkout — the client's numbers are never trusted. |
-| **Image uploads** | Avatars, shop logos and product photos, validated by type and size and stored per-folder. |
-| **Localized** | NPR currency, Birgunj wards, Nepali mobile number validation, and cash after delivery only. |
+| **Separate business portal** | The storefront is shoppers-only. Merchants, riders and operations get their own portal with a separate sign-in, enforced server-side via the login `scope`. |
+| **Dark & light themes** | Saved per user across both apps. |
+| **Zero-paperwork onboarding** | No shop licence, PAN/VAT, citizenship or driving licence required — a partner account is just a name, email, phone and password. |
+| **Rider choice** | A packed order is offered to on-shift riders; a rider must accept before customer contact details are revealed. |
+| **Verified reviews** | One review per user per product; **verified** only if the buyer has a *delivered* order for that product. |
+| **Notifications** | In-app notifications everywhere, plus optional browser push for order and approval updates. |
+| **Server-authoritative pricing** | Prices, discounts and stock are always re-read from the database at checkout — client numbers are never trusted. |
 
 ---
 
 ## 👥 Roles
 
 - **Customer** — browse, search, review, order, track status.
-- **Merchant (Partner)** — pending → approved by admin, then manage a shop page, products and fulfilment.
-- **Admin** — approves partners & products, manages the whole catalogue and every order.
+- **Merchant (Partner)** — pending → approved by admin, then manages a shop page, products and fulfilment.
+- **Rider (Delivery partner)** — on-shift job acceptance, pickup, delivery with a hand-over code.
+- **Admin** — approves partners & products, manages the catalogue and every order.
 
 New sign-ups can only become a **customer** or a **merchant** — the API ignores any
-attempt to self-assign the `admin` role.
+attempt to self-assign the `admin` role. Admins are seeded only via script.
 
 ---
 
-## 🚀 Quick start
+## 📜 Policies & regulations
 
-**Prerequisites:** Node.js 18+, and either a local MongoDB or a free MongoDB Atlas cluster.
+### Payments policy
 
-### 1. Backend (`/server`)
+- **Direct Merchant QR Payments** — digital payments go **directly to the merchant's QR
+  account**. The platform never holds or escrows customer funds.
+- **Refund-style Direct Settlement** — if a paid order is cancelled, lost or refunded,
+  the refund is settled back the same way it went out: the merchant refunds through the
+  same channel the customer paid (merchant QR / cash), never from a platform-held
+  balance. The platform facilitates and tracks every settlement until it reaches the
+  customer.
+- **Cash on Delivery** — cash is collected by the rider and transferred directly to the
+  fulfilling merchant. Checkout does not accept online payment during the beta.
 
-```bash
-cd server
-npm install
-# Generate browser push keys once; keep the private key secret.
-npm run setup-push-keys
-```
+### Delivery policy
 
-Create `server/.env`:
+- Free delivery from **5 am to 10 pm**.
+- **10 pm–midnight:** checkout may quote ₹10 per started *straight-line* kilometre from
+  shop to customer, only when an approved rider is online and both location pins are
+  available. The estimate is not a road-distance quote.
+- **Mandatory Delivery OTP** — customers inspect their items and complete payment
+  **before** sharing the 4-digit hand-over code. Riders cannot mark an order
+  Delivered/Returned without it.
+- One order contains products from **one seller** only.
 
-```env
-PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/onlinekirana   # or your Atlas connection string
-JWT_SECRET=replace-with-a-long-random-string
-# Allowed browser origins, comma-separated. Storefront :5173, partner portal :5174.
-CLIENT_URL=http://localhost:5173,http://localhost:5174
+### Cancellation policy
 
-# Used by the seed script
-ADMIN_NAME=OnlineKirana Admin
-ADMIN_EMAIL=admin@onlinekirana.com
-# Set ADMIN_PASSWORD to a unique strong secret in your local .env or host secret store.
-```
+- Customers may cancel any time **before rider pickup**. Pre-packing cancellations do
+  not count against the customer.
+- Packed/assigned cancellations count in a rolling **30-day window**: the second
+  triggers a warning, the third **pauses new orders for 7 days**.
+- System, shop and rider failures are excluded. Admin can restore ordering after review.
 
-Then:
+### Reviews policy
 
-```bash
-npm run seed-admin     # creates/upgrades the admin account from .env
-npm run dev            # API on http://localhost:5000
-```
+- One review per user per product (upserts allowed). A review is marked **verified**
+  only when the buyer has a delivered order containing that product.
 
-The pitch pilot rules are feature flags. Set `PILOT_DELIVERY_ENABLED=true` and
-`PILOT_CANCELLATION_ENABLED=true` in the API environment for a demo or staging
-deployment. The local ignored `server/.env` may enable them for development. Keep
-them off on a live service until these pilot policies are approved. Set
-`PLATFORM_PICKUP_LAT` and `PLATFORM_PICKUP_LNG` only if admin-listed products need
-a pickup point; merchant shops set their own pickup pin. Late-night distance is a
-straight-line estimate rounded to 0.1 km, billed at ₹10 per started kilometer;
-it is not a road-distance quote.
+### Privacy & data
 
-### 2. Storefront (`/client`)
+- Passwords are bcrypt-hashed and never returned by the API.
+- Partner verification codes are stored only as SHA-256 hashes with expiry and
+  attempt counters.
+- Merchant pickup coordinates stay private; public shop listings omit them. Riders see
+  customer name, phone and address only after accepting a job.
+- Full details: [TECHNICAL.md § Security](./TECHNICAL.md) and [SECURITY.md](./SECURITY.md).
 
-```bash
-cd client
-npm install
-npm run dev            # app on http://localhost:5173
-```
+### Compliance notes
 
-Each app has one env file: `.env`, used for dev, build and preview.
-Set `VITE_API_URL` if the API is not on `localhost:5000`.
-`VITE_PARTNERS_URL` points at the partner portal (defaults to `http://localhost:5174`).
-
-### 3. Partner portal (`/partners`)
-
-Everything that is not a shopper lives here: merchant shops, the delivery fleet, and
-the operations desk. It runs on its own port and shares core logic with the storefront
-by importing directly from `../client/src`.
-
-```bash
-cd partners
-npm install
-npm run dev            # portal on http://localhost:5174
-```
-
-`VITE_API_URL` and `VITE_STOREFRONT_URL` are both configurable via `partners/.env`.
-For production, the API URL must be the public HTTPS API origin; it is embedded
-in the frontend at build time, so rebuild both apps after changing it.
-
-### 4. Populate the store
-
-1. Log in as the admin **in the partner portal** (`http://localhost:5174`).
-2. **Admin → Approvals** — review merchant, rider and product applications in one place.
-3. **Admin → Products** — add catalogue products (rice, dal, sabzi, oil…).
-4. Browse the store as a customer on `http://localhost:5173` and place a test order.
-
-> ⚠️ **Change the admin password after first login.** Use a strong `JWT_SECRET` and set
-> `CLIENT_URL` to your real origin before deploying.
-
-### Production deployment checklist
-
-Deploy the API and the two frontends as separate services. Keep API environment
-variables in the server host's secret settings, and set `VITE_API_URL` in each
-frontend's build settings to the public API origin (for example,
-`https://api.example.com`, without `/api`). `VITE_API_URL` is baked into the
-frontend bundle; changing it requires rebuilding and redeploying both frontends.
-In Vercel, configure these public URLs for both **Production** and **Preview**
-on each project:
-
-| Vercel project | Variable | Value |
-| --- | --- | --- |
-| `onlinekiranabirgunj` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
-| `onlinekiranabirgunj` | `VITE_PARTNERS_URL` | `https://onlinekirana-partners.vercel.app` |
-| `onlinekirana-partners` | `VITE_API_URL` | `https://onlinekirana.onrender.com` |
-| `onlinekirana-partners` | `VITE_STOREFRONT_URL` | `https://onlinekiranabirgunj.vercel.app` |
-
-Set `NODE_ENV=production`, `MONGO_URI`, a random `JWT_SECRET` of at least 32
-characters, and `CLIENT_URL` to the exact comma-separated HTTPS storefront and
-partner origins. For a pitch demo, set `PILOT_DELIVERY_ENABLED=true`; enable
-`PILOT_CANCELLATION_ENABLED=true` only if demonstrating that policy. These flags
-belong to the API environment, and changing them requires an API restart or
-redeploy. Configure `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT`
-if browser push is part of the demo.
-
-After deployment, check `https://<api-host>/api/health`, load both sites, sign in
-to each role, and place one test order during the free window and one eligible
-late-night test order. Confirm the displayed checkout fee matches the saved
-order total. Seed the admin through the server host's one-off command using
-`ADMIN_NAME`, `ADMIN_EMAIL`, and a strong `ADMIN_PASSWORD`; change the password
-after the first sign-in. Use staging data for these checks. Confirm MongoDB
-allows connections from the API host, enable automated database backups, and
-configure persistent object storage for uploads before relying on local disk
-across server restarts.
+- The beta policy states no returns or refunds beyond the direct-settlement rule above.
+  Obtain local legal review and publish a legally compliant returns policy before
+  accepting real customers at scale.
+- Regulatory registrations (company/PAN/VAT for the platform, applicable e-commerce and
+  consumer-protection rules in Nepal) remain the operator's responsibility.
 
 ---
 
 ## 🗺️ User flows
 
 **Shopping**
-`Home` → search / filter by category / sort → `Product detail` (+ reviews & related items) → `Cart` → `Checkout` (one seller, address + phone + pin, cash after delivery) → `Orders` (live status).
-
-**Pilot delivery and cancellations**
-- Delivery is free from 5 am to 10 pm. From 10 pm to midnight, checkout may show a fee of ₹10 per started straight-line kilometer from shop to customer, only when an approved rider is online and both location pins are available. The estimate is not road distance.
-- One order contains products from one seller. Payment is cash after the goods arrive; checkout does not accept online payment.
-- Customers can cancel before rider pickup. Pre-packing cancellations do not count. Packed/assigned cancellations count in a rolling 30-day window; the second triggers a warning, and the third pauses new orders for 7 days. System, shop and rider failures are excluded. Admin can restore ordering after review.
-- The pitch policy says no returns or refunds during the pilot. Obtain local legal review and publish a legally compliant policy before accepting real customers.
+`Home` → search / filter / sort → `Product detail` (+ reviews & related) → `Cart` →
+`Checkout` (address + phone + ward, COD) → `Orders` (live status).
 
 **Partner onboarding**
-`Register as merchant` → status *pending* → admin approves → `Shop & profile` (shop details first, then personal details/security) → save product drafts on this device → sync products for admin approval → shop page live → accept and pack orders.
+`Register as merchant` → *pending* → admin approves → `Shop & profile` → product drafts
+→ sync for admin approval → shop page live → accept and pack orders.
 
 **Order lifecycle**
 `pending → confirmed → packed → assigned → out_for_delivery → delivered` (or `cancelled`).
 
-**Merchant → rider handoff** (riders choose the jobs they accept)
+**Merchant → rider handoff**
 1. Customer orders from a shop and picks a slot.
-2. The merchant reviews customer/address and basket details, then taps **Accept order**.
-3. The merchant prepares the basket and taps **Mark packed** — the job is now available in the rider portal.
-4. An on-shift rider reviews open orders and taps **Accept order**. The order is assigned only after that choice; matching an area never assigns it automatically.
-5. The rider taps **I've reached the shop** on arrival, then **Goods collected**.
-6. The customer sees the order move to *On the way* from their own account.
-7. At the door the rider reads out the customer's 4-digit hand-over code. Only that code completes the drop.
+2. Merchant reviews the basket, taps **Accept order**.
+3. Merchant packs and taps **Mark packed** — the job appears in the rider portal.
+4. An on-shift rider taps **Accept order** (assignment only happens by choice; matching
+   an area never auto-assigns).
+5. Rider taps **I've reached the shop**, then **Goods collected**.
+6. Customer sees the order move to *On the way*.
+7. At the door the rider reads out the customer's 4-digit hand-over code. Only that code
+   completes the drop.
 
-Until a rider accepts it, the job stays `pending` and appears in the open orders list. Riders can
-accept only while on shift and below the active order limit. Customer name, phone, address and
-delivery notes become visible after acceptance. A rider who marks a job `failed` releases it back
-to the open list for another rider.
-
-### Browser push notifications
-
-The backend generates VAPID credentials into `server/.env` with `npm run setup-push-keys`.
-For deployment, set `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` in the server
-environment and keep the private key secret. Users can enable browser push from the notification
-bell; browsers require HTTPS except on localhost. In-app notifications work without push enabled.
+Until a rider accepts, the job stays in the open list. Riders accept only while on shift
+and below the active-order limit. A rider marking a job `failed` releases it back to the
+open list.
 
 ---
 
-## 🔌 API overview
+## 🚦 Beta phase & migration
 
-Base URL: `/api`. All authenticated routes expect `Authorization: Bearer <token>`.
-
-### Auth — `/api/auth`
-| Method | Route | Access | Notes |
-|---|---|---|---|
-| POST | `/register` | public | Create a customer, merchant **or rider** (never admin). Partner roles start `pending` |
-| POST | `/login` | public | Rate-limited; returns JWT + user. Optional `scope`: `customer` (storefront) or `portal` (business app) — a role outside the scope is refused with 403 |
-| POST | `/password-strength` | public | Powers the client password meter |
-
-### Catalogue — `/api/products`
-| Method | Route | Access |
-|---|---|---|
-| GET | `/?search=&category=&sort=&min=&max=` | public |
-| GET | `/categories` | public |
-| GET | `/:id` | public |
-
-### Shops — `/api/shops`
-| Method | Route | Access |
-|---|---|---|
-| GET | `/` | public (all approved shops) |
-| GET | `/:id` | public (shop page + its live products) |
-
-### Reviews — `/api/reviews`
-| Method | Route | Access |
-|---|---|---|
-| GET | `/product/:productId` | public (list + rating summary) |
-| POST | `/product/:productId` | user (create/update your own) |
-| DELETE | `/:id` | author or admin |
-
-### Orders — `/api/orders`
-| Method | Route | Access |
-|---|---|---|
-| POST | `/` | customer (place order) |
-| GET | `/mine` | customer |
-| GET | `/` | admin (all orders) |
-| PATCH | `/:id/status` | admin |
-
-### Partner (merchant) — `/api/partner`
-| Method | Route | Access |
-|---|---|---|
-| GET/PUT | `/shop` | merchant |
-| GET/POST | `/products` | merchant |
-| PUT/DELETE | `/products/:id` | merchant (own) |
-| GET | `/orders` | merchant (orders with their items) |
-| PATCH | `/orders/:id/status` | merchant (`confirmed` accept, then `packed`) |
-
-### Admin — `/api/admin`
-| Method | Route | Access |
-|---|---|---|
-| GET/POST/PUT/DELETE | `/products` | admin |
-| GET | `/partners` | admin |
-| PATCH | `/partners/:id/status` | admin (approve/suspend partner) |
-| GET | `/partners/pending-products` | admin |
-| PATCH | `/partners/products/:id/review` | admin (approve/reject product) |
-
-### Profile · Dashboard · Uploads · Health
-| Method | Route | Access |
-|---|---|---|
-| GET/PUT | `/api/profile`, PUT `/api/profile/password` | user |
-| GET | `/api/dashboard` | user (role-shaped response) |
-| POST | `/api/uploads/avatar`, `/shop-logo`, `/product` | user |
-| DELETE | `/api/uploads/avatar` | user (remove own photo) |
-| GET | `/api/health` | public |
-
-Static uploads are served from `GET /uploads/...`.
+| Item | Detail |
+|---|---|
+| Beta window | **Nov 1 – Dec 31, 2026** at `onlinekiranabirgunj.vercel.app` |
+| Commercial launch | **January 1, 2027** at `onlinekiranabirgunj.com.np` |
+| Migration | All accounts and order histories migrate automatically |
 
 ---
 
-## 🗂️ Project structure
+## 🗺️ Roadmap / future updates
 
-```
-onlinekirana/
-├── server/                 Express + MongoDB API
-│   ├── controllers/        auth, products, orders, partners, shops, reviews, dashboard, uploads
-│   ├── models/             User, Product, Order, Review (Mongoose)
-│   ├── routes/             /api/* route definitions
-│   ├── middleware/         auth (JWT), validate, rateLimit, upload (multer)
-│   ├── utils/errors.js     safe, non-leaking error responses
-│   ├── scripts/            createAdmin (npm run seed-admin)
-│   └── uploads/            avatars · shops · products
-├── client/                 React + Vite — the storefront (shoppers only, :5173)
-│   ├── src/pages/          Home, ProductDetail, Cart, Checkout, Orders, Shop,
-│   │                       Partners (public blog + join guide), Info…
-│   ├── src/components/     Navbar, Footer, ProductCard, ReviewSection, ImageUpload,
-│   │                       RoleGuard, AccessDenied, OrderCard, PasswordSecurity
-│   ├── src/context/        AuthContext (session) · CartContext (cart)
-│   ├── src/hooks/useLive.js
-│   └── src/api.js          axios instance, token handling, image URL resolver
-└── partners/               React + Vite — the business portal (:5174)
-    ├── src/pages/          Home, Faq, Join, Login, Register (public)
-    │                       Dashboard, ShopSetup, Products, Orders (merchant)
-    │                       RiderDashboard (delivery)
-    │                       AdminOrders, AdminProducts, AdminPartners, AdminDelivery (ops)
-    ├── src/components/     Navbar, Footer, RequireRole
-    └── vite.config.js      aliases @shared → ../client/src (no duplicated logic)
-```
-
-For a deeper look at the stack, data model, security and design decisions, see
-**[TECHNICAL.md](./TECHNICAL.md)**.
+- Integrate a regulated online payment gateway (eSewa/Khalti) to replace COD-only checkout.
+- Move uploads from local disk to object storage (S3/Cloudinary) for horizontal scaling.
+- Back rate limiting with Redis across API instances; move "live" updates from polling
+  to WebSockets/SSE.
+- Automated test suite (Jest + supertest) around checkout, moderation transitions and auth.
+- Delivery zones / fees by ward; catalogue pagination; admin analytics dashboard.
+- Customer-initiated order cancellation flow with settlement tracking.
+- Publish legally reviewed returns/refund and privacy policies before commercial launch.
 
 ---
 
-## 🧭 Pages (routes)
-
-| Route | Access | Purpose |
-|---|---|---|
-| `/` | public | Store — search, filter, sort |
-| `/product/:id` | public | Product detail, reviews, related |
-| `/shop/:id` | public | Public merchant shop page |
-| `/cart`, `/checkout` | cart / customer | Cart and checkout |
-| `/orders` | customer | Order history + live status |
-| `/partners` | public | Partner blog + join instructions |
-| `/dashboard`, `/profile` | any | Role-aware overview, profile |
-| `/login`, `/register` | public | Shopper accounts |
-| `/about`, `/faq`, `/contact` | public | Info |
-
-### Partner portal routes (`:5174`)
-
-| Route | Access | Purpose |
-|---|---|---|
-| `/`, `/faq`, `/join` | public | Portal landing, FAQ, step-by-step join guide |
-| `/register` | public | One form for both partner kinds — shop or rider |
-| `/pending` | signed in | "Application received" notice, shown after sign-up |
-| `/login` | public | Merchant, rider and admin sign-in (`scope: 'portal'`) |
-| `/dashboard` | merchant, delivery, admin | Role-shaped overview |
-| `/shop-setup`, `/products`, `/orders` | merchant | Shop page, catalogue, fulfilment |
-| `/rider` | delivery | Shifts, available jobs and delivery progress |
-| `/admin/orders`, `/admin/products`, `/admin/partners`, `/admin/delivery` | admin | Operations desk |
-
 ---
 
-## 🛠 Scripts
+# 📢 Official Public Notice & Beta Service Announcement
 
-| Location | Command | What it does |
-|---|---|---|
-| server | `npm run dev` | Start API with Node's built-in watch mode |
-| server | `npm start` | Start API (production) |
-| server | `npm run seed-admin` | Create/upgrade the admin user from `.env` |
-| server | `npm run cleanup-test-accounts` | Dry run by default; `--apply` deletes throwaway test accounts and their data |
-| client | `npm run dev` | Storefront dev server (`:5173`) |
-| client | `npm run build` | Production build |
-| client | `npm run lint` | ESLint (catches missing imports that only fail at runtime) |
-| client | `npm run preview` | Preview the built app |
-| partners | `npm run dev` | Partner portal dev server (`:5174`) |
-| partners | `npm run build` | Production build |
-| partners | `npm run lint` | ESLint |
+*(Readable text version of the official notice image shown at first visit in the app.
+The signed original is displayed in the storefront popup — tap/scroll to zoom.)*
 
-> **Run `npm run lint` before shipping.** Vite does not type-check, so a missing
-> import builds cleanly and then blanks the page in the browser. ESLint is the
-> only thing that catches it earlier.
+**PUBLIC NOTICE & BETA SERVICE ANNOUNCEMENT — Online Kirana**
 
----
+Online Kirana is officially entering its controlled **Beta Testing Phase**, running from
+**November 1, 2026 to December 31, 2026**, operating at
+**onlinekiranabirgunj.vercel.app**.
 
-## 📝 Notes
+The **official commercial launch** is on **January 1, 2027** at
+**onlinekiranabirgunj.com.np**. All accounts and histories migrate automatically.
 
-- JWT sessions last **7 days**; expired/invalid tokens are cleared on the client automatically.
-- Stock is decremented on order placement; checkout re-validates availability.
-- Passwords must be 8+ chars with upper, lower, number and symbol, and avoid common/derived words.
-- Phone numbers follow the Nepali mobile format (`98XXXXXXXX`).
+During the beta phase, please note the following service terms:
+
+1. **Direct Merchant QR Payments** — digital payments go directly to the merchant's QR
+   account. The platform does not hold or escrow funds.
+2. **Refund-style Direct Settlement** — in the unlikely event a paid order is cancelled,
+   lost or refunded, the refund is settled back the same way it went out: the merchant
+   refunds through the same channel the customer paid (merchant QR / Cash-on-Delivery
+   cash) — never a platform-held balance. The platform facilitates and tracks every
+   settlement until it reaches your hands.
+3. **Cash-on-Delivery** — cash is collected by the rider and transferred directly to the
+   fulfilling merchant.
+4. **Mandatory Delivery OTP** — inspect your items and complete payment before sharing
+   your OTP. Riders cannot mark an order Delivered/Returned without it.
+
+— **Dirghraj Giri**, Founder & Developer, **Online Kirana Pvt. Ltd., Birgunj**

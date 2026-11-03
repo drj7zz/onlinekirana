@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 const SEEN_KEY = 'ok_beta_notice_seen_v1';
 
@@ -52,12 +52,7 @@ export default function BetaNoticeModal() {
         </button>
 
         {!imgFailed ? (
-          <img
-            src="/notice.png"
-            alt="Online Kirana — Public Notice & Beta Service Announcement"
-            className="beta-notice-image"
-            onError={() => setImgFailed(true)}
-          />
+          <ZoomableNotice onFail={() => setImgFailed(true)} />
         ) : (
           <div className="beta-notice-text">
             <h2>Public Notice &amp; Beta Service Announcement</h2>
@@ -107,6 +102,123 @@ export default function BetaNoticeModal() {
           I Understand — Continue
         </button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The notice is a long legal document scan — at card width the text is too
+ * small to read. A zoomable viewer (wheel / pinch / double-tap, drag to pan)
+ * lets people actually read it without leaving the modal.
+ */
+function ZoomableNotice({ onFail }) {
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+  const dragStart = useRef(null);
+
+  const clampScale = (s) => Math.min(5, Math.max(1, s));
+
+  const zoomAt = (factor, cx, cy) =>
+    setScale((prev) => {
+      const next = clampScale(prev * factor);
+      const k = next / prev;
+      setOffset((o) => ({
+        x: cx - (cx - o.x) * k,
+        y: cy - (cy - o.y) * k,
+      }));
+      return next;
+    });
+
+  const onWheel = (e) => {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    zoomAt(e.deltaY < 0 ? 1.15 : 1 / 1.15, e.clientX - rect.left, e.clientY - rect.top);
+  };
+
+  const onPointerDown = (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
+    setDragging(true);
+  };
+  const onPointerMove = (e) => {
+    if (!dragging || !dragStart.current) return;
+    setOffset({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
+  };
+  const endDrag = () => setDragging(false);
+
+  // Two-pointer pinch: track the distance between the touches.
+  const pinch = useRef(null);
+  const onTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const [a, b] = e.touches;
+      pinch.current = { dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), scale };
+    }
+  };
+  const onTouchMove = (e) => {
+    if (e.touches.length === 2 && pinch.current) {
+      e.preventDefault();
+      const [a, b] = e.touches;
+      const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      setScale(clampScale((pinch.current.scale * dist) / pinch.current.dist));
+    }
+  };
+
+  const reset = () => { setScale(1); setOffset({ x: 0, y: 0 }); };
+
+  return (
+    <div className="notice-zoom-wrap">
+      <div
+        className={`notice-zoom-viewport${dragging ? ' is-dragging' : ''}`}
+        onWheel={onWheel}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerLeave={endDrag}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onDoubleClick={reset}
+        role="img"
+        aria-label="Online Kirana — Public Notice & Beta Service Announcement (zoomable document)"
+      >
+        <img
+          src="/notice.png"
+          alt=""
+          draggable="false"
+          className="notice-zoom-image"
+          style={{
+            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+          }}
+          onError={onFail}
+        />
+      </div>
+      <div className="notice-zoom-controls">
+        <button
+          type="button"
+          className="notice-zoom-btn"
+          aria-label="Zoom out"
+          onClick={() => zoomAt(1 / 1.25, 0, 0)}
+        >
+          −
+        </button>
+        <span className="notice-zoom-level" aria-live="polite">{Math.round(scale * 100)}%</span>
+        <button
+          type="button"
+          className="notice-zoom-btn"
+          aria-label="Zoom in"
+          onClick={() => zoomAt(1.25, 0, 0)}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          className="notice-zoom-btn notice-zoom-reset"
+          onClick={reset}
+        >
+          Reset
+        </button>
+      </div>
+      <p className="notice-zoom-hint">Scroll or pinch to zoom · drag to pan · double-tap to reset</p>
     </div>
   );
 }

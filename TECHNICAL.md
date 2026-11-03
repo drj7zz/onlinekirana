@@ -1,7 +1,44 @@
 # OnlineKirana — Technical Documentation
 
-Engineering reference for the OnlineKirana marketplace: architecture, data model,
+Engineering reference for the OnlineKirana marketplace: architecture, stack, CI/CD
+pipeline, hosting, environment variables, file structure, data model, flowcharts,
 security posture, API surface and the reasoning behind key decisions.
+
+Business overview, policies and the official public notice live in
+**[README.md](./README.md)**.
+
+---
+
+## 0. Delivery pipeline & hosting
+
+**Environments**
+
+| Env | Storefront | Partner portal | API | Database |
+|---|---|---|---|---|
+| Local dev | `localhost:5173` | `localhost:5174` | `localhost:5000` | local Mongo / Atlas |
+| Production | `onlinekiranabirgunj.vercel.app` | `onlinekirana-partners.vercel.app` | `onlinekirana.onrender.com` (Render) | MongoDB Atlas |
+
+**CI/CD** — `.github/workflows/ci.yml` runs ESLint (`npm run lint` at the repo root:
+client + partners) and the server tests on every push/PR; Vercel deploys the two
+frontends automatically from the connected Git repo, Render deploys the API.
+
+**Deploy flow**
+```
+git push → GitHub Actions (lint + tests)
+        → Vercel build (vite build, VITE_API_URL baked in) → storefront + portal CDNs
+        → Render deploy (NODE_ENV=production, npm start)     → API + static /uploads
+```
+
+`VITE_API_URL` is embedded in each frontend **at build time** — changing it requires a
+rebuild/redeploy of both frontends. `PILOT_*` flags are API runtime flags and require
+an API restart/redeploy.
+
+**High-level request flow**
+```
+Browser (SPA) ── HTTPS JSON (Bearer JWT) ──▶ Express API ──▶ MongoDB Atlas
+      │                                          │
+      └── VAPID web push ◀───────────────────────┘
+```
 
 ---
 
@@ -375,6 +412,13 @@ origins, and verify that late-night test orders quote the same fee as checkout.
 | `DB_USER` / `DB_PASS` | server | Atlas credentials (informational; the full URI is in `MONGO_URI`) |
 | `VITE_API_URL` | client | API base URL for the SPA |
 | `VITE_GOOGLE_CLIENT_ID` | client | enables the Google Identity Services button; use the same OAuth Web client ID as the API |
+| `VITE_PARTNERS_URL` | client (storefront) | public URL of the partner portal |
+| `VITE_STOREFRONT_URL` | partners | public URL of the storefront |
+| `PILOT_DELIVERY_ENABLED` / `PILOT_CANCELLATION_ENABLED` | server | pilot feature flags (runtime; restart to apply) |
+| `PLATFORM_PICKUP_LAT` / `PLATFORM_PICKUP_LNG` | server | pickup point for admin-listed products |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | server | browser web-push credentials (`npm run setup-push-keys` generates them) |
+| `RESEND_API_KEY` | server | optional transactional email notifications |
+| `CLOUDINARY_*`, `REDIS_URL` | server | optional integrations (uploads / shared rate-limit store) |
 
 Google sign-in is customer-only. The API verifies Google ID tokens, requires a
 verified email, links an existing customer account with the same email, and asks
@@ -397,3 +441,123 @@ can add a password later from their profile.
   checkout, moderation transitions and auth.
 - Possible additions: order cancellation by customers, delivery zones/fees by ward,
   pagination on the catalogue, and admin analytics.
+
+---
+
+## 13. Hosting & operations
+
+| Component | Host | Notes |
+|---|---|---|
+| Storefront SPA | Vercel (`onlinekiranabirgunj`) | static build of `client/`; `VITE_API_URL` + `VITE_PARTNERS_URL` baked at build time |
+| Partner portal SPA | Vercel (`onlinekirana-partners`) | static build of `partners/`; shares code via `@shared → ../client/src` |
+| REST API | Render (`onlinekirana`) | `NODE_ENV=production npm start`; persistent disk for `server/uploads` |
+| Database | MongoDB Atlas | automated backups enabled; IP allowlist includes the Render egress |
+| Push / email / cache | VAPID keys · Resend · Redis (optional) | configured via server env; health-checkable at `GET /api/admin/integrations` |
+
+**Operational checks after each deploy**
+1. `GET /api/health` returns `{ ok: true }`.
+2. Both frontends load, sign-in works for each role.
+3. CORS (`CLIENT_URL`) lists the exact HTTPS origins of both frontends.
+4. Place one free-window test order and one late-night eligible order; confirm the
+   checkout fee matches the saved order total.
+5. Confirm uploads persist across API restarts (persistent disk or object storage).
+
+---
+
+## 14. Flowcharts
+
+### Order lifecycle
+
+```
+place order ─▶ pending ─▶ confirmed (merchant accepts)
+                    │            │
+              (cancel)      mark packed ─▶ packed ─▶ rider accepts ─▶ assigned
+                    │                                                │
+                    ▼                                            out_for_delivery
+               cancelled ◀── customer cancels before pickup          │
+                                                             OTP verified at door
+                                                                     ▼
+                                                                 delivered
+```
+
+### Merchant → rider handoff
+
+```
+Customer order ─▶ Merchant Accept ─▶ Mark packed ─▶ job appears in rider open list
+                                                        │
+                                        on-shift rider taps Accept ◀── (else stays pending)
+                                                        │
+                                          Reached shop ─▶ Goods collected
+                                                        │
+                                          customer sees "On the way" ─▶ OTP handover ─▶ delivered
+```
+
+### Checkout (server-authoritative)
+
+```
+client cart ──▶ POST /api/orders ──▶ re-read products from DB
+                                     ├─ unavailable / out of stock? → reject
+                                     ├─ recompute price × discount, total
+                                     ├─ decrement stock ($inc: -qty)
+                                     └─ save order + delivery snapshot → notify merchant/rider
+```
+
+### Auth flow
+
+```
+register/login ─▶ validator (role, password, phone policy)
+              ─▶ bcrypt compare / hash
+              ─▶ JWT sign { id, role, name } 7d ─▶ localStorage (ok_token)
+              ─▶ axios attaches Bearer token ─▶ middleware/auth.js sets req.user
+              ─▶ role guards (requireAdmin / requireMerchant / RoleGuard)
+```
+
+---
+
+## 15. File structure (authoritative)
+
+```
+onlinekirana/
+├── .github/workflows/ci.yml   CI: lint (client + partners) + server tests
+├── server/                    Express + MongoDB API (Render)
+│   ├── server.js              bootstrap, middleware wiring, Mongo connect
+│   ├── config/                delivery config (pilot flags, slots, rates)
+│   ├── controllers/           auth, products, admin products, orders, partner,
+│   │                          shop, review, dashboard, profile, delivery, upload
+│   ├── models/                User, Product, Order, Review, Delivery,
+│   │                          Notification, AuditEvent
+│   ├── routes/                one router per resource under /api
+│   ├── middleware/            auth (JWT), validate, rateLimit, roles,
+│   │                          upload (multer), auditAdmin
+│   ├── lib/                   email (Resend), emailNotifications, googleIdentity,
+│   │                          piiCrypto, platform, productSearch, redis, tokens
+│   ├── utils/                 errors (non-leaking), notifications, otp, privacy
+│   ├── workers/tasks.js       background jobs
+│   ├── scripts/               createAdmin, createRider, seedCatalog, dbStats,
+│   │                          setupPushKeys, cleanupTestAccounts, fixMojibake
+│   ├── test/                  googleIdentity, productSearch tests
+│   └── uploads/               avatars · shops · products (persistent volume)
+├── client/                    React + Vite storefront (Vercel, :5173 dev)
+│   ├── public/                logo.png, notice.png, icons/, manifest, push-sw.js
+│   ├── src/pages/             Home, Shop, ProductDetail, Cart, Checkout, Orders,
+│   │                          Wishlist, CustomerAuth, Dashboard, Profile, Info,
+│   │                          Login, Register, NotFound
+│   ├── src/components/        Navbar, Footer, ProductCard, AddToCartButton,
+│   │                          StickyCartBar, BottomTabs, BetaNoticeModal,
+│   │                          NotificationCenter, ReviewSection, ImageZoom,
+│   │                          SmartImage, ImageUpload, OrderCard, RoleGuard,
+│   │                          AccessDenied, PasswordSecurity, Skeletons, Dropdown
+│   ├── src/context/           AuthContext, CartContext, WishlistContext, ToastContext
+│   ├── src/hooks/             useLive (polling), useSeo
+│   ├── src/lib/               apps, catalog, delivery, pricing, productUrl, recent, theme
+│   └── src/api.js             axios instance, token store, imageUrl()
+└── partners/                  React + Vite business portal (Vercel, :5174 dev)
+    ├── public/                logo.png, push-sw.js
+    ├── src/pages/             public: Home, Faq, Join, Login, Register
+    │                          merchant: Dashboard, ShopSetup, Products, Orders
+    │                          rider: RiderDashboard
+    │                          admin: AdminOrders, AdminProducts, AdminPartners,
+    │                                 AdminDelivery, AdminAudit, AdminIntegrations
+    ├── src/components/        Navbar, Footer, BottomTabs, RequireRole, WorkspaceHeader
+    └── vite.config.js         aliases @shared → ../client/src (no duplicated logic)
+```
