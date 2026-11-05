@@ -126,6 +126,8 @@ export default function Inventory() {
   const [inventoryState, setInventoryState] = useState({ userId: null, items: [] });
   const [syncing, setSyncing] = useState(false);
   const [query, setQuery] = useState('');
+  // two tabs: day-to-day stock keeping vs the approval pipeline
+  const [tab, setTab] = useState('inventory');
 
   const storedInventory = useMemo(() => {
     if (!merchantId) return { items: [], error: '', loaded: false };
@@ -248,6 +250,15 @@ export default function Inventory() {
   const savedShown = inventory.filter(matches);
   const catalogueShown = products.filter(matches);
 
+  // stock alerts: live products running low or empty — the merchant reads these
+  // like a shopkeeper's shelf check, no jargon.
+  const LOW_STOCK_AT = 5;
+  const liveProducts = products.filter((p) => p.status === 'approved' && p.isActive !== false);
+  const lowStock = liveProducts.filter((p) => p.stock > 0 && p.stock <= LOW_STOCK_AT);
+  const outOfStock = liveProducts.filter((p) => p.stock === 0);
+  const pendingApproval = products.filter((p) => p.status === 'pending');
+  const rejected = products.filter((p) => p.status === 'rejected');
+
   if (!user) return <p className="empty">Please <Link to="/login">login</Link> to manage your products.</p>;
   if (user.role !== 'merchant') return <p className="empty">The product catalogue is for merchant partners only.</p>;
   if (user.merchantStatus !== 'approved') {
@@ -265,69 +276,112 @@ export default function Inventory() {
         icon={Boxes}
         eyebrow="Merchant workspace"
         title="Inventory"
-        description="Add what your shop sells, keep stock fresh, and sync drafts for approval. New items go live once the operations desk approves them."
+        description="Two tabs: keep today's shelves stocked, and track what is waiting for approval."
       />
 
-      <AddProductForm
-        form={form}
-        set={set}
-        setPhoto={(url) => setFormState((f) => ({ ...f, imageUrl: url }))}
-        onSubmit={submit}
-        editId={editId}
-        onCancelEdit={() => { setEditId(null); setFormState(empty); }}
-        error={error || storedInventory.error}
-      />
+      {/* tab strip — mobile-first, big tap targets */}
+      <div className="chips inventory-tabs" role="tablist" aria-label="Inventory sections">
+        <button role="tab" aria-selected={tab === 'inventory'} className={tab === 'inventory' ? '' : 'muted-btn'} onClick={() => setTab('inventory')}>
+          <Boxes size={15} aria-hidden="true" /> Inventory
+          {lowStock.length + outOfStock.length > 0 && <span className="notification-count" aria-label="items need restocking">{lowStock.length + outOfStock.length}</span>}
+        </button>
+        <button role="tab" aria-selected={tab === 'approvals'} className={tab === 'approvals' ? '' : 'muted-btn'} onClick={() => setTab('approvals')}>
+          <Clock size={15} aria-hidden="true" /> Approvals
+          {pendingApproval.length + rejected.length + inventory.length > 0 && <span className="notification-count" aria-label="items awaiting approval">{pendingApproval.length + rejected.length + inventory.length}</span>}
+        </button>
+      </div>
 
-      <section className="history-tools" aria-label="Search inventory">
-        <label className="history-search"><Search size={16} aria-hidden="true" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your products" aria-label="Search inventory" /></label>
-      </section>
-
-      <details className="workspace-disclosure inventory-saved-disclosure" open={inventory.length > 0}>
-        <summary><span><UploadCloud size={17} aria-hidden="true" /> Saved on this device</span><small>{inventory.length} product{inventory.length === 1 ? '' : 's'} · sync to request approval</small></summary>
-        <div className="workspace-disclosure-body">
-          {!inventoryLoaded ? <p className="muted">Loading saved inventory…</p> : inventory.length === 0 ? (
-            <p className="empty">Inventory saved on this device will appear here.</p>
-          ) : (
-            <>
-              <div className="inventory-sync-row">
-                <p className="muted">Sync submits saved products to the operations desk for approval.</p>
-                <button type="button" className="cta-btn" onClick={syncInventory} disabled={syncing || !navigator.onLine}>
-                  {syncing ? 'Syncing…' : `Sync ${inventory.length} for approval`}
-                </button>
-              </div>
-              <div className="prod-rows">
-                {savedShown.map((item) => (
-                  <ProductRow key={item.localId} p={{ ...item, status: 'pending' }} busy={busyId} onEdit={(draft) => {
-                    setEditId(draft.localId);
-                    setFormState({ name: draft.name, category: draft.category, price: draft.price, unit: draft.unit, stock: draft.stock, imageUrl: draft.imageUrl || '', discountPercent: draft.discountPercent || 0, description: draft.description || '' });
-                    document.querySelector('.inventory-form-disclosure')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }} onDelete={del} />
-                ))}
-                {savedShown.length === 0 && <p className="empty">No saved items match that search.</p>}
-              </div>
-            </>
+      {tab === 'inventory' ? (
+        <>
+          {/* shelf alerts — plain language, no jargon */}
+          {(lowStock.length > 0 || outOfStock.length > 0) && (
+            <div className="workspace-alert stock-alerts" role="status">
+              <p><strong>Shelf check:</strong></p>
+              {outOfStock.length > 0 && <p>🛑 {outOfStock.length} product{outOfStock.length === 1 ? ' is' : 's are'} finished — restock today: {outOfStock.slice(0, 4).map((p) => p.name).join(', ')}{outOfStock.length > 4 && '…'}</p>}
+              {lowStock.length > 0 && <p>⚠️ {lowStock.length} running low (5 or fewer left): {lowStock.slice(0, 4).map((p) => `${p.name} (${p.stock})`).join(', ')}{lowStock.length > 4 && '…'}</p>}
+            </div>
           )}
-        </div>
-      </details>
 
-      <details className="workspace-disclosure">
-        <summary><span>Submitted catalogue</span><small>{products.length} product{products.length === 1 ? '' : 's'}</small></summary>
-        <div className="workspace-disclosure-body">
-          {loading ? <SkeletonRows n={4} cols={3} /> : products.length === 0 ? (
-            <p className="empty">No products have been submitted yet.</p>
-          ) : (
-            <div className="prod-rows">
-              {catalogueShown.map((p) => (
+          <AddProductForm
+            form={form}
+            set={set}
+            setPhoto={(url) => setFormState((f) => ({ ...f, imageUrl: url }))}
+            onSubmit={submit}
+            editId={editId}
+            onCancelEdit={() => { setEditId(null); setFormState(empty); }}
+            error={error || storedInventory.error}
+          />
+
+          <section className="history-tools" aria-label="Search inventory">
+            <label className="history-search"><Search size={16} aria-hidden="true" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search your products" aria-label="Search inventory" /></label>
+          </section>
+
+          <div className="prod-rows">
+            {loading ? <SkeletonRows n={4} cols={3} /> : catalogueShown.length === 0 ? (
+              <p className="empty">Nothing on your shelves yet. Add your first product above.</p>
+            ) : (
+              catalogueShown.map((p) => (
                 <ProductRow key={p._id} p={p} busy={busyId}
                   onEdit={(prod) => { setEditId(prod._id); setFormState({ name: prod.name, category: prod.category, price: prod.price, unit: prod.unit, stock: prod.stock, imageUrl: prod.imageUrl, discountPercent: prod.discountPercent, description: prod.description }); document.querySelector('.inventory-form-disclosure')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}
                   onDelete={del}
                 />
-              ))}
-              {catalogueShown.length === 0 && <p className="empty">No submitted products match that search.</p>}
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <details className="workspace-disclosure inventory-saved-disclosure" open={inventory.length > 0}>
+            <summary><span><UploadCloud size={17} aria-hidden="true" /> Saved on this device</span><small>{inventory.length} product{inventory.length === 1 ? '' : 's'} · sync to request approval</small></summary>
+            <div className="workspace-disclosure-body">
+              {!inventoryLoaded ? <p className="muted">Loading saved inventory…</p> : inventory.length === 0 ? (
+                <p className="empty">Inventory saved on this device will appear here.</p>
+              ) : (
+                <>
+                  <div className="inventory-sync-row">
+                    <p className="muted">Sync submits saved products to the operations desk for approval.</p>
+                    <button type="button" className="cta-btn" onClick={syncInventory} disabled={syncing || !navigator.onLine}>
+                      {syncing ? 'Syncing…' : `Sync ${inventory.length} for approval`}
+                    </button>
+                  </div>
+                  <div className="prod-rows">
+                    {savedShown.map((item) => (
+                      <ProductRow key={item.localId} p={{ ...item, status: 'pending' }} busy={busyId} onEdit={(draft) => {
+                        setEditId(draft.localId);
+                        setFormState({ name: draft.name, category: draft.category, price: draft.price, unit: draft.unit, stock: draft.stock, imageUrl: draft.imageUrl || '', discountPercent: draft.discountPercent || 0, description: draft.description || '' });
+                        document.querySelector('.inventory-form-disclosure')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }} onDelete={del} />
+                    ))}
+                    {savedShown.length === 0 && <p className="empty">No saved items match that search.</p>}
+                  </div>
+                </>
+              )}
             </div>
+          </details>
+
+          <div className="workspace-section-heading">
+            <div><h2>Waiting for the desk</h2><p>Submitted and pending the operations desk&apos;s decision.</p></div>
+            <span className="workspace-count">{pendingApproval.length}</span>
+          </div>
+          <div className="prod-rows">
+            {loading ? <SkeletonRows n={3} cols={3} /> : pendingApproval.length === 0 ? (
+              <p className="empty">Nothing is waiting. Every submitted product has a decision.</p>
+            ) : pendingApproval.map((p) => <ProductRow key={p._id} p={p} busy={busyId} onEdit={(prod) => { setEditId(prod._id); setFormState({ name: prod.name, category: prod.category, price: prod.price, unit: prod.unit, stock: prod.stock, imageUrl: prod.imageUrl, discountPercent: prod.discountPercent, description: prod.description }); }} onDelete={del} />)}
+          </div>
+
+          {rejected.length > 0 && (
+            <>
+              <div className="workspace-section-heading">
+                <div><h2>Not approved</h2><p>Edit and re-submit these, or remove them.</p></div>
+                <span className="workspace-count">{rejected.length}</span>
+              </div>
+              <div className="prod-rows">
+                {rejected.map((p) => <ProductRow key={p._id} p={p} busy={busyId} onEdit={(prod) => { setEditId(prod._id); setFormState({ name: prod.name, category: prod.category, price: prod.price, unit: prod.unit, stock: prod.stock, imageUrl: prod.imageUrl, discountPercent: prod.discountPercent, description: prod.description }); }} onDelete={del} />)}
+              </div>
+            </>
           )}
-        </div>
-      </details>
+        </>
+      )}
     </div>
   );
 }

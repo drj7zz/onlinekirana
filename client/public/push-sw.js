@@ -5,8 +5,8 @@ self.addEventListener('install', (event) => {
       '/index.html',
       '/manifest.webmanifest',
       '/logo.png',
-      '/icons/icon-192.png',
-      '/icons/icon-512.png',
+      '/icon/icon-192.png',
+      '/icon/icon-512.png',
     ])),
   );
   self.skipWaiting();
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icons/')) {
+  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/icon/')) {
     event.respondWith(
       caches.match(request).then((cached) => cached || fetch(request).then((response) => {
         if (response.ok) {

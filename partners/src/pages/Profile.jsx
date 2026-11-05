@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { UserCircle, Save, KeyRound, CircleCheck, TriangleAlert, Store, Bike, ShieldCheck, Pencil } from 'lucide-react';
+import { UserCircle, Save, KeyRound, CircleCheck, TriangleAlert, Store, Bike, ShieldCheck, Pencil, LogOut } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useToast } from '@shared/context/ToastContext';
@@ -38,7 +38,7 @@ const ORDERS_ROUTE = {
 };
 
 export default function Profile() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState(emptyForm);
   const [pw, setPw] = useState(emptyPw);
@@ -227,6 +227,11 @@ export default function Profile() {
           <button type="submit" disabled={pwSaving}><KeyRound size={15} aria-hidden="true" /> {pwSaving ? 'Updating…' : 'Update password'}</button>
         </form>
       </section>
+
+      {/* sign out — same affordance the storefront profile uses */}
+      <button type="button" className="danger profile-logout-btn" onClick={() => { logout(); window.location.href = '/'; }}>
+        <LogOut size={16} aria-hidden="true" /> Log out
+      </button>
     </div>
   );
 }

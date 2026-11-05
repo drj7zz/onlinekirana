@@ -8,7 +8,7 @@ import { useToast } from '@shared/context/ToastContext';
 import { PasswordField, StrengthMeter, checkPassword } from '@shared/components/PasswordSecurity';
 import WorkspaceHeader from '../components/WorkspaceHeader.jsx';
 
-const empty = { shopName: '', description: '', phone: '', logoUrl: '', line: '', ward: '', pickupLocation: null };
+const empty = { shopName: '', description: '', phone: '', logoUrl: '', line: '', ward: '', mapsUrl: '', pickupLocation: null };
 const emptyPassword = { currentPassword: '', newPassword: '', confirm: '' };
 
 export default function ShopSetup() {
@@ -39,6 +39,7 @@ export default function ShopSetup() {
         logoUrl: data.logoUrl || '',
         line: data.address?.line || '',
         ward: data.address?.ward || '',
+        mapsUrl: data.mapsUrl || '',
         pickupLocation: data.pickupLocation || null,
       });
     }).catch(() => setMsg({ ok: false, text: 'We could not load your shop details right now. Please refresh and try again.' }));
@@ -73,6 +74,7 @@ export default function ShopSetup() {
         phone: form.phone,
         logoUrl: form.logoUrl,
         address: { line: form.line, ward: form.ward },
+        mapsUrl: form.mapsUrl,
         pickupLocation: form.pickupLocation,
       });
       setShopId(data.id);
@@ -194,12 +196,30 @@ export default function ShopSetup() {
               <label>Shop address — street / tole
                 <input value={form.line} onChange={set('line')} placeholder="e.g. Main Road, Birgunj" />
               </label>
+              <label>Google Maps link for your shop (optional)
+                <input value={form.mapsUrl} onChange={set('mapsUrl')} placeholder="https://maps.app.goo.gl/… or a Google Maps share link" />
+                <span className="muted">Customers see a “Find us on Google Maps” button on your shop page.</span>
+                {errors.mapsUrl && <span className="field-error">{errors.mapsUrl}</span>}
+              </label>
               <div className="location-capture">
                 <button type="button" className="muted-btn" onClick={capturePickup} disabled={locating}>
-                  {locating ? 'Finding shop location…' : 'Save device as pickup location'}
+                  {locating ? 'Finding shop location…' : form.pickupLocation ? 'Update pickup pin' : 'Set pickup pin on the map'}
                 </button>
-                <small className="muted">Used for late-night distance estimates. The pin stays private.</small>
-                {form.pickupLocation && <small className="save-msg">Pickup pin saved.</small>}
+                <small className="muted">The exact pin lets riders find your counter and prices late-night delivery. It stays private.</small>
+                {form.pickupLocation && (
+                  <>
+                    <small className="save-msg">Pickup pin saved ({form.pickupLocation.lat}, {form.pickupLocation.lng}).</small>
+                    <a
+                      className="muted"
+                      href={`https://www.google.com/maps?q=${form.pickupLocation.lat},${form.pickupLocation.lng}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}
+                    >
+                      <ExternalLink size={13} aria-hidden="true" /> Check the pin on Google Maps
+                    </a>
+                  </>
+                )}
                 {errors.pickupLocation && <span className="field-error">{errors.pickupLocation}</span>}
               </div>
               {msg && <p className={msg.ok ? 'save-msg' : 'error'} role="status">{msg.ok ? <CircleCheck size={14} aria-hidden="true" /> : <TriangleAlert size={14} aria-hidden="true" />} {msg.text}</p>}

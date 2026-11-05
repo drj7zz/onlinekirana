@@ -26,6 +26,10 @@ export default function Checkout() {
 
   // prefill from the profile's saved default address
   useEffect(() => {
+    try {
+      const pin = JSON.parse(localStorage.getItem('ok_delivery_pin') || 'null');
+      if (pin?.lat != null) setLocation(pin);
+    } catch { /* ignore */ }
     API.get('/profile').then(({ data }) => {
       setForm((f) => ({
         ...f,
@@ -70,6 +74,7 @@ export default function Checkout() {
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         setLocation({ lat: Number(coords.latitude.toFixed(6)), lng: Number(coords.longitude.toFixed(6)) });
+        try { localStorage.setItem('ok_delivery_pin', JSON.stringify({ lat: Number(coords.latitude.toFixed(6)), lng: Number(coords.longitude.toFixed(6)) })); } catch { /* ignore */ }
         setLocating(false);
       },
       () => { setError('Could not get your location. Allow location access and try again.'); setLocating(false); },
@@ -132,9 +137,7 @@ export default function Checkout() {
           </p>
         )}
         {options.pilotPricing && options.distanceKm != null && selectedSlot?.fee > 0 && <p className="muted">About {options.distanceKm} km straight-line estimate at रू {options.ratePerKm}/km. The route distance may differ.</p>}
-        {options.pilotPricing && !options.riderOnline && <p className="muted">Paid late-night delivery appears only while an approved rider is online.</p>}
-        {options.pilotPricing && options.riderOnline && !location && <p className="muted">Add a delivery pin to see the late-night delivery option.</p>}
-        {options.pilotPricing && options.riderOnline && location && !options.hasPickupLocation && <p className="muted">Late-night pricing is unavailable until this shop saves its pickup pin.</p>}
+        {options.pilotPricing && !options.riderOnline && <p className="muted">Night delivery is not available yet — same-day and next-day windows are shown instead.</p>}
 
         <label>Note for the rider (optional)
           <input

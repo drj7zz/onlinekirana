@@ -64,6 +64,11 @@ export default function Shop() {
             <MapPin size={13} aria-hidden="true" /> {(shop.address.line || shop.address.ward) ? `${shop.address.line}${shop.address.ward ? `, Ward ${shop.address.ward}` : ''}, ${shop.address.city}` : 'Birgunj'}
             {shop.phone && <span className="shop-meta-item"><Phone size={13} aria-hidden="true" /> {shop.phone}</span>}
             {shop.memberSince && <span className="shop-meta-item"><CalendarClock size={13} aria-hidden="true" /> since {new Date(shop.memberSince).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })}</span>}
+            {shop.mapsUrl && (
+              <a className="shop-meta-item shop-maps-link" href={shop.mapsUrl} target="_blank" rel="noreferrer">
+                <MapPin size={13} aria-hidden="true" /> Find us on Google Maps
+              </a>
+            )}
           </p>
         </div>
       </div>

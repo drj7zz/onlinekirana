@@ -135,6 +135,7 @@ app.use('/api/admin/products', auth, requireAdmin, auditAdmin, require('./routes
 app.use('/api/admin/partners', auth, requireAdmin, auditAdmin, require('./routes/adminPartnerRoutes'));
 app.use('/api/admin/delivery', auth, requireAdmin, auditAdmin, require('./routes/adminDeliveryRoutes'));
 app.use('/api/admin/audit', auth, requireAdmin, require('./routes/adminAuditRoutes'));
+app.use('/api/admin/analytics', require('./routes/adminAnalyticsRoutes'));
 app.use('/api/admin/integrations', require('./routes/adminIntegrations'));
 app.use('/api/partner', require('./routes/partnerRoutes'));
 app.use('/api/dashboard', require('./routes/dashboardRoutes'));

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  PackageOpen, Search, Bike, Truck, ExternalLink, ClipboardList,
+  PackageOpen, Search, Bike, Truck, ExternalLink, ClipboardList, Table2, LayoutList,
 } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
@@ -72,6 +72,87 @@ function JobLine({ order, job, to }) {
   );
 }
 
+/**
+ * The supervisor's dense table: one row per order, every column the desk needs.
+ * Tap a row to expand its full detail beneath it (items, address, rider).
+ */
+function OrdersTable({ orders, expanded, onToggle, onStatus }) {
+  return (
+    <div className="audit-table-wrap admin-orders-table-wrap">
+      <table className="table admin-orders-table">
+        <thead>
+          <tr>
+            <th>Order</th><th>Customer</th><th>Items</th><th>Total</th>
+            <th>Status</th><th>Rider</th><th>Placed</th><th>Ward</th>
+          </tr>
+        </thead>
+        <tbody>
+          {orders.map((o) => {
+            const id = String(o._id).slice(-6).toUpperCase();
+            const rider = o.delivery?.rider;
+            const open = expanded === o._id;
+            return (
+              <FragmentRow
+                key={o._id}
+                order={o}
+                id={id}
+                rider={rider}
+                open={open}
+                onToggle={() => onToggle(open ? null : o._id)}
+                onStatus={onStatus}
+              />
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function FragmentRow({ order, id, rider, open, onToggle, onStatus }) {
+  const count = (order.items || []).reduce((s, i) => s + (i.qty || 0), 0);
+  return (
+    <>
+      <tr className={open ? 'is-open' : ''} onClick={onToggle} style={{ cursor: 'pointer' }}>
+        <td><code>#{id}</code></td>
+        <td>{order.user?.name || 'Customer'}<br /><small className="muted">{order.deliveryAddress?.phone}</small></td>
+        <td>{count}</td>
+        <td>{money(order.grandTotal)}</td>
+        <td><span className={`status s-${order.status}`}>{order.status.replace(/_/g, ' ')}</span></td>
+        <td>{rider ? rider.name : <span className="muted">—</span>}</td>
+        <td>{timeAgo(order.createdAt)}</td>
+        <td>{order.deliveryAddress?.ward || '—'}</td>
+      </tr>
+      {open && (
+        <tr className="admin-order-detail-row">
+          <td colSpan={8}>
+            <div className="admin-order-detail">
+              <dl className="detail-grid">
+                <div><dt>Delivery address</dt><dd>{[order.deliveryAddress?.line, order.deliveryAddress?.ward && `Ward ${order.deliveryAddress.ward}`, 'Birgunj'].filter(Boolean).join(', ')}</dd></div>
+                <div><dt>Payment</dt><dd>{order.paymentMethod === 'cod' ? 'Cash on delivery' : order.paymentMethod}</dd></div>
+                <div><dt>Delivery status</dt><dd>{DELIVERY_LABEL[order.delivery?.status] || '—'}</dd></div>
+                <div><dt>Window</dt><dd>{order.delivery?.slot ? (DELIVERY_WINDOW_LABEL[order.delivery.slot] || order.delivery.slot) : '—'}</dd></div>
+                {order.deliveryInstructions && <div className="detail-wide"><dt>Customer note</dt><dd>{order.deliveryInstructions}</dd></div>}
+              </dl>
+              {(order.items || []).length > 0 && (
+                <ul className="admin-order-items">
+                  {order.items.map((i, idx) => (
+                     
+                    <li key={idx}><span>{i.name}</span><span>{i.qty} {i.unit}</span><span>{money(i.price * i.qty)}</span></li>
+                  ))}
+                </ul>
+              )}
+              {order.status !== 'delivered' && order.status !== 'cancelled' && (
+                <button type="button" className="danger" onClick={() => onStatus(order._id, 'cancelled')}>Cancel order</button>
+              )}
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  );
+}
+
 export default function AdminOrders() {
   const { user } = useAuth();
   const [orders, setOrders] = useState([]);
@@ -80,6 +161,8 @@ export default function AdminOrders() {
   const [query, setQuery] = useState('');
   const [error, setError] = useState('');
   const [reviewingCustomer, setReviewingCustomer] = useState('');
+  const [view, setView] = useState('table');
+  const [expanded, setExpanded] = useState(null);
 
   const load = () =>
     API.get('/orders')
@@ -193,6 +276,16 @@ export default function AdminOrders() {
         aria-label="Search orders"
       /></label>
 
+      {/* the supervisor can flip between the dense table and full cards */}
+      <div className="chips" role="group" aria-label="View mode">
+        <button className={view === 'table' ? '' : 'muted-btn'} onClick={() => setView('table')} aria-pressed={view === 'table'}>
+          <Table2 size={15} aria-hidden="true" /> Table
+        </button>
+        <button className={view === 'cards' ? '' : 'muted-btn'} onClick={() => setView('cards')} aria-pressed={view === 'cards'}>
+          <LayoutList size={15} aria-hidden="true" /> Cards
+        </button>
+      </div>
+
       {loading ? (
         <p className="loading-shimmer">Loading orders</p>
       ) : visible.length === 0 ? (
@@ -200,6 +293,8 @@ export default function AdminOrders() {
           <PackageOpen size={34} aria-hidden="true" />
           <p>{orders.length === 0 ? 'No orders have been placed yet.' : 'Nothing matches that search.'}</p>
         </div>
+      ) : view === 'table' ? (
+        <OrdersTable orders={visible} expanded={expanded} onToggle={setExpanded} onStatus={setStatus} />
       ) : (
         <div className="order-list">
           {visible.map((o) => (

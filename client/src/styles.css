@@ -504,8 +504,8 @@ a { color: inherit; text-decoration: none; }
 /* the add + buy-now pair, and the stepper + buy-now pair once it is in the cart */
 .buy-cta, .buy-group { display: flex; align-items: center; gap: .5rem; width: 100%; }
 .buy-cta.is-compact, .buy-group.is-compact { flex-direction: column; }
-.buy-now { background: var(--brand); color: var(--on-accent); white-space: nowrap; }
-.buy-now:hover:not(:disabled) { background: var(--success-hover); color: var(--on-accent); }
+.buy-now { background: var(--brand); color: var(--surface); white-space: nowrap; }
+.buy-now:hover:not(:disabled) { background: var(--brand-strong); color: var(--surface); }
 .buy-group .buy-now { width: auto; }
 
 .buy-stepper { display: flex; align-items: center; gap: .1rem; padding: .2rem; border: 1px solid var(--brand); border-radius: 9px; background: var(--surface); flex: 1 1 auto; }
@@ -2038,8 +2038,10 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
 .customer-auth-divider { display: flex; align-items: center; gap: .8rem; margin: 1.35rem 0 .9rem; color: var(--grey-500); font-size: .76rem; }
 .customer-auth-divider::before, .customer-auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--grey-200); }
 .google-signin { display: flex; flex-direction: column; align-items: stretch; justify-content: center; width: 100%; min-width: 0; min-height: 44px; }
-.google-signin-button { display: flex; justify-content: center; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; overflow: visible; }
-.google-signin-button iframe { display: block; width: 100%; max-width: 100%; }
+/* The Google iframe renders inside a fixed-height box — clip the overflow so it
+   never spills over the divider or the partner note below it. */
+.google-signin-button { display: flex; justify-content: center; width: 100%; min-width: 0; max-width: 100%; min-height: 44px; height: 44px; overflow: hidden; }
+.google-signin-button iframe { display: block; width: 100% !important; max-width: 100%; height: 44px; }
 .google-signin-button .nsm7Bb-HzV7m-LgbsSe-bN97Pc-sM5MNb { width: 100%; }
 .google-signin-button .nsm7Bb-HzV7m-LgbsSe-BPrWId { font-family: var(--font-sans); font-size: .9rem; font-weight: 650; }
 .customer-auth-note { padding: .65rem .75rem; border: 1px solid var(--info-border); border-radius: 8px; background: var(--info-soft); color: var(--grey-700); font-size: .8rem; }
@@ -2313,3 +2315,6 @@ table .table button svg { vertical-align: -2px; margin-right: 3px; }
 .shop-reviews-block .review-list { margin-bottom: 1.1rem; }
 .shop-reviews-block .review-form textarea { width: 100%; }
 .nowrap { white-space: nowrap; }
+
+/* Google Maps link chip on the public shop page */
+.shop-meta-item.shop-maps-link { color: var(--brand); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }

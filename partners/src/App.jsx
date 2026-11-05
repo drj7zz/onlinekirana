@@ -26,6 +26,7 @@ import AdminProducts from './pages/AdminProducts.jsx';
 import AdminPartners from './pages/AdminPartners.jsx';
 import AdminDelivery from './pages/AdminDelivery.jsx';
 import AdminAudit from './pages/AdminAudit.jsx';
+import AdminAnalytics from './pages/AdminAnalytics.jsx';
 import AdminIntegrations from './pages/AdminIntegrations.jsx';
 
 function PortalHome() {
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/admin/partners" element={<RequireRole roles={['admin']}><AdminPartners /></RequireRole>} />
           <Route path="/admin/delivery" element={<RequireRole roles={['admin']}><AdminDelivery /></RequireRole>} />
           <Route path="/admin/audit" element={<RequireRole roles={['admin']}><AdminAudit /></RequireRole>} />
+          <Route path="/admin/analytics" element={<RequireRole roles={['admin']}><AdminAnalytics /></RequireRole>} />
           <Route path="/admin/integrations" element={<RequireRole roles={['admin']}><AdminIntegrations /></RequireRole>} />
 
           {/* Shoppers belong on the storefront, not here. */}

@@ -32,8 +32,8 @@ const attachRatings = async (products) => {
 // visit; a short TTL absorbs traffic spikes while staying fresh enough.
 exports.list = async (req, res) => {
   try {
-    const { search, category, sort, min, max } = req.query;
-    const cacheKey = `products:${search || ''}:${category || ''}:${sort || ''}:${min || ''}:${max || ''}`;
+    const { search, category, sort, min, max, lat, lng } = req.query;
+    const cacheKey = `products:${search || ''}:${category || ''}:${sort || ''}:${min || ''}:${max || ''}:${lat || ''}:${lng || ''}`;
     const products = await cached(cacheKey, 45, async () => {
       const approvedMerchants = await User.distinct('_id', { role: 'merchant', merchantStatus: 'approved' });
       const q = {
@@ -82,9 +82,35 @@ exports.list = async (req, res) => {
       if (sort === 'price_desc') sortOpt = { price: -1 };
       if (sort === 'name') sortOpt = { name: 1 };
 
-      return Product.find(q).sort(sortOpt)
-        .populate('merchant', 'shopName merchantStatus')
+      let docs = await Product.find(q).sort(sortOpt)
+        .populate('merchant', 'shopName merchantStatus shopAddress.location')
         .lean();
+      // Nearby-shop ranking: when the customer shares a delivery pin, products
+      // sold by shops close to that pin get pushed to the top. Distance is a
+      // straight-line estimate; the exact fee is still quoted at checkout.
+      const lat = Number(req.query.lat);
+      const lng = Number(req.query.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng) && !sort) {
+        const toRad = (d) => (d * Math.PI) / 180;
+        docs = docs
+          .map((p) => {
+            const loc = p.merchant?.shopAddress?.location;
+            if (!loc || !Number.isFinite(Number(loc.lat)) || !Number.isFinite(Number(loc.lng))) return { p, km: null };
+            const dLat = toRad(Number(loc.lat) - lat);
+            const dLng = toRad(Number(loc.lng) - lng);
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat)) * Math.cos(toRad(Number(loc.lat))) * Math.sin(dLng / 2) ** 2;
+            const km = Math.round(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) * 10) / 10;
+            return { p, km };
+          })
+          .sort((a, b) => {
+            if (a.km === null && b.km === null) return 0;
+            if (a.km === null) return 1;   // platform / no-pin shops last
+            if (b.km === null) return -1;
+            return a.km - b.km;
+          })
+          .map((x) => x.p);
+      }
+      return docs;
     });
     let list = await attachRatings(products);
 

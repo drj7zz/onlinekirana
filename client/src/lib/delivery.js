@@ -33,10 +33,8 @@ export const STATUS_LABEL = {
 export const DELIVERY_STEPS = ['pending', 'assigned', 'accepted', 'picked', 'delivered'];
 
 export const DELIVERY_WINDOW_LABEL = {
-  'pilot-today-evening': 'Today, 5 am–10 pm · Free',
-  'pilot-today-late': 'Tonight, 10 pm–12 am · Paid',
-  'pilot-tomorrow-evening': 'Tomorrow, 5 am–10 pm · Free',
-  'pilot-tomorrow-late': 'Tomorrow, 10 pm–12 am · Paid',
+  'pilot-today-evening': 'Today · Free',
+  'pilot-tomorrow-evening': 'Tomorrow · Free',
   'today-evening': 'Today, 4–7 pm',
   'today-night': 'Today, 7–10 pm',
   'tomorrow-morning': 'Tomorrow, 8–11 am',

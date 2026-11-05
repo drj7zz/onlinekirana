@@ -27,6 +27,12 @@ const userSchema = new mongoose.Schema({
   riderVehicle: { type: String, trim: true, default: '' },     // e.g. "Bike", "Cycle", "E-cargo"
   // merchant (partner) fields — only used when role === 'merchant'
   shopName: { type: String, trim: true },
+  // Public, human-readable handle derived from the shop name — a customer can
+  // visit /shop/:username style links, and the merchant has a solid identity
+  // instead of a random Mongo id. Kept unique and lower-case.
+  shopUsername: { type: String, trim: true, lowercase: true, unique: true, sparse: true },
+  // Optional public Google Maps link to the shop's own listing.
+  shopGoogleMapsUrl: { type: String, trim: true, default: '' },
   merchantStatus: { type: String, enum: ['pending', 'approved', 'suspended'], default: 'pending' },
   // public shop page profile (merchant only)
   shopDescription: { type: String, trim: true, default: '', maxlength: 600 },

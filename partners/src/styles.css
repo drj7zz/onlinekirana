@@ -493,3 +493,34 @@
   background: var(--brand-tint);
 }
 .job-maps:hover { background: var(--brand-border); }
+
+/* ===== Admin: dense tabular orders ===== */
+.admin-orders-table-wrap { overflow-x: auto; margin-top: .75rem; }
+.admin-orders-table { font-size: .82rem; min-width: 720px; }
+.admin-orders-table th { white-space: nowrap; }
+.admin-orders-table tbody tr.is-open { background: var(--grey-100); }
+.admin-order-detail-row td { background: var(--surface); padding: 0 !important; }
+.admin-order-detail { padding: .8rem .9rem; display: grid; gap: .7rem; }
+.admin-order-items { list-style: none; margin: 0; padding: 0; display: grid; gap: .3rem; }
+.admin-order-items li { display: flex; justify-content: space-between; gap: .6rem; border-bottom: 1px dashed var(--grey-200); padding-bottom: .25rem; font-size: .82rem; }
+.admin-order-detail .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .5rem; }
+.admin-order-detail .detail-grid dt { font-size: .68rem; color: var(--grey-500); text-transform: uppercase; letter-spacing: .05em; }
+.admin-order-detail .detail-grid dd { margin: 0; font-size: .82rem; font-weight: 650; }
+
+/* ===== Merchant inventory tabs & shelf alerts ===== */
+.inventory-tabs { margin-bottom: 1rem; }
+.inventory-tabs button { position: relative; display: inline-flex; align-items: center; gap: .4rem; }
+.stock-alerts { display: grid; gap: .3rem; border-left: 3px solid var(--warning-accent, #d97706); margin-bottom: 1rem; }
+.stock-alerts p { margin: 0; font-size: .86rem; line-height: 1.45; }
+
+/* ===== Rider: accept-confirmation popup ===== */
+.rider-accept-confirm {
+  margin-top: .5rem; padding: .7rem .8rem; border: 1px solid var(--brand-border);
+  border-radius: 12px; background: var(--brand-tint); display: grid; gap: .35rem;
+}
+.rider-accept-confirm p { margin: 0; font-size: .84rem; }
+.rider-accept-actions { display: flex; gap: .5rem; margin-top: .3rem; }
+
+/* Logout button on the partner profile, themed like the storefront's danger actions */
+.profile-logout-btn { display: inline-flex; align-items: center; gap: .45rem; margin-top: .4rem; padding: .55rem 1rem; border: 1px solid var(--danger); border-radius: 9px; background: var(--surface); color: var(--danger); font: inherit; font-size: .88rem; font-weight: 700; cursor: pointer; }
+.profile-logout-btn:hover { background: var(--danger); color: var(--on-accent); }

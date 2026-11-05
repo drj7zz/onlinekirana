@@ -26,6 +26,7 @@ const roleActions = {
     { title: 'Approve', actions: [
       { to: '/admin/partners', label: 'All approvals', icon: CircleCheck, hint: 'Review shop, rider and product applications' },
       { to: '/admin/integrations', label: 'Integration health', icon: Activity, hint: 'Check email, Cloudinary and Redis connectivity' },
+      { to: '/admin/analytics', label: 'Analytics', icon: Activity, hint: 'Repeat rate, delays, stock refill and reviews' },
     ] },
     { title: 'View operations', actions: [
       { to: '/admin/orders', label: 'Orders', icon: ReceiptText, hint: 'Review and update customer orders' },

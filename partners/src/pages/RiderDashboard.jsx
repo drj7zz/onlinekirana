@@ -84,6 +84,7 @@ function JobCard({ job, onAdvance, onClaim, canAccept }) {
 
   const action = NEXT_ACTIONS[job.status];
   const isOpen = job.status === 'pending' && !job.rider;
+  const [confirming, setConfirming] = useState(false);
   const drop = job.dropoff || {};
   const pick = job.pickup || {};
   const order = job.order || {};
@@ -110,7 +111,24 @@ function JobCard({ job, onAdvance, onClaim, canAccept }) {
         </div>
         <div className="order-head-side">
           <strong className="order-total">{Number(job.fee || 0) === 0 ? 'Free delivery' : money(job.fee)}</strong>
-          {isOpen && <button onClick={() => onClaim(job._id)} disabled={busy || !canAccept}>Accept order</button>}
+          {isOpen && (
+            <>
+              <button onClick={() => setConfirming(true)} disabled={busy || !canAccept}>Accept order</button>
+              {confirming && (
+                <div className="rider-accept-confirm" role="dialog" aria-label="Confirm this delivery">
+                  <p><strong>Take this delivery?</strong></p>
+                  <p className="muted">
+                    Collect from {pick.shopName || 'the counter'}{drop.ward ? `, drop in Ward ${drop.ward}` : ''}.
+                    Earn {Number(job.fee || 0) === 0 ? 'standard pay' : money(job.fee)}.
+                  </p>
+                  <div className="rider-accept-actions">
+                    <button className="cta-btn" disabled={busy || !canAccept} onClick={() => { setConfirming(false); onClaim(job._id); }}>Yes, accept</button>
+                    <button className="muted-btn" onClick={() => setConfirming(false)}>Not now</button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </header>
 

@@ -61,6 +61,13 @@ export function getCategories() {
 }
 
 export function getProducts(params = {}) {
+  // remember the last delivery pin so the storefront can rank nearby shops
+  try {
+    const pin = JSON.parse(localStorage.getItem('ok_delivery_pin') || 'null');
+    if (pin && pin.lat != null && pin.lng != null && params.lat === undefined) {
+      params = { ...params, lat: pin.lat, lng: pin.lng };
+    }
+  } catch { /* no pin saved */ }
   const query = new URLSearchParams(
     Object.entries(params).sort(([left], [right]) => left.localeCompare(right)),
   ).toString();
