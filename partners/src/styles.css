@@ -507,6 +507,21 @@
 .admin-order-detail .detail-grid dt { font-size: .68rem; color: var(--grey-500); text-transform: uppercase; letter-spacing: .05em; }
 .admin-order-detail .detail-grid dd { margin: 0; font-size: .82rem; font-weight: 650; }
 
+/* Mobile: the dense table becomes stacked cards — the same data, readable on a
+   phone without sideways scrolling. Cells keep a data-label so each value names
+   its column. */
+@media (max-width: 719px) {
+  .admin-orders-table thead { display: none; }
+  .admin-orders-table, .admin-orders-table tbody, .admin-orders-table tr,
+  .admin-orders-table td { display: block; width: 100%; }
+  .admin-orders-table tr { border-bottom: 1px solid var(--grey-200); padding: .5rem 0; }
+  .admin-orders-table td { padding: .18rem 0; border: none; display: flex; justify-content: space-between; gap: .6rem; }
+  .admin-orders-table td::before { content: attr(data-label); color: var(--grey-500); font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; flex: 0 0 auto; }
+  .admin-orders-table td:empty::before { content: none; }
+  .admin-order-detail-row td { padding: .6rem .8rem !important; }
+  .admin-order-detail-row td::before { content: none; }
+}
+
 /* ===== Merchant inventory tabs & shelf alerts ===== */
 .inventory-tabs { margin-bottom: 1rem; }
 .inventory-tabs button { position: relative; display: inline-flex; align-items: center; gap: .4rem; }

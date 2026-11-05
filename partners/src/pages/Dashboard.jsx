@@ -31,6 +31,7 @@ const roleActions = {
     { title: 'View operations', actions: [
       { to: '/admin/orders', label: 'Orders', icon: ReceiptText, hint: 'Review and update customer orders' },
       { to: '/admin/delivery', label: 'Delivery desk', icon: Truck, hint: 'Open jobs and rider fleet' },
+      { to: '/admin/analytics', label: 'Analytics', icon: Activity, hint: 'Repeat rate, delays, stock and reviews' },
     ] },
     { title: 'Manage catalogue', actions: [
       { to: '/admin/products', label: 'Products', icon: Package, hint: 'List and maintain the product catalogue' },

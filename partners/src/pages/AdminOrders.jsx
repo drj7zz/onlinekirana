@@ -114,14 +114,14 @@ function FragmentRow({ order, id, rider, open, onToggle, onStatus }) {
   return (
     <>
       <tr className={open ? 'is-open' : ''} onClick={onToggle} style={{ cursor: 'pointer' }}>
-        <td><code>#{id}</code></td>
-        <td>{order.user?.name || 'Customer'}<br /><small className="muted">{order.deliveryAddress?.phone}</small></td>
-        <td>{count}</td>
-        <td>{money(order.grandTotal)}</td>
-        <td><span className={`status s-${order.status}`}>{order.status.replace(/_/g, ' ')}</span></td>
-        <td>{rider ? rider.name : <span className="muted">—</span>}</td>
-        <td>{timeAgo(order.createdAt)}</td>
-        <td>{order.deliveryAddress?.ward || '—'}</td>
+        <td data-label="Order"><code>#{id}</code></td>
+        <td data-label="Customer">{order.user?.name || 'Customer'}<br /><small className="muted">{order.deliveryAddress?.phone}</small></td>
+        <td data-label="Items">{count}</td>
+        <td data-label="Total">{money(order.grandTotal)}</td>
+        <td data-label="Status"><span className={`status s-${order.status}`}>{order.status.replace(/_/g, ' ')}</span></td>
+        <td data-label="Rider">{rider ? rider.name : <span className="muted">—</span>}</td>
+        <td data-label="Placed">{timeAgo(order.createdAt)}</td>
+        <td data-label="Ward">{order.deliveryAddress?.ward || '—'}</td>
       </tr>
       {open && (
         <tr className="admin-order-detail-row">

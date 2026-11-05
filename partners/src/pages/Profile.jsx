@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { UserCircle, Save, KeyRound, CircleCheck, TriangleAlert, Store, Bike, ShieldCheck, Pencil, LogOut } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
@@ -39,6 +39,7 @@ const ORDERS_ROUTE = {
 
 export default function Profile() {
   const { user, updateUser, logout } = useAuth();
+  const navigate = useNavigate();
   const toast = useToast();
   const [form, setForm] = useState(emptyForm);
   const [pw, setPw] = useState(emptyPw);
@@ -207,9 +208,10 @@ export default function Profile() {
         )}
       </section>
 
-      <section className="card-panel">
-        <h2><KeyRound size={19} className="action-icon" aria-hidden="true" />Change password</h2>
-        <form className="form" onSubmit={changePw}>
+      {/* change password — collapsed by default so the page stays compact */}
+      <details className="workspace-disclosure profile-password-disclosure">
+        <summary><span><KeyRound size={17} aria-hidden="true" /> Change password</span><small>Optional · tap to open</small></summary>
+        <form className="form workspace-disclosure-body" onSubmit={changePw}>
           <label>Current password
             <PasswordField value={pw.currentPassword} autoComplete="current-password"
               onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} />
@@ -226,10 +228,10 @@ export default function Profile() {
           {pwMsg && <p className={pwMsg.ok ? 'save-msg' : 'error'}>{pwMsg.ok ? <CircleCheck size={14} aria-hidden="true" /> : <TriangleAlert size={14} aria-hidden="true" />} {pwMsg.text}</p>}
           <button type="submit" disabled={pwSaving}><KeyRound size={15} aria-hidden="true" /> {pwSaving ? 'Updating…' : 'Update password'}</button>
         </form>
-      </section>
+      </details>
 
       {/* sign out — same affordance the storefront profile uses */}
-      <button type="button" className="danger profile-logout-btn" onClick={() => { logout(); window.location.href = '/'; }}>
+      <button type="button" className="danger profile-logout-btn" onClick={() => { logout(); navigate('/'); }}>
         <LogOut size={16} aria-hidden="true" /> Log out
       </button>
     </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CircleCheck, Clock, CircleX } from 'lucide-react';
+import { CircleCheck, Clock, CircleX, Search } from 'lucide-react';
 import API from '@shared/api';
 import ImageUpload from '@shared/components/ImageUpload';
 import { useAuth } from '@shared/context/AuthContext';
@@ -27,6 +27,9 @@ export default function AdminProducts() {
   const [editId, setEditId] = useState(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
+  // filter chips + text search so the desk can pull one status or one product
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [query, setQuery] = useState('');
 
   const load = () => API.get('/admin/products')
     .then((r) => setProducts(r.data))
@@ -109,13 +112,26 @@ export default function AdminProducts() {
       </div>
 
       <h2 className="section">Products ({products.length})</h2>
+      <section className="history-tools" aria-label="Filter products">
+        <div className="chips">
+          {['all', 'pending', 'approved', 'rejected'].map((s) => (
+            <button key={s} className={statusFilter === s ? '' : 'muted-btn'} onClick={() => setStatusFilter(s)} aria-pressed={statusFilter === s}>
+              {s === 'all' ? 'All' : STATUS[s]?.label || s}
+            </button>
+          ))}
+        </div>
+        <label className="history-search"><Search size={16} aria-hidden="true" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search products" aria-label="Search products" /></label>
+      </section>
       {loading ? (
         <SkeletonRows n={4} cols={4} />
       ) : products.length === 0 ? (
         <p className="empty">No products in the catalogue yet.</p>
       ) : (
         <div className="prod-rows">
-          {products.map((p) => (
+          {products
+            .filter((p) => statusFilter === 'all' || p.status === statusFilter)
+            .filter((p) => !query.trim() || `${p.name} ${p.category}`.toLowerCase().includes(query.trim().toLowerCase()))
+            .map((p) => (
             <div key={p._id} className="prod-row">
               <div className="prod-row-media">
                 <SmartImage

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, CircleCheck, Ban, ChevronDown, UserCircle2 } from 'lucide-react';
+import { Clock, CircleCheck, Ban, ChevronDown, UserCircle2, Search } from 'lucide-react';
 import API from '@shared/api';
 import { useAuth } from '@shared/context/AuthContext';
 import { useLive } from '@shared/hooks/useLive';
@@ -72,6 +72,9 @@ export default function AdminPartners() {
   const [busy, setBusy] = useState('');
   // one open panel at a time — tapping a merchant or a rider opens their filled details
   const [openId, setOpenId] = useState(null);
+  // section filter: show one queue at a time on a phone, all on desktop
+  const [section, setSection] = useState('all');
+  const [query, setQuery] = useState('');
 
   const load = async () => {
     setError('');
@@ -108,14 +111,27 @@ export default function AdminPartners() {
   if (!user) return <p className="empty">Please <Link to="/login">login</Link> as admin.</p>;
   if (user.role !== 'admin') return <p className="empty">Admin access only.</p>;
 
+  const q = query.trim().toLowerCase();
+  const matches = (text) => !q || String(text).toLowerCase().includes(q);
   const pendingPartners = partners.filter((m) => m.merchantStatus === 'pending');
   const listedPartners = partners.filter((m) => m.merchantStatus !== 'pending');
   const pendingRiders = riders.filter((r) => r.riderStatus === 'pending');
+  const show = (key) => section === 'all' || section === key;
 
   return (
     <div>
       <h1>Approvals</h1>
       {error && <p className="error" role="alert">{error}</p>}
+      {/* section filter — on a phone this keeps one queue at a time on screen */}
+      <section className="history-tools" aria-label="Filter approvals">
+        <div className="chips">
+          {[['all', 'All'], ['products', `Products (${pending.length})`], ['shops', `Shops (${pendingPartners.length})`], ['riders', `Riders (${pendingRiders.length})`], ['directory', `Directory (${partners.length})`]].map(([key, label]) => (
+            <button key={key} className={section === key ? '' : 'muted-btn'} onClick={() => setSection(key)} aria-pressed={section === key}>{label}</button>
+          ))}
+        </div>
+        <label className="history-search"><Search size={16} aria-hidden="true" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search shops or riders" aria-label="Search approvals" /></label>
+      </section>
+      {show('products') && (
       <section className="section">
         <h2>Product submissions ({pending.length})</h2>
         <p className="muted">Review partner listings before they appear in the storefront.</p>
@@ -135,12 +151,14 @@ export default function AdminPartners() {
         </div>
       ))}
       </section>
+      )}
 
+      {show('shops') && (
       <section className="section">
       <h2>Partner applications ({pendingPartners.length})</h2>
       {pendingPartners.length === 0 ? <p className="empty">No partner applications waiting.</p> : (
         <div className="profile-rows">
-          {pendingPartners.map((m) => (
+          {pendingPartners.filter((m) => matches(`${m.shopName} ${m.name} ${m.email} ${m.phone}`)).map((m) => (
             <ExpandableRow key={m._id} id={m._id} icon={UserCircle2} title={m.shopName || 'Shop not set up'}
               subtitle={`${m.name} · ${m.email}${m.phone ? ` · ${m.phone}` : ''}`}
               right={<span className={`status s-${m.merchantStatus}`}>{partnerLabel[m.merchantStatus]}</span>}
@@ -154,12 +172,14 @@ export default function AdminPartners() {
         </div>
       )}
       </section>
+      )}
 
+      {show('riders') && (
       <section className="section">
         <h2>Rider applications ({pendingRiders.length})</h2>
         {pendingRiders.length === 0 ? <p className="empty">No rider applications waiting.</p> : (
           <div className="profile-rows">
-            {pendingRiders.map((r) => (
+            {pendingRiders.filter((r) => matches(`${r.name} ${r.email} ${r.phone} ${r.riderArea}`)).map((r) => (
               <ExpandableRow key={r._id} id={r._id} icon={UserCircle2} title={r.name}
                 subtitle={`${r.riderVehicle || 'rider'} · ${r.email}${r.phone ? ` · ${r.phone}` : ''}`}
                 right={<span className="status s-pending">Pending</span>}
@@ -173,12 +193,14 @@ export default function AdminPartners() {
           </div>
         )}
       </section>
+      )}
 
+      {show('directory') && (
       <section className="section">
       <h2>Partner directory ({partners.length})</h2>
       {listedPartners.length === 0 ? <p className="empty">No partners listed yet.</p> : (
         <div className="profile-rows">
-          {listedPartners.map((m) => (
+          {listedPartners.filter((m) => matches(`${m.shopName} ${m.name} ${m.email} ${m.phone}`)).map((m) => (
             <ExpandableRow key={m._id} id={m._id} icon={UserCircle2} title={m.shopName || 'Shop not set up'}
               subtitle={`${m.name} · ${m.email}${m.phone ? ` · ${m.phone}` : ''}`}
               right={<span className={`status s-${m.merchantStatus}`}>{statusIcon[m.merchantStatus]} {partnerLabel[m.merchantStatus]}</span>}
@@ -193,6 +215,7 @@ export default function AdminPartners() {
         </div>
       )}
       </section>
+      )}
     </div>
   );
 }
