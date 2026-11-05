@@ -48,3 +48,14 @@ export const productIdFromPath = (segment) => {
   const hex = String(segment).match(/[0-9a-f]{24}$/i);
   return hex ? hex[0] : String(segment);
 };
+/**
+ * The canonical shop path: the shop's public username when it has one —
+ * /shop/new-mithai-bhatti — falling back to the id so a shop without a
+ * username yet still gets a working link.
+ */
+export const shopPath = (shop) => {
+  if (!shop) return '/';
+  const id = shop._id || shop.id || shop;
+  const username = shop.username || shop.shopUsername;
+  return username ? `/shop/${username}` : `/shop/${id}`;
+};

@@ -6,22 +6,7 @@ const { cleanStr, PHONE_RE } = require('../middleware/validate');
 const { serverError } = require('../utils/errors');
 const { cached, cacheInvalidate } = require('../lib/platform');
 const { encryptPII } = require('../lib/piiCrypto');
-
-// The shop's public username: a slug of the shop name so the merchant gets a
-// solid identity (onlinekirana.com/shop/new-mithai-bhatti) instead of a random
-// Mongo id. On a collision, a short numeric suffix is appended.
-const slugifyShop = (name) => name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').trim().replace(/[\s-]+/g, '-').slice(0, 40).replace(/^-+|-+$/g, '');
-const uniqueShopUsername = async (base, currentUserId) => {
-  const clean = slugifyShop(base) || 'shop';
-  let candidate = clean;
-  for (let n = 2; n < 50; n += 1) {
-    // eslint-disable-next-line no-await-in-loop
-    const taken = await User.findOne({ shopUsername: candidate, _id: { $ne: currentUserId } }).select('_id').lean();
-    if (!taken) return candidate;
-    candidate = `${clean}-${n}`;
-  }
-  return `${clean}-${Date.now().toString(36)}`;
-};
+const { slugifyShop, uniqueShopUsername } = require('../lib/shopUsername');
 
 // Public view of a shop — only approved partners get a live shop page
 const publicShop = (u, rating) => ({
@@ -104,7 +89,7 @@ exports.updateMyShop = async (req, res) => {
     // keep the public username in step with the shop name; never blank it out
     if (shopName && (!user.shopUsername || shopName !== user.shopName)) {
       // eslint-disable-next-line no-await-in-loop
-      user.shopUsername = await uniqueShopUsername(shopName, user._id);
+      user.shopUsername = await uniqueShopUsername(User, shopName, user._id);
     }
     user.shopAddress = {
       line, ward, city: 'Birgunj',
@@ -121,12 +106,18 @@ exports.updateMyShop = async (req, res) => {
 };
 
 // Public: shop info + its live (approved) products — cached 30s per shop.
+// The canonical URL is the shop's username — domain.com/shop/new-mithai-bhatti —
+// while the Mongo id keeps working so old links never break.
 exports.getShop = async (req, res) => {
   try {
-    if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Shop not found' });
-    const payload = await cached(`shop:${req.params.id}`, 30, async () => {
-      const user = await User.findById(req.params.id);
-      if (!user || user.role !== 'merchant' || user.merchantStatus !== 'approved') return null;
+    const raw = String(req.params.id || '');
+    const byUsername = !mongoose.isValidObjectId(raw);
+    const query = byUsername
+      ? { shopUsername: raw.toLowerCase(), role: 'merchant', merchantStatus: 'approved' }
+      : { _id: raw, role: 'merchant', merchantStatus: 'approved' };
+    const payload = await cached(`shop:${raw}`, 30, async () => {
+      const user = await User.findOne(query);
+      if (!user) return null;
       const [products, rating] = await Promise.all([
         Product.find({ merchant: user._id, isActive: true, status: 'approved' }).sort({ createdAt: -1 }),
         shopRating(user._id),
@@ -144,7 +135,7 @@ exports.getShop = async (req, res) => {
 exports.listShops = async (req, res) => {
   try {
     const shops = await User.find({ role: 'merchant', merchantStatus: 'approved' })
-      .select('shopName shopDescription shopLogoUrl shopAddress createdAt');
+      .select('shopName shopUsername shopGoogleMapsUrl shopDescription shopLogoUrl shopAddress createdAt');
     res.json(await Promise.all(shops.map(async (u) => publicShop(u, await shopRating(u._id)))));
   } catch (e) {
     serverError(res, e);

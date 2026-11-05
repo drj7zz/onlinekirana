@@ -17,7 +17,7 @@ import ImageZoom from '../components/ImageZoom';
 import { rememberProduct } from '../lib/recent';
 import { SkeletonCard, SkeletonLine } from '../components/Skeletons';
 import { finalPrice, listPrice, discountBadge, savedPerUnit, rupees } from '../lib/pricing';
-import { productPath, productIdFromPath } from '../lib/productUrl';
+import { productPath, productIdFromPath, shopPath } from '../lib/productUrl';
 
 // Small 5-star row reused in the header + review summary
 export function Stars({ value = 0, size = 15 }) {
@@ -185,7 +185,7 @@ export default function ProductDetail() {
           {shop?._id && shop.merchantStatus === 'approved' && (
             <p className="sold-by">
               <Store size={14} aria-hidden="true" /> Sold by{' '}
-              <Link to={`/shop/${shop._id}`} className="shop-link">{shop.shopName}</Link>
+              <Link to={shopPath(shop)} className="shop-link">{shop.shopName}</Link>
             </p>
           )}
 
@@ -271,7 +271,7 @@ export default function ProductDetail() {
               fallback={<Store size={22} aria-hidden="true" />}
             />
             <div className="shop-inline-info">
-              <Link to={`/shop/${shop._id}`} className="shop-inline-name">
+              <Link to={shopPath(shop)} className="shop-inline-name">
                 {shop.shopName} <BadgeCheck size={15} aria-hidden="true" className="shop-verif" />
               </Link>
               {shop.shopDescription && <p className="muted">{shop.shopDescription}</p>}
@@ -285,7 +285,7 @@ export default function ProductDetail() {
               )}
               {shop.shopPhone && <p className="muted"><Phone size={13} aria-hidden="true" /> {shop.shopPhone}</p>}
             </div>
-            <Link to={`/shop/${shop._id}`} className="cta-btn visit-shop-btn">Visit shop</Link>
+            <Link to={shopPath(shop)} className="cta-btn visit-shop-btn">Visit shop</Link>
           </div>
         </section>
       )}

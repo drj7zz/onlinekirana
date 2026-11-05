@@ -170,7 +170,7 @@ exports.getOne = async (req, res) => {
       _id: id, isActive: true, status: 'approved',
       $or: [{ merchant: null }, { merchant: { $in: approvedMerchants } }],
     })
-      .populate('merchant', 'shopName shopLogoUrl shopDescription shopPhone merchantStatus shopAddress.line shopAddress.ward shopAddress.city');
+      .populate('merchant', 'shopName shopUsername shopLogoUrl shopDescription shopPhone merchantStatus shopAddress.line shopAddress.ward shopAddress.city');
     if (!product) return res.status(404).json({ message: 'Product not found' });
 
     // `.toObject()` does NOT carry the `finalPrice` virtual, so the raw price was

@@ -31,6 +31,12 @@ const setStatus = async (req, res) => {
     }
     const previousStatus = partner.merchantStatus;
     partner.merchantStatus = status;
+    // every approved shop gets its public username derived from the shop name
+    if (status === 'approved' && !partner.shopUsername && partner.shopName) {
+      const { uniqueShopUsername } = require('../lib/shopUsername');
+      // eslint-disable-next-line no-await-in-loop
+      partner.shopUsername = await uniqueShopUsername(User, partner.shopName, partner._id);
+    }
     await partner.save();
     // suspending a partner also hides their products
     if (status === 'suspended') await Product.updateMany({ merchant: partner._id }, { isActive: false });
